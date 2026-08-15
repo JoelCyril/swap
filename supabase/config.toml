@@ -1,0 +1,2 @@
+# Link this repository to your own project before applying migrations:
+# supabase link --project-ref <your-project-ref>

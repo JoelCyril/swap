@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS listing_removed boolean NOT NULL DEFAULT false;
