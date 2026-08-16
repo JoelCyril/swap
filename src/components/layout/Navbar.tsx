@@ -11,7 +11,7 @@ import { listMyNotifications, markNotificationRead, markAllNotificationsRead } f
 import { listAnnouncements } from "@/lib/announcements.functions";
 
 import { toast } from "sonner";
-import logoAsset from "@/assets/swap-logo.png.asset.json";
+const logoUrl = "/swap-logo.png";
 
 export function Navbar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -123,7 +123,7 @@ export function Navbar() {
         </button>
         <Link to="/listings" className="flex items-center gap-2 shrink-0 group">
           <img
-            src={logoAsset.url}
+            src={logoUrl}
             alt="SWAP"
             className="h-12 w-auto object-contain transition-transform group-hover:rotate-[-4deg] drop-shadow sm:h-16"
           />
