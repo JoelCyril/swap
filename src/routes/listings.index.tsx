@@ -119,8 +119,6 @@ function ListingsPage() {
       return sort === "oldest" ? at - bt : bt - at;
     });
 
-  const filtersActive = conditions.length > 0 || !!emirate || sort !== "shuffle";
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -150,10 +148,6 @@ function ListingsPage() {
               <h1 className="font-display text-2xl font-black sm:text-3xl">
                 {q ? `Results for “${q}”` : active === "All" ? "All listings" : active}
               </h1>
-              <span className="text-sm text-muted-foreground">
-                {listings.length} item{listings.length === 1 ? "" : "s"} available
-                {filtersActive ? " · filters on" : ""}
-              </span>
             </div>
             <Link
               to={signedIn ? "/new-listing" : "/auth"}

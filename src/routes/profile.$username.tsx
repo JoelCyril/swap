@@ -183,7 +183,7 @@ function ProfilePage() {
               onClick={() => setShowAllListings((v) => !v)}
               className="rounded-full border-2 border-primary/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-primary transition hover:bg-primary-soft"
             >
-              {showAllListings ? "Show less" : `View all ${listings.length} listings`}
+              {showAllListings ? "Show less" : "View all listings"}
             </button>
           )}
         </div>
