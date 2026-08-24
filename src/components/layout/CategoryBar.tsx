@@ -1,4 +1,3 @@
-import { ChevronRight } from "lucide-react";
 import { CATEGORIES, type ItemCategory } from "@/lib/db-types";
 
 interface Props {
@@ -26,13 +25,6 @@ export function CategoryBar({ active = "All", onChange }: Props) {
             </button>
           );
         })}
-        <button
-          type="button"
-          className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 hover:bg-white/30 transition"
-          aria-label="More categories"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );
