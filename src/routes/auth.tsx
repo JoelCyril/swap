@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowRightLeft } from "lucide-react";
+import { sendWelcomeEmailIfNeeded } from "@/lib/welcome-email.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -18,16 +20,20 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  const sendWelcomeEmail = useServerFn(sendWelcomeEmailIfNeeded);
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/listings" });
-    });
-  }, [navigate]);
+  supabase.auth.getSession().then(async ({ data }) => {
+    if (data.session) {
+      await sendWelcomeEmail().catch(() => {});
+      navigate({ to: "/listings" });
+    }
+  });
+}, [navigate, sendWelcomeEmail]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
