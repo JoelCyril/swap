@@ -525,8 +525,31 @@ function OfferDetail() {
                     disabled={!chatOpen}
                     className="hidden"
                     onChange={(e) => {
-                      const picked = Array.from(e.target.files ?? []).slice(0, 4);
-                      setFiles((prev) => [...prev, ...picked].slice(0, 4));
+                      const picked = Array.from(e.target.files ?? [])
+  .slice(0, 4)
+  .filter((file) => {
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      toast.error(`${file.name} is not a supported image or video`);
+      return false;
+    }
+
+    if (isImage && file.size > 10 * 1024 * 1024) {
+      toast.error(`${file.name} is over 10 MB`);
+      return false;
+    }
+
+    if (isVideo && file.size > 25 * 1024 * 1024) {
+      toast.error(`${file.name} is over 25 MB`);
+      return false;
+    }
+
+    return true;
+  });
+
+setFiles((prev) => [...prev, ...picked].slice(0, 4));
                       e.target.value = "";
                     }}
                   />
