@@ -3,6 +3,24 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { moderate } from "./moderation";
 
+// Define or import your allowed attachment URL validation logic
+
+function isAllowedAttachmentUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "https:") return false;
+
+    const isSupabaseStorage =
+      url.hostname.includes("supabase.co") &&
+      url.pathname.includes("/storage/v1/object/");
+
+    return isSupabaseStorage;
+  } catch {
+    return false;
+  }
+}
+
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { offer_id: string }) => z.object({ offer_id: z.string().uuid() }).parse(d))
@@ -31,6 +49,11 @@ export const sendMessage = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Validate all attachment URLs against allowed domains/patterns
+    if (!data.attachment_urls.every(isAllowedAttachmentUrl)) {
+      throw new Error("Invalid attachment URL");
+    }
+
     const verdict = moderate(data.body || "", "chat");
     if (verdict.flagged) {
       throw new Error(
