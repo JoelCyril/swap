@@ -285,7 +285,6 @@ export const respondToOffer = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (nextStatus === "accepted") {
-      await context.supabase.from("listings").update({ status: "reserved" }).eq("id", offer.listing_id);
       // Chat is now open; the sender acts next.
       await context.supabase
         .from("offers")
@@ -294,12 +293,6 @@ export const respondToOffer = createServerFn({ method: "POST" })
 
     } else if (nextStatus === "completed") {
       await context.supabase.from("listings").update({ status: "completed" }).eq("id", offer.listing_id);
-    } else if (
-      (nextStatus === "declined" || nextStatus === "withdrawn") &&
-      offer.status === "accepted"
-    ) {
-      // Reverting an accepted offer frees the listing again.
-      await context.supabase.from("listings").update({ status: "active" }).eq("id", offer.listing_id);
     }
 
     // Notify the offer-maker of outcome (except withdraw = sender's action)
