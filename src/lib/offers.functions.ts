@@ -50,9 +50,56 @@ export const listMyOffers = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("offers")
-      .select(
-        "*, listing:listings(*, owner:profiles!listings_owner_profile_fkey(*)), from_profile:profiles!offers_from_profile_fkey(*), to_profile:profiles!offers_to_profile_fkey(*)",
-      )
+      .select(`
+  id,
+  listing_id,
+  from_user,
+  to_user,
+  offered_item_ids,
+  recipient_item_ids,
+  removed_item_ids,
+  removed_recipient_item_ids,
+  complete_confirmed_by,
+  received_confirmed_by,
+  listing_removed,
+  turn_user,
+  status,
+  message,
+  created_at,
+  updated_at,
+  listing:listings(
+    id,
+    owner_id,
+    title,
+    description,
+    category,
+    condition,
+    image_urls,
+    image_emoji,
+    status,
+    owner:profiles!listings_owner_profile_fkey(
+      id,
+      username,
+      display_name,
+      avatar_color,
+      avatar_url
+    )
+  ),
+  from_profile:profiles!offers_from_profile_fkey(
+    id,
+    username,
+    display_name,
+    avatar_color,
+    avatar_url
+  ),
+  to_profile:profiles!offers_to_profile_fkey(
+    id,
+    username,
+    display_name,
+    avatar_color,
+    avatar_url
+  )
+`)
       .or(`from_user.eq.${context.userId},to_user.eq.${context.userId}`)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -75,7 +122,10 @@ export const getOffer = createServerFn({ method: "GET" })
 
     const fetchItems = async (ids: string[]): Promise<any[]> => {
       if (!ids.length) return [];
-      const { data: rows } = await context.supabase.from("items").select("*").in("id", ids);
+      const { data: rows } = await context.supabase
+  .from("items")
+  .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
+  .in("id", ids);
       return (rows ?? []) as any[];
     };
 
