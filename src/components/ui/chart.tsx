@@ -32,6 +32,18 @@ function useChart() {
   return context;
 }
 
+// Step 6.2: Add safe color validation helper
+function isSafeCssColor(value: string) {
+  return (
+    /^#[0-9a-fA-F]{3,8}$/.test(value) ||
+    /^rgb\([\d\s,%.]+\)$/.test(value) ||
+    /^rgba\([\d\s,.%]+\)$/.test(value) ||
+    /^hsl\([\d\s,%.]+\)$/.test(value) ||
+    /^hsla\([\d\s,.%]+\)$/.test(value) ||
+    /^oklch\([\d\s.%/]+\)$/.test(value)
+  );
+}
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -78,7 +90,7 @@ ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color && isSafeCssColor(color) ? `  --color-${key}: ${color};` : null;
   })
   .join("\n")}
 }
