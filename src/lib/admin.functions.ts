@@ -98,7 +98,8 @@ export const redeemAdminCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { code: string }) => z.object({ code: z.string().min(4) }).parse(d))
   .handler(async ({ data, context }) => {
-    const expected = "bosh123";
+    const expected = process.env.ADMIN_BOOTSTRAP_CODE;
+    if (!expected) throw new Error("Admin bootstrap not configured");
     if (data.code !== expected) throw new Error("Invalid code");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
