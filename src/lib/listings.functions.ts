@@ -30,7 +30,28 @@ export const listListings = createServerFn({ method: "GET" })
     const supabase = publicClient();
     let q = supabase
       .from("listings")
-      .select("*, owner:profiles!listings_owner_profile_fkey(*)")
+      .select(`
+  id,
+  owner_id,
+  title,
+  description,
+  category,
+  condition,
+  location,
+  emirate,
+  looking_for,
+  image_urls,
+  image_emoji,
+  status,
+  created_at,
+  owner:profiles!listings_owner_profile_fkey(
+    id,
+    username,
+    display_name,
+    avatar_color,
+    avatar_url
+  )
+`)
       .in("status", ["active", "reserved"])
       .order("created_at", { ascending: false })
       .limit(60);
@@ -46,7 +67,30 @@ export const getListing = createServerFn({ method: "GET" })
     const supabase = publicClient();
     const { data: row, error } = await supabase
       .from("listings")
-      .select("*, owner:profiles!listings_owner_profile_fkey(*)")
+      .select(`
+  id,
+  owner_id,
+  title,
+  description,
+  category,
+  condition,
+  location,
+  emirate,
+  looking_for,
+  image_urls,
+  image_emoji,
+  status,
+  created_at,
+  updated_at,
+  item_id,
+  owner:profiles!listings_owner_profile_fkey(
+    id,
+    username,
+    display_name,
+    avatar_color,
+    avatar_url
+  )
+`)
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
