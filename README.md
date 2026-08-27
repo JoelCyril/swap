@@ -1,5 +1,5 @@
 SWAP — Item-Trading Marketplace Web App
-Welcome to SWAP, a modern, full-stack item-trading (barter) marketplace web application where users exchange items directly with each other without cash transactions. SWAP brings the traditional community barter system into the digital age with a clean, engaging. Commit 7
+Welcome to SWAP, a modern, full-stack item-trading (barter) marketplace web application where users exchange items directly with each other without cash transactions. SWAP brings the traditional community barter system into the digital age with a clean, engaging. Commit 8
 
 📋 Table of Contents
 Project Overview
