@@ -36,12 +36,12 @@ export const createOffer = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     await notifyUser({
-      userId: listing.owner_id,
-      type: "offer_received",
-      title: "New offer received",
-      body: `Someone wants to swap for "${listing.title}"`,
-      link: `/offers/${row.id}`,
-    });
+  userId: listing.owner_id,
+  type: "offer_received",
+  title: "A new swap offer awaits you on SWAP",
+  body: `You've got a swap offer for your listed item: "${listing.title}". Another SWAP member is interested in trading.`,
+  link: `/offers/${row.id}`,
+});
     return row;
   });
 
