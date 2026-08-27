@@ -1,159 +1,843 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { listMyListings, deleteListing } from "@/lib/listings.functions";
-import { gradientForId, timeAgo } from "@/lib/db-types";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  listMyInventoryWithListings,
+  createItem,
+  updateItem,
+  deleteItem,
+  quickListInventoryItem,
+  unlistInventoryItem,
+} from "@/lib/items.functions";
+import { deleteListing } from "@/lib/listings.functions";
+import { CATEGORIES, CONDITIONS, type ItemCategory, type ItemCondition } from "@/lib/db-types";
+import { uploadFileTo } from "@/lib/upload";
+import { ImageCropper } from "@/components/ImageCropper";
+import {
+  Plus,
+  ArrowRightLeft,
+  Pencil,
+  Trash2,
+  X,
+  Search,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Package,
+  Layers,
+  Sparkles,
+  Eye,
+  EyeOff,
+  SlidersHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/my-listings")({
   head: () => ({
     meta: [
-      { title: "My listings — SWAP" },
-      { name: "description", content: "Manage the items you have posted for swapping." },
-      { property: "og:title", content: "My listings — SWAP" },
-      { property: "og:description", content: "Manage the items you have posted for swapping." },
+      { title: "My Inventory & Listings — SWAP" },
+      { name: "description", content: "Gallery of all your items. Easily manage and list your inventory on SWAP." },
+      { property: "og:title", content: "My Inventory & Listings — SWAP" },
+      { property: "og:description", content: "Manage and list items from your inventory." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: MyListingsPage,
+  component: MyInventoryPage,
 });
 
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  reserved: "bg-yellow-100 text-yellow-800",
-  completed: "bg-blue-100 text-blue-800",
-  removed: "bg-gray-100 text-gray-700",
+const EMPTY_ITEM = {
+  name: "",
+  category: "Electronics" as ItemCategory,
+  condition: "Good" as ItemCondition,
+  image_emoji: "📦",
+  description: "",
+  visibility: "public" as "public" | "private",
+  image_urls: [] as string[],
 };
 
-function MyListingsPage() {
+type FilterTab = "all" | "listed" | "unlisted" | "in_trade";
+
+function MyInventoryPage() {
   const qc = useQueryClient();
-  const fn = useServerFn(listMyListings);
-  const del = useServerFn(deleteListing);
-  const delMut = useMutation({
-    mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Listing deleted");
-      qc.invalidateQueries({ queryKey: ["my-listings"] });
-      qc.invalidateQueries({ queryKey: ["listings"] });
-      qc.invalidateQueries({ queryKey: ["favourites"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete listing"),
+  const getInventory = useServerFn(listMyInventoryWithListings);
+  const createItemFn = useServerFn(createItem);
+  const updateItemFn = useServerFn(updateItem);
+  const deleteItemFn = useServerFn(deleteItem);
+  const quickListFn = useServerFn(quickListInventoryItem);
+  const unlistFn = useServerFn(unlistInventoryItem);
+  const deleteListingFn = useServerFn(deleteListing);
+
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
+  const [search, setSearch] = useState("");
+  const [openModal, setOpenModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [queue, setQueue] = useState<File[]>([]);
+  const [form, setForm] = useState({ ...EMPTY_ITEM });
+
+  // Quick List Dialog state for customizing "Looking for"
+  const [quickListModalItem, setQuickListModalItem] = useState<any | null>(null);
+  const [lookingForText, setLookingForText] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-inventory-listings"],
+    queryFn: () => getInventory(),
   });
-  const { data: listings, isLoading } = useQuery({ queryKey: ["my-listings"], queryFn: () => fn() });
+
+  const items = data?.items ?? [];
+  const standaloneListings = data?.standaloneListings ?? [];
+
+  // Counts
+  const totalItems = items.length + standaloneListings.length;
+  const listedCount = items.filter((i) => i.is_listed && i.listing_status === "active").length + standaloneListings.filter((l: any) => l.status === "active").length;
+  const inTradeCount = items.filter((i) => i.listing_status === "reserved" || i.listing_status === "completed").length + standaloneListings.filter((l: any) => l.status === "reserved" || l.status === "completed").length;
+  const unlistedCount = items.filter((i) => !i.is_listed).length;
+
+  // Filter items
+  const q = search.trim().toLowerCase();
+  const filteredItems = items.filter((item) => {
+    // Search query match
+    const matchSearch =
+      !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      item.condition.toLowerCase().includes(q) ||
+      (item.description ?? "").toLowerCase().includes(q);
+    if (!matchSearch) return false;
+
+    // Tab filter
+    if (filterTab === "listed") return item.is_listed && item.listing_status === "active";
+    if (filterTab === "unlisted") return !item.is_listed;
+    if (filterTab === "in_trade") return item.listing_status === "reserved" || item.listing_status === "completed";
+    return true;
+  });
+
+  // Standalone listings filter
+  const filteredStandalone = standaloneListings.filter((l: any) => {
+    const matchSearch =
+      !q ||
+      l.title.toLowerCase().includes(q) ||
+      l.category.toLowerCase().includes(q) ||
+      l.condition.toLowerCase().includes(q);
+    if (!matchSearch) return false;
+    if (filterTab === "unlisted") return false;
+    if (filterTab === "listed") return l.status === "active";
+    if (filterTab === "in_trade") return l.status === "reserved" || l.status === "completed";
+    return true;
+  });
+
+  // Mutations
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      if (!form.name.trim()) throw new Error("Please add an item name");
+      if (form.image_urls.length === 0) throw new Error("Please add at least one photo");
+      return editingId ? await updateItemFn({ data: { id: editingId, ...form } }) : await createItemFn({ data: form });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
+      qc.invalidateQueries({ queryKey: ["my-items"] });
+      setOpenModal(false);
+      setForm({ ...EMPTY_ITEM });
+      toast.success(editingId ? "Item updated successfully" : "Item added to your inventory!");
+      setEditingId(null);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save item"),
+  });
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteItemFn({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
+      qc.invalidateQueries({ queryKey: ["my-items"] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      toast.success("Item removed from inventory");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete item"),
+  });
+
+  const quickListMut = useMutation({
+    mutationFn: (vars: { itemId: string; lookingFor?: string }) =>
+      quickListFn({ data: { itemId: vars.itemId, looking_for: vars.lookingFor } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
+      qc.invalidateQueries({ queryKey: ["my-items"] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      setQuickListModalItem(null);
+      setLookingForText("");
+      toast.success("Item is now live on the marketplace!", {
+        description: "Neighbours can now see and make swap offers on this item.",
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to list item"),
+  });
+
+  const unlistMut = useMutation({
+    mutationFn: (itemId: string) => unlistFn({ data: { itemId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
+      qc.invalidateQueries({ queryKey: ["my-items"] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      toast.success("Listing removed from marketplace", {
+        description: "The item is still safely saved in your inventory.",
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to unlist item"),
+  });
+
+  const deleteStandaloneMut = useMutation({
+    mutationFn: (id: string) => deleteListingFn({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      toast.success("Listing deleted");
+    },
+  });
+
+  function openNewModal() {
+    setEditingId(null);
+    setForm({ ...EMPTY_ITEM });
+    setOpenModal(true);
+  }
+
+  function openEditModal(item: any) {
+    setEditingId(item.id);
+    setForm({
+      name: item.name,
+      category: item.category,
+      condition: item.condition,
+      image_emoji: item.image_emoji ?? "📦",
+      description: item.description ?? "",
+      visibility: item.visibility ?? "public",
+      image_urls: item.image_urls ?? [],
+    });
+    setOpenModal(true);
+  }
+
+  function onPickFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = 8 - form.image_urls.length;
+    const picked = Array.from(files)
+      .slice(0, Math.max(room, 0))
+      .filter((f) => {
+        if (f.size > 10 * 1024 * 1024) {
+          toast.error(`${f.name} is over 10 MB`);
+          return false;
+        }
+        return true;
+      });
+    setQueue((q) => [...q, ...picked]);
+  }
+
+  async function uploadCropped(file: File) {
+    setUploading(true);
+    try {
+      const url = await uploadFileTo("listing-images", file);
+      setForm((f) => ({ ...f, image_urls: [...f.image_urls, url] }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {queue.length > 0 && (
+        <ImageCropper
+          key={queue[0].name + queue.length}
+          file={queue[0]}
+          aspect={1}
+          title="Crop item photo"
+          onCancel={() => setQueue((q) => q.slice(1))}
+          onDone={async (f) => {
+            setQueue((q) => q.slice(1));
+            await uploadCropped(f);
+          }}
+        />
+      )}
+
       <Navbar />
-      <main className="mx-auto w-full max-w-[1000px] flex-1 px-4 py-6 sm:px-6 sm:py-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="font-display text-2xl font-black sm:text-4xl">My listings</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              All your listings which are up and running.
+
+      <main className="mx-auto w-full max-w-[1300px] flex-1 px-4 py-6 sm:px-6 sm:py-10">
+        {/* Top Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                <Package className="h-5 w-5" />
+              </span>
+              <h1 className="font-display text-2xl font-black sm:text-4xl text-foreground">
+                My Inventory &amp; Listings
+              </h1>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Add all your items to your inventory. Toggle which ones are listed on the marketplace with a single click.
             </p>
           </div>
-          <Link
-            to="/new-listing"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground shadow-md transition hover:shadow-glow sm:px-5 sm:text-xs"
+
+          <button
+            onClick={openNewModal}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
           >
-            <Plus className="h-4 w-4" /> New listing
-          </Link>
+            <Plus className="h-4 w-4" /> Add Item to Inventory
+          </button>
         </div>
 
+        {/* Filter Stats & Tabs */}
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setFilterTab("all")}
+              className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                filterTab === "all"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              All Items ({totalItems})
+            </button>
+            <button
+              onClick={() => setFilterTab("listed")}
+              className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+                filterTab === "listed"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Listed on Marketplace ({listedCount})
+            </button>
+            <button
+              onClick={() => setFilterTab("unlisted")}
+              className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+                filterTab === "unlisted"
+                  ? "bg-slate-700 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full bg-slate-400" />
+              In Inventory Only ({unlistedCount})
+            </button>
+            {inTradeCount > 0 && (
+              <button
+                onClick={() => setFilterTab("in_trade")}
+                className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+                  filterTab === "in_trade"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 hover:bg-amber-100"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                In Trade / Reserved ({inTradeCount})
+              </button>
+            )}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your inventory…"
+              className="w-full rounded-full border-2 border-primary/20 bg-card py-2 pl-10 pr-8 text-xs outline-none transition focus:border-primary"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Gallery Grid */}
         {isLoading ? (
-          <p className="mt-8 text-sm text-muted-foreground">Loading…</p>
-        ) : !listings || listings.length === 0 ? (
-          <div className="mt-8 rounded-3xl border-2 border-dashed border-primary/30 bg-card p-6 text-center sm:p-10">
-            <p className="text-muted-foreground">You haven't posted anything yet.</p>
-            <Link to="/new-listing" className="mt-3 inline-block text-sm font-bold text-primary hover:underline">
-              Create your first listing →
-            </Link>
+          <div className="mt-12 flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-3" />
+            <p className="text-sm font-semibold">Loading your inventory…</p>
+          </div>
+        ) : filteredItems.length === 0 && filteredStandalone.length === 0 ? (
+          <div className="mt-10 rounded-3xl border-2 border-dashed border-primary/30 bg-card p-10 text-center sm:p-16">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-primary/10 text-primary">
+              <Package className="h-8 w-8" />
+            </div>
+            <h3 className="font-display text-xl font-bold">
+              {search ? `No items match "${search}"` : "Your inventory is currently empty"}
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              {search
+                ? "Try searching for a different keyword or reset your filter tabs."
+                : "Add the items you own to start building your personal trading inventory."}
+            </p>
+            {!search && (
+              <button
+                onClick={openNewModal}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
+              >
+                <Plus className="h-4 w-4" /> Add Your First Item
+              </button>
+            )}
           </div>
         ) : (
-          <div className="mt-8 grid gap-3">
-            {listings.map((l: any) => (
-              <div
-                key={l.id}
-                className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border-2 border-primary/20 bg-card p-3 transition hover:border-primary hover:shadow-card sm:flex sm:items-center sm:gap-4 sm:p-4"
-              >
-                <Link
-                  to="/listings/$id"
-                  params={{ id: l.id }}
-                  className={`grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br ${gradientForId(l.id)} text-2xl sm:h-16 sm:w-16 sm:text-3xl`}
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredItems.map((item) => {
+              const isListed = item.is_listed && item.listing_status === "active";
+              const isReserved = item.listing_status === "reserved";
+              const isCompleted = item.listing_status === "completed";
+              const isWithheld = item.listing_status === "withheld";
+              const isUnlisted = !item.is_listed || item.listing_status === "not_listed";
+
+              // Distinct Overlay & Border Styling by Status
+              const cardBorder = isListed
+                ? "border-emerald-500/50 shadow-emerald-500/10 ring-1 ring-emerald-500/30"
+                : isReserved
+                ? "border-amber-500/50 shadow-amber-500/10 ring-1 ring-amber-500/30"
+                : isCompleted
+                ? "border-purple-500/50 shadow-purple-500/10"
+                : "border-primary/20 hover:border-primary/50";
+
+              return (
+                <article
+                  key={item.id}
+                  className={`group relative flex flex-col rounded-3xl border-2 bg-card p-4 shadow-card transition-all hover:shadow-card-hover ${cardBorder}`}
                 >
-                  {l.image_urls?.[0] ? (
+                  {/* Photo / Emoji Display */}
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
+                    {item.image_urls && item.image_urls.length > 0 ? (
+                      <img
+                        src={item.image_urls[0]}
+                        alt={item.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-6xl">
+                        <span aria-hidden>{item.image_emoji || "📦"}</span>
+                      </div>
+                    )}
+
+                    {/* Overlay Status Badge */}
+                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+                      {isListed && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                          <CheckCircle2 className="h-3 w-3" /> Listed Live
+                        </span>
+                      )}
+                      {isReserved && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/95 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                          <Clock className="h-3 w-3" /> In Trade
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                          <CheckCircle2 className="h-3 w-3" /> Swapped
+                        </span>
+                      )}
+                      {isWithheld && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                          Review Needed
+                        </span>
+                      )}
+                      {isUnlisted && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 backdrop-blur-md px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-100 shadow-sm">
+                          In Inventory
+                        </span>
+                      )}
+
+                      {/* Photo Count badge */}
+                      {item.image_urls && item.image_urls.length > 1 && (
+                        <span className="rounded-full bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white">
+                          📷 {item.image_urls.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Item Content */}
+                  <div className="mt-3.5 flex flex-1 flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-display text-base font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                        {item.name}
+                      </h3>
+                    </div>
+
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-foreground/80">{item.category}</span>
+                      <span>•</span>
+                      <span>{item.condition}</span>
+                      <span>•</span>
+                      <span className="capitalize">{item.visibility}</span>
+                    </div>
+
+                    {item.description && (
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+                    )}
+
+                    {/* Listing Info if Active */}
+                    {item.listing && (
+                      <div className="mt-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs">
+                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate">
+                          🎯 Wants: {item.listing.looking_for || "Open to any swap"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          📍 {item.listing.location}, {item.listing.emirate}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-auto pt-4">
+                      {/* PRIMARY ACTION BUTTON: 1-Click List or Unlist */}
+                      {isUnlisted ? (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickListModalItem(item);
+                              setLookingForText("");
+                            }}
+                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-md transition hover:scale-[1.02] hover:shadow-glow active:scale-[0.98]"
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5" /> List on Marketplace
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            {item.listing?.id && (
+                              <Link
+                                to="/listings/$id"
+                                params={{ id: item.listing.id }}
+                                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600/15 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/25 transition text-center"
+                              >
+                                <ExternalLink className="h-3 w-3" /> View Listing
+                              </Link>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Unlist "${item.name}" from marketplace? It will stay in your inventory.`)) {
+                                  unlistMut.mutate(item.id);
+                                }
+                              }}
+                              disabled={unlistMut.isPending}
+                              className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-destructive/30 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/10 transition"
+                            >
+                              Unlist
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SECONDARY ACTIONS: Edit & Delete */}
+                      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2.5">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                          Item Actions
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
+                            title="Edit Item"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Permanently delete "${item.name}" from your inventory?`)) {
+                                delMut.mutate(item.id);
+                              }
+                            }}
+                            disabled={delMut.isPending}
+                            className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+                            title="Delete Item"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
+            {/* Standalone Listings (if any were created without linked inventory items) */}
+            {filteredStandalone.map((l: any) => (
+              <article
+                key={l.id}
+                className="group relative flex flex-col rounded-3xl border-2 border-emerald-500/40 bg-card p-4 shadow-card hover:shadow-card-hover"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
+                  {l.image_urls && l.image_urls.length > 0 ? (
                     <img src={l.image_urls[0]} alt={l.title} className="h-full w-full object-cover" />
                   ) : (
-                    <span aria-hidden>{l.image_emoji}</span>
+                    <div className="grid h-full w-full place-items-center text-6xl">
+                      <span>{l.image_emoji || "📦"}</span>
+                    </div>
                   )}
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to="/listings/$id"
-                    params={{ id: l.id }}
-                    className="block truncate font-display text-base font-bold hover:text-primary sm:text-lg"
-                  >
-                    {l.title}
-                  </Link>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {l.category} · {l.location} · {timeAgo(l.created_at)}
+                  <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black uppercase text-white shadow-md">
+                    <CheckCircle2 className="h-3 w-3" /> Listed
+                  </span>
+                </div>
+                <div className="mt-3.5 flex flex-1 flex-col">
+                  <h3 className="font-display text-base font-bold text-foreground line-clamp-1">{l.title}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {l.category} · {l.location}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
-                    <span
-                      className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[l.status] ?? "bg-muted"}`}
-                    >
-                      {l.status}
-                    </span>
+                  <div className="mt-auto pt-4 flex items-center gap-2">
                     <Link
-                      to="/edit-listing/$id"
+                      to="/listings/$id"
                       params={{ id: l.id }}
-                      className="inline-flex items-center gap-1 rounded-full border-2 border-primary/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary-soft"
+                      className="flex-1 text-center rounded-full bg-emerald-600/15 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"
                     >
-                      <Pencil className="h-3 w-3" /> Edit
+                      View
                     </Link>
                     <button
-                      type="button"
                       onClick={() => {
-                        if (window.confirm(`Delete "${l.title}"? This can't be undone.`)) delMut.mutate(l.id);
+                        if (confirm(`Delete listing "${l.title}"?`)) deleteStandaloneMut.mutate(l.id);
                       }}
-                      disabled={delMut.isPending}
-                      className="inline-flex items-center gap-1 rounded-full border-2 border-destructive/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+                      className="rounded-full border border-destructive/30 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-3 w-3" /> Delete
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
-                <span
-                  className={`hidden shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider sm:inline-block ${STATUS_COLORS[l.status] ?? "bg-muted"}`}
-                >
-                  {l.status}
-                </span>
-                <Link
-                  to="/edit-listing/$id"
-                  params={{ id: l.id }}
-                  className="hidden shrink-0 items-center gap-1 rounded-full border-2 border-primary/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary-soft sm:inline-flex"
-                >
-                  <Pencil className="h-3 w-3" /> Edit
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm(`Delete "${l.title}"? This can't be undone.`)) delMut.mutate(l.id);
-                  }}
-                  disabled={delMut.isPending}
-                  className="hidden shrink-0 items-center gap-1 rounded-full border-2 border-destructive/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-destructive transition hover:bg-destructive/10 disabled:opacity-50 sm:inline-flex"
-                >
-                  <Trash2 className="h-3 w-3" /> Delete
-                </button>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </main>
+
+      {/* QUICK LIST DIALOG: When user clicks "List on Marketplace" */}
+      {quickListModalItem && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-3xl bg-card p-6 shadow-card-hover border-2 border-primary/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
+                  <ArrowRightLeft className="h-4 w-4" />
+                </span>
+                <h3 className="font-display text-xl font-black">List on Marketplace</h3>
+              </div>
+              <button
+                onClick={() => setQuickListModalItem(null)}
+                className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-muted/60 p-3 flex items-center gap-3">
+              {quickListModalItem.image_urls?.[0] ? (
+                <img
+                  src={quickListModalItem.image_urls[0]}
+                  alt={quickListModalItem.name}
+                  className="h-12 w-12 rounded-xl object-cover"
+                />
+              ) : (
+                <span className="text-3xl">{quickListModalItem.image_emoji || "📦"}</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-sm truncate">{quickListModalItem.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {quickListModalItem.category} · {quickListModalItem.condition}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-xs font-bold uppercase text-muted-foreground">
+                What are you looking to swap for? (Optional)
+              </label>
+              <textarea
+                value={lookingForText}
+                onChange={(e) => setLookingForText(e.target.value)}
+                placeholder="e.g. Mechanical keyboard, headphones, or open to any offers"
+                rows={2}
+                maxLength={300}
+                className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary resize-none"
+              />
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setQuickListModalItem(null)}
+                className="flex-1 rounded-full border-2 border-border py-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  quickListMut.mutate({
+                    itemId: quickListModalItem.id,
+                    lookingFor: lookingForText.trim() || undefined,
+                  })
+                }
+                disabled={quickListMut.isPending}
+                className="flex-1 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
+              >
+                {quickListMut.isPending ? "Listing…" : "Publish Listing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT INVENTORY ITEM MODAL */}
+      {openModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-6 shadow-card-hover border-2 border-primary/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
+                  <Package className="h-5 w-5" />
+                </span>
+                <h2 className="font-display text-2xl font-black">{editingId ? "Edit Item" : "Add to Inventory"}</h2>
+              </div>
+              <button
+                onClick={() => setOpenModal(false)}
+                className="grid h-9 w-9 place-items-center rounded-full hover:bg-muted text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">Item Name *</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  maxLength={120}
+                  placeholder="e.g. Sony WH-1000XM4 Headphones"
+                  className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Category</label>
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value as ItemCategory })}
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Condition</label>
+                  <select
+                    value={form.condition}
+                    onChange={(e) => setForm({ ...form, condition: e.target.value as ItemCondition })}
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  >
+                    {CONDITIONS.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Photos */}
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">Photos (up to 8, required)</label>
+                <div className="mt-2 grid grid-cols-4 gap-2.5">
+                  {form.image_urls.map((url, i) => (
+                    <div
+                      key={url}
+                      className="relative aspect-square overflow-hidden rounded-2xl border-2 border-primary/20 shadow-sm"
+                    >
+                      <img src={url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({ ...f, image_urls: f.image_urls.filter((u) => u !== url) }))
+                        }
+                        className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/75 text-white hover:bg-black transition"
+                        aria-label="Remove photo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {form.image_urls.length < 8 && (
+                    <label className="grid aspect-square cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-primary/30 text-xs font-bold text-primary hover:bg-primary/5 transition">
+                      {uploading ? (
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <Plus className="h-5 w-5" />
+                          <span className="text-[10px]">Add Photo</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          onPickFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">Visibility</label>
+                <select
+                  value={form.visibility}
+                  onChange={(e) => setForm({ ...form, visibility: e.target.value as "public" | "private" })}
+                  className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                >
+                  <option value="public">Public — visible in your trade profile</option>
+                  <option value="private">Private — only visible to you</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">Description (optional)</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Details on accessories, purchase date, condition notes..."
+                  rows={2}
+                  maxLength={1000}
+                  className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary resize-none"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => saveMut.mutate()}
+                  disabled={saveMut.isPending || !form.name.trim() || form.image_urls.length === 0 || uploading}
+                  className="w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 transition hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {saveMut.isPending ? "Saving…" : editingId ? "Save Changes" : "Add to Inventory"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

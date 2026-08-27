@@ -85,7 +85,7 @@ export function Navbar() {
   const links = session
     ? ([
         { to: "/listings", label: "Browse" },
-        { to: "/my-listings", label: "My Listings" },
+        { to: "/my-listings", label: "Inventory" },
         { to: "/favourites", label: "Saved" },
         { to: "/offers", label: "Offers" },
         { to: "/announcements", label: "Announcements" },
