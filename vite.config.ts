@@ -13,8 +13,4 @@ export default defineConfig({
     nitro(),
     react(),
   ],
-  ssr: {
-    // Forces Vite to bundle tslib & Supabase directly into Nitro's build output
-    noExternal: ["tslib", "@supabase/functions-js", "@supabase/supabase-js"],
-  },
 });
