@@ -1,10 +1,1 @@
-{
-  "functions": {
-    "api/**": {
-      "includeFiles": "node_modules/tslib/**"
-    },
-    ".output/server/index.mjs": {
-      "includeFiles": "node_modules/tslib/**"
-    }
-  }
-}
+{}
