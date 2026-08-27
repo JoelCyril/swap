@@ -523,6 +523,7 @@ export type Database = {
           display_name: string
           emirate: string | null
           id: string
+          interests: string[]
           inventory_default_visibility: Database["public"]["Enums"]["item_visibility"]
           location: string | null
           tos_accepted_at: string | null
@@ -539,6 +540,7 @@ export type Database = {
           display_name: string
           emirate?: string | null
           id: string
+          interests?: string[]
           inventory_default_visibility?: Database["public"]["Enums"]["item_visibility"]
           location?: string | null
           tos_accepted_at?: string | null
@@ -555,6 +557,7 @@ export type Database = {
           display_name?: string
           emirate?: string | null
           id?: string
+          interests?: string[]
           inventory_default_visibility?: Database["public"]["Enums"]["item_visibility"]
           location?: string | null
           tos_accepted_at?: string | null

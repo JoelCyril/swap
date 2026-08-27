@@ -1,19 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlockedIds } from "@/lib/use-blocks";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { CategoryBar } from "@/components/layout/CategoryBar";
 import { Footer } from "@/components/layout/Footer";
+import { InterestPicker } from "@/components/InterestPicker";
 import { FilterSidebar, MobileFilters, type SortKey } from "@/components/listings/FilterSidebar";
 import { ListingCard } from "@/components/listings/ListingCard";
 import { listListings } from "@/lib/listings.functions";
 import { listMyFavouriteIds } from "@/lib/favourites.functions";
 import { listMyFlaggedListingIds } from "@/lib/flags.functions";
 import { searchProfiles, getMyProfile } from "@/lib/profile.functions";
-import { emirateOf, type ItemCategory, type ItemCondition } from "@/lib/db-types";
+import { CATEGORIES, emirateOf, type ItemCategory, type ItemCondition } from "@/lib/db-types";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/listings/")({
@@ -36,12 +37,15 @@ export const Route = createFileRoute("/listings/")({
 
 function ListingsPage() {
   const { q } = Route.useSearch();
+  const qc = useQueryClient();
   const [active, setActive] = useState<ItemCategory | "All">("All");
   const [userId, setUserId] = useState<string | null>(null);
   const [hidden, setHidden] = useState<string[]>([]);
   const [conditions, setConditions] = useState<ItemCondition[]>([]);
   const [emirate, setEmirate] = useState("");
   const [sort, setSort] = useState<SortKey>("shuffle");
+  const [interestPromptDismissed, setInterestPromptDismissed] = useState(false);
+  const [interestPromptSkipped, setInterestPromptSkipped] = useState(false);
   // Stable per-visit shuffle seed so cards don't jump around while browsing.
   const [seed] = useState(() => Math.random());
 
@@ -51,6 +55,16 @@ function ListingsPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
   const signedIn = !!userId;
+
+  useEffect(() => {
+    if (!userId) {
+      setInterestPromptSkipped(false);
+      setInterestPromptDismissed(false);
+      return;
+    }
+    setInterestPromptSkipped(localStorage.getItem(`swap_interests_prompt_${userId}`) === "skipped");
+    setInterestPromptDismissed(false);
+  }, [userId]);
 
   const fn = useServerFn(listListings);
   const savedFn = useServerFn(listMyFavouriteIds);
@@ -86,6 +100,16 @@ function ListingsPage() {
   const blockedIds = useBlockedIds();
 
   const myArea = me?.profile?.location ?? null;
+  const myInterests = ((me?.profile?.interests ?? []) as string[]).filter((cat): cat is ItemCategory =>
+    CATEGORIES.includes(cat as ItemCategory),
+  );
+  const interestPromptKey = userId ? `swap_interests_prompt_${userId}` : null;
+  const shouldAskInterests =
+    signedIn &&
+    !!me?.profile &&
+    myInterests.length === 0 &&
+    !interestPromptDismissed &&
+    !interestPromptSkipped;
 
   const myLocation = myArea;
   const term = (q ?? "").toLowerCase().trim();
@@ -105,6 +129,10 @@ function ListingsPage() {
             .some((v) => String(v).toLowerCase().includes(term)),
     )
     .sort((a, b) => {
+      if (active === "All" && myInterests.length > 0) {
+        const diff = Number(myInterests.includes(b.category)) - Number(myInterests.includes(a.category));
+        if (diff !== 0) return diff;
+      }
       if (sort === "shuffle") {
         const hash = (id: string) => Math.abs(Math.sin([...id].reduce((s, c) => s + c.charCodeAt(0), 0) * (seed + 1)));
         return hash(a.id) - hash(b.id);
@@ -121,6 +149,15 @@ function ListingsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {shouldAskInterests && (
+        <InterestPicker
+          storageKey={interestPromptKey ?? undefined}
+          onDone={() => {
+            setInterestPromptDismissed(true);
+            qc.invalidateQueries({ queryKey: ["me", userId] });
+          }}
+        />
+      )}
       <Navbar />
       <CategoryBar active={active} onChange={setActive} />
 

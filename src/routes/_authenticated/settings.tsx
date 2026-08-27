@@ -13,7 +13,7 @@ import {
   blockUser,
   unblockUser,
 } from "@/lib/settings.functions";
-import { EMIRATES } from "@/lib/db-types";
+import { CATEGORIES, EMIRATES, type ItemCategory } from "@/lib/db-types";
 import { uploadFileTo } from "@/lib/upload";
 import { toast } from "sonner";
 import {
@@ -124,6 +124,7 @@ function ProfileTab() {
     bio: "",
     avatar_url: null as string | null,
     banner_url: null as string | null,
+    interests: [] as ItemCategory[],
   });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
@@ -151,6 +152,9 @@ function ProfileTab() {
         bio: data.profile.bio ?? "",
         avatar_url: data.profile.avatar_url ?? null,
         banner_url: data.profile.banner_url ?? null,
+        interests: ((data.profile.interests ?? []) as string[]).filter((cat): cat is ItemCategory =>
+          CATEGORIES.includes(cat as ItemCategory),
+        ),
       });
     }
   }, [data]);
@@ -167,6 +171,7 @@ function ProfileTab() {
           birthday: form.birthday || null,
           emirate: form.emirate || null,
           location: form.location.trim() || null,
+          interests: form.interests,
         },
       }),
     onSuccess: () => {
@@ -390,6 +395,38 @@ function ProfileTab() {
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
             className="mt-1 w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
           />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase text-muted-foreground">Interests</label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => {
+              const active = form.interests.includes(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      interests: active
+                        ? f.interests.filter((interest) => interest !== cat)
+                        : [...f.interests, cat],
+                    }))
+                  }
+                  className={`rounded-full border-2 px-4 py-2 text-xs font-black uppercase tracking-wider transition ${
+                    active
+                      ? "border-primary bg-primary-soft text-primary"
+                      : "border-primary/20 bg-white text-muted-foreground hover:border-primary/40 hover:text-primary"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Browse will show these categories first when you view all listings.
+          </p>
         </div>
         <button
           disabled={mut.isPending}

@@ -71,6 +71,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         avatar_url: z.string().url().max(2048).optional().nullable(),
         banner_url: z.string().url().max(2048).optional().nullable(),
         inventory_default_visibility: z.enum(["public", "private"]).optional(),
+        interests: z.array(z.string().max(40)).max(8).optional(),
       })
       .parse(d),
   )
