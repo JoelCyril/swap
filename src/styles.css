@@ -6,8 +6,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Asap", ui-sans-serif, system-ui, sans-serif;
---font-display: "Asap", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+--font-display:"Bricolage Grotesque", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
+  --font-mono:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
