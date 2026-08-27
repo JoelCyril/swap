@@ -9,46 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as HelpRouteImport } from './routes/help'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AnnouncementsRouteImport } from './routes/announcements'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ListingsIndexRouteImport } from './routes/listings.index'
-import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
-import { Route as ListingsIdRouteImport } from './routes/listings.$id'
-import { Route as ItemsIdRouteImport } from './routes/items.$id'
-import { Route as AuthenticatedYourItemsRouteImport } from './routes/_authenticated/your-items'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
-import { Route as AuthenticatedNewListingRouteImport } from './routes/_authenticated/new-listing'
-import { Route as AuthenticatedMyListingsRouteImport } from './routes/_authenticated/my-listings'
-import { Route as AuthenticatedFavouritesRouteImport } from './routes/_authenticated/favourites'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AnnouncementsRouteImport } from './routes/announcements'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedFavouritesRouteImport } from './routes/_authenticated/favourites'
+import { Route as AuthenticatedMyListingsRouteImport } from './routes/_authenticated/my-listings'
+import { Route as AuthenticatedNewListingRouteImport } from './routes/_authenticated/new-listing'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedYourItemsRouteImport } from './routes/_authenticated/your-items'
+import { Route as ItemsIdRouteImport } from './routes/items.$id'
+import { Route as ListingsIndexRouteImport } from './routes/listings.index'
+import { Route as ListingsIdRouteImport } from './routes/listings.$id'
+import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
+import { Route as AuthenticatedEditListingIdRouteImport } from './routes/_authenticated/edit-listing.$id'
 import { Route as AuthenticatedOffersIndexRouteImport } from './routes/_authenticated/offers.index'
 import { Route as AuthenticatedOffersIdRouteImport } from './routes/_authenticated/offers.$id'
-import { Route as AuthenticatedEditListingIdRouteImport } from './routes/_authenticated/edit-listing.$id'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnnouncementsRoute = AnnouncementsRouteImport.update({
@@ -56,43 +45,44 @@ const AnnouncementsRoute = AnnouncementsRouteImport.update({
   path: '/announcements',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ListingsIndexRoute = ListingsIndexRouteImport.update({
-  id: '/listings/',
-  path: '/listings/',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileUsernameRoute = ProfileUsernameRouteImport.update({
-  id: '/profile/$username',
-  path: '/profile/$username',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ListingsIdRoute = ListingsIdRouteImport.update({
-  id: '/listings/$id',
-  path: '/listings/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ItemsIdRoute = ItemsIdRouteImport.update({
-  id: '/items/$id',
-  path: '/items/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedYourItemsRoute = AuthenticatedYourItemsRouteImport.update({
-  id: '/your-items',
-  path: '/your-items',
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AuthenticatedFavouritesRoute = AuthenticatedFavouritesRouteImport.update({
+  id: '/favourites',
+  path: '/favourites',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMyListingsRoute = AuthenticatedMyListingsRouteImport.update({
+  id: '/my-listings',
+  path: '/my-listings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNewListingRoute = AuthenticatedNewListingRouteImport.update({
+  id: '/new-listing',
+  path: '/new-listing',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedNotificationsRoute =
@@ -101,26 +91,42 @@ const AuthenticatedNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedNewListingRoute = AuthenticatedNewListingRouteImport.update({
-  id: '/new-listing',
-  path: '/new-listing',
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedMyListingsRoute = AuthenticatedMyListingsRouteImport.update({
-  id: '/my-listings',
-  path: '/my-listings',
+const AuthenticatedYourItemsRoute = AuthenticatedYourItemsRouteImport.update({
+  id: '/your-items',
+  path: '/your-items',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedFavouritesRoute = AuthenticatedFavouritesRouteImport.update({
-  id: '/favourites',
-  path: '/favourites',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const ItemsIdRoute = ItemsIdRouteImport.update({
+  id: '/items/$id',
+  path: '/items/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const ListingsIndexRoute = ListingsIndexRouteImport.update({
+  id: '/listings/',
+  path: '/listings/',
+  getParentRoute: () => rootRouteImport,
 } as any)
+const ListingsIdRoute = ListingsIdRouteImport.update({
+  id: '/listings/$id',
+  path: '/listings/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileUsernameRoute = ProfileUsernameRouteImport.update({
+  id: '/profile/$username',
+  path: '/profile/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedEditListingIdRoute =
+  AuthenticatedEditListingIdRouteImport.update({
+    id: '/edit-listing/$id',
+    path: '/edit-listing/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOffersIndexRoute =
   AuthenticatedOffersIndexRouteImport.update({
     id: '/offers/',
@@ -132,12 +138,6 @@ const AuthenticatedOffersIdRoute = AuthenticatedOffersIdRouteImport.update({
   path: '/offers/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedEditListingIdRoute =
-  AuthenticatedEditListingIdRouteImport.update({
-    id: '/edit-listing/$id',
-    path: '/edit-listing/$id',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -293,39 +293,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/announcements': {
-      id: '/announcements'
-      path: '/announcements'
-      fullPath: '/announcements'
-      preLoaderRoute: typeof AnnouncementsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -335,74 +307,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/announcements': {
+      id: '/announcements'
+      path: '/announcements'
+      fullPath: '/announcements'
+      preLoaderRoute: typeof AnnouncementsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/listings/': {
-      id: '/listings/'
-      path: '/listings'
-      fullPath: '/listings/'
-      preLoaderRoute: typeof ListingsIndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile/$username': {
-      id: '/profile/$username'
-      path: '/profile/$username'
-      fullPath: '/profile/$username'
-      preLoaderRoute: typeof ProfileUsernameRouteImport
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/listings/$id': {
-      id: '/listings/$id'
-      path: '/listings/$id'
-      fullPath: '/listings/$id'
-      preLoaderRoute: typeof ListingsIdRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/items/$id': {
-      id: '/items/$id'
-      path: '/items/$id'
-      fullPath: '/items/$id'
-      preLoaderRoute: typeof ItemsIdRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/your-items': {
-      id: '/_authenticated/your-items'
-      path: '/your-items'
-      fullPath: '/your-items'
-      preLoaderRoute: typeof AuthenticatedYourItemsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/notifications': {
-      id: '/_authenticated/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/new-listing': {
-      id: '/_authenticated/new-listing'
-      path: '/new-listing'
-      fullPath: '/new-listing'
-      preLoaderRoute: typeof AuthenticatedNewListingRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/my-listings': {
-      id: '/_authenticated/my-listings'
-      path: '/my-listings'
-      fullPath: '/my-listings'
-      preLoaderRoute: typeof AuthenticatedMyListingsRouteImport
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/favourites': {
@@ -412,11 +356,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFavouritesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/my-listings': {
+      id: '/_authenticated/my-listings'
+      path: '/my-listings'
+      fullPath: '/my-listings'
+      preLoaderRoute: typeof AuthenticatedMyListingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/new-listing': {
+      id: '/_authenticated/new-listing'
+      path: '/new-listing'
+      fullPath: '/new-listing'
+      preLoaderRoute: typeof AuthenticatedNewListingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/your-items': {
+      id: '/_authenticated/your-items'
+      path: '/your-items'
+      fullPath: '/your-items'
+      preLoaderRoute: typeof AuthenticatedYourItemsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/items/$id': {
+      id: '/items/$id'
+      path: '/items/$id'
+      fullPath: '/items/$id'
+      preLoaderRoute: typeof ItemsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/listings/': {
+      id: '/listings/'
+      path: '/listings'
+      fullPath: '/listings/'
+      preLoaderRoute: typeof ListingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/listings/$id': {
+      id: '/listings/$id'
+      path: '/listings/$id'
+      fullPath: '/listings/$id'
+      preLoaderRoute: typeof ListingsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/$username': {
+      id: '/profile/$username'
+      path: '/profile/$username'
+      fullPath: '/profile/$username'
+      preLoaderRoute: typeof ProfileUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/edit-listing/$id': {
+      id: '/_authenticated/edit-listing/$id'
+      path: '/edit-listing/$id'
+      fullPath: '/edit-listing/$id'
+      preLoaderRoute: typeof AuthenticatedEditListingIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/offers/': {
@@ -431,13 +438,6 @@ declare module '@tanstack/react-router' {
       path: '/offers/$id'
       fullPath: '/offers/$id'
       preLoaderRoute: typeof AuthenticatedOffersIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/edit-listing/$id': {
-      id: '/_authenticated/edit-listing/$id'
-      path: '/edit-listing/$id'
-      fullPath: '/edit-listing/$id'
-      preLoaderRoute: typeof AuthenticatedEditListingIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }

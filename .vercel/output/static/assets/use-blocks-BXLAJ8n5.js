@@ -1,0 +1,1 @@
+import{P as e,d as t}from"./db-types-nzB4WGq3.js";import{a as n}from"./flags.functions-BTHISQgr.js";import{r}from"./settings.functions-Z8eHzb3T.js";function i(){let{session:i}=n(),a=e(r),{data:o}=t({queryKey:[`blocked-ids`],queryFn:()=>a(),enabled:!!i,staleTime:6e4});return new Set(o??[])}export{i as t};
