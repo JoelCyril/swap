@@ -43,7 +43,7 @@ function offerEmailHtml(params: {
   return `
 <!doctype html>
 <html>
-  <body style="margin:0; padding:0; background:#ffffff; font-family: Arial, Helvetica, sans-serif; color:#111111;">
+  <body style="margin:0; padding:0; background:#ffffff; font-family: 'Asap Sharp', 'Asap', Arial, Helvetica, sans-serif; color:#111111;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#ffffff;">
       <tr>
         <td align="center" style="padding:0 12px;">
