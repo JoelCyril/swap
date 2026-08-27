@@ -46,6 +46,7 @@ function ListingsPage() {
   const [sort, setSort] = useState<SortKey>("shuffle");
   const [interestPromptDismissed, setInterestPromptDismissed] = useState(false);
   const [interestPromptSkipped, setInterestPromptSkipped] = useState(false);
+  const [localInterests, setLocalInterests] = useState<ItemCategory[]>([]);
   // Stable per-visit shuffle seed so cards don't jump around while browsing.
   const [seed] = useState(() => Math.random());
 
@@ -63,6 +64,16 @@ function ListingsPage() {
       return;
     }
     setInterestPromptSkipped(localStorage.getItem(`swap_interests_prompt_${userId}`) === "skipped");
+    try {
+      const saved = JSON.parse(localStorage.getItem("swap_interests") ?? "[]");
+      setLocalInterests(
+        Array.isArray(saved)
+          ? saved.filter((cat): cat is ItemCategory => CATEGORIES.includes(cat as ItemCategory))
+          : [],
+      );
+    } catch {
+      setLocalInterests([]);
+    }
     setInterestPromptDismissed(false);
   }, [userId]);
 
@@ -103,11 +114,12 @@ function ListingsPage() {
   const myInterests = ((me?.profile?.interests ?? []) as string[]).filter((cat): cat is ItemCategory =>
     CATEGORIES.includes(cat as ItemCategory),
   );
+  const effectiveInterests = myInterests.length > 0 ? myInterests : localInterests;
   const interestPromptKey = userId ? `swap_interests_prompt_${userId}` : null;
   const shouldAskInterests =
     signedIn &&
     !!me?.profile &&
-    myInterests.length === 0 &&
+    effectiveInterests.length === 0 &&
     !interestPromptDismissed &&
     !interestPromptSkipped;
 
@@ -129,8 +141,8 @@ function ListingsPage() {
             .some((v) => String(v).toLowerCase().includes(term)),
     )
     .sort((a, b) => {
-      if (active === "All" && myInterests.length > 0) {
-        const diff = Number(myInterests.includes(b.category)) - Number(myInterests.includes(a.category));
+      if (active === "All" && effectiveInterests.length > 0) {
+        const diff = Number(effectiveInterests.includes(b.category)) - Number(effectiveInterests.includes(a.category));
         if (diff !== 0) return diff;
       }
       if (sort === "shuffle") {
@@ -152,7 +164,8 @@ function ListingsPage() {
       {shouldAskInterests && (
         <InterestPicker
           storageKey={interestPromptKey ?? undefined}
-          onDone={() => {
+          onDone={(interests) => {
+            setLocalInterests(interests);
             setInterestPromptDismissed(true);
             qc.invalidateQueries({ queryKey: ["me", userId] });
           }}
@@ -270,3 +283,4 @@ function ListingsPage() {
     </div>
   );
 }
+

@@ -41,7 +41,12 @@ export function InterestPicker({ onDone, onSkip, isNewUser = false, storageKey }
 
   const saveMut = useMutation({
     mutationFn: async (interests: ItemCategory[]) => {
-      await updateProfile({ data: { interests } });
+      try {
+        await updateProfile({ data: { interests } });
+      } catch (error) {
+        localStorage.setItem("swap_interests", JSON.stringify(interests));
+        if (!String(error).toLowerCase().includes("interests")) throw error;
+      }
       if (storageKey) localStorage.removeItem(storageKey);
     },
     onSuccess: (_, interests) => onDone(interests),
@@ -159,3 +164,4 @@ export function InterestPicker({ onDone, onSkip, isNewUser = false, storageKey }
     </div>
   );
 }
+
