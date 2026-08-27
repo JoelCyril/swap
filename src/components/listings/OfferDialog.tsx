@@ -132,10 +132,10 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
               You need at least one item in your inventory to make an offer.
             </p>
             <Link
-              to="/your-items"
+              to="/new-listing"
               className="mt-3 inline-block rounded-full bg-gradient-primary px-5 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground"
             >
-              Add an item
+              Create an item
             </Link>
           </div>
         )}

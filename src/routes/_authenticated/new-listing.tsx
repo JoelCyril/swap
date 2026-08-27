@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { createListing } from "@/lib/listings.functions";
-import { listMyItems, listMyListedItemIds } from "@/lib/items.functions";
+import { createItem, listMyItems, listMyListedItemIds } from "@/lib/items.functions";
 import { uploadFileTo } from "@/lib/upload";
 import {
   CATEGORIES,
@@ -42,6 +42,7 @@ function NewListingPage() {
   const navigate = useNavigate();
   const { fromItem } = useSearch({ from: "/_authenticated/new-listing" });
   const create = useServerFn(createListing);
+  const createInventoryItem = useServerFn(createItem);
   const myItemsFn = useServerFn(listMyItems);
   const { data: myItems } = useQuery({ queryKey: ["my-items"], queryFn: () => myItemsFn() });
   const listedFn = useServerFn(listMyListedItemIds);
@@ -64,6 +65,7 @@ function NewListingPage() {
   const [otherLocation, setOtherLocation] = useState("");
   const [uploading, setUploading] = useState(false);
   const [queue, setQueue] = useState<File[]>([]);
+  const [saveAsItem, setSaveAsItem] = useState(false);
 
   // Pre-fill from inventory item if requested
   useEffect(() => {
@@ -83,12 +85,27 @@ function NewListingPage() {
   }, [fromItem, myItems]);
 
   const mut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const location = locationChoice === OTHER_LOCATION ? otherLocation.trim() : locationChoice;
       if (!location) throw new Error("Please enter a location");
       if (!form.emirate) throw new Error("Please select an emirate");
       if (form.image_urls.length === 0) throw new Error("Please add at least one photo");
-      return create({ data: { ...form, location } });
+      const item = form.item_id
+        ? null
+        : saveAsItem
+          ? await createInventoryItem({
+              data: {
+                name: form.title,
+                category: form.category,
+                condition: form.condition,
+                image_emoji: form.image_emoji,
+                description: form.description,
+                visibility: "public",
+                image_urls: form.image_urls,
+              },
+            })
+          : null;
+      return create({ data: { ...form, item_id: form.item_id ?? item?.id ?? null, location } });
     },
 
     onSuccess: (row: any) => {
@@ -294,6 +311,20 @@ function NewListingPage() {
             <label className="text-xs font-bold uppercase text-muted-foreground">Looking for (optional)</label>
             <input maxLength={500} value={form.looking_for} onChange={(e) => setForm({ ...form, looking_for: e.target.value })} placeholder="e.g. Wireless headphones, board games…" className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary" />
           </div>
+          {!form.item_id && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border-2 border-primary/20 bg-primary-soft/30 p-4">
+              <input
+                type="checkbox"
+                checked={saveAsItem}
+                onChange={(e) => setSaveAsItem(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary"
+              />
+              <span>
+                <span className="block text-sm font-bold">Save this as one of my items</span>
+                <span className="mt-1 block text-xs text-muted-foreground">You can offer it in future swaps.</span>
+              </span>
+            </label>
+          )}
           <button disabled={mut.isPending || uploading || form.image_urls.length === 0} className="w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50">
             {mut.isPending ? "Publishing…" : "Publish listing"}
           </button>

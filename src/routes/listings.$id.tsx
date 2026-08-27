@@ -343,8 +343,8 @@ function ListingDetailPage() {
                   ) : (
                     <div className="mt-3 rounded-2xl border-2 border-dashed border-primary/30 p-4 text-center">
                       <p className="text-xs text-muted-foreground">You don't have any items yet.</p>
-                      <Link to="/your-items" className="mt-2 inline-block text-xs font-bold text-primary hover:underline">
-                        Add items →
+                      <Link to="/new-listing" className="mt-2 inline-block text-xs font-bold text-primary hover:underline">
+                        Create an item →
                       </Link>
                     </div>
                   )}

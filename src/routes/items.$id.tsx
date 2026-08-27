@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { getPublicItem, getMyItem } from "@/lib/items.functions";
-import { ChevronLeft, ChevronRight, Info, Pencil, ArrowRightLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, ArrowRightLeft } from "lucide-react";
 import { handle } from "@/lib/db-types";
 
 export const Route = createFileRoute("/items/$id")({
@@ -155,12 +155,6 @@ function ItemPage() {
 
             {isOwner && (
               <div className="space-y-2">
-                <Link
-                  to="/your-items"
-                  className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-primary/30 py-2.5 text-xs font-black uppercase tracking-wider text-primary transition hover:bg-primary-soft"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Edit in inventory
-                </Link>
                 <Link
                   to="/new-listing"
                   search={{ fromItem: item.id }}

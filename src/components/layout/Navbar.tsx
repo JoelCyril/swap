@@ -86,7 +86,6 @@ export function Navbar() {
     ? ([
         { to: "/listings", label: "Browse" },
         { to: "/my-listings", label: "My Listings" },
-        { to: "/your-items", label: "Items" },
         { to: "/favourites", label: "Saved" },
         { to: "/offers", label: "Offers" },
         { to: "/announcements", label: "Announcements" },
