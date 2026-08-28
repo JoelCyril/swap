@@ -326,34 +326,22 @@ function OfferDetail() {
     },
   ];
 
-  const senderIds = (((offer as any).offered_item_ids ?? []) as string[]).filter(Boolean);
-  const recipientIds = (((offer as any).recipient_item_ids ?? []) as string[]).filter(Boolean);
-  const itemMap = new Map(
+  const offerItemMap = new Map(
     [...((offer.items ?? []) as any[]), ...((offer.recipient_items ?? []) as any[])].map((it: any) => [it.id, it]),
   );
+  const senderIds = (((offer as any).offered_item_ids ?? []) as string[]).filter(Boolean);
+  const recipientIds = (((offer as any).recipient_item_ids ?? []) as string[]).filter(Boolean);
+  const senderItems = senderIds.map((id) => offerItemMap.get(id)).filter(Boolean);
+  const recipientItemsSelected = recipientIds.map((id) => offerItemMap.get(id)).filter(Boolean);
 
-  const senderItems = senderIds.length ? senderIds.map((id) => itemMap.get(id)).filter(Boolean) : (offer.items ?? []);
-  const recipientItemsSelected = recipientIds.length
-    ? recipientIds.map((id) => itemMap.get(id)).filter(Boolean)
-    : (offer.recipient_items ?? []);
+  const senderImgs = toImgs(senderItems, removedItems, !isTo);
+  const ownerExtraImgs = toImgs(recipientItemsSelected, removedRecipientItems, isTo);
 
-  const iAmSender = myId === offer.from_user;
-  const giveItems = iAmSender ? senderItems : [...(offer.listing ? [offer.listing] : []), ...recipientItemsSelected];
-  const getItems = iAmSender ? recipientItemsSelected : senderItems;
-
-  const giveImgs = toImgs(
-    giveItems.filter((it: any) => it && typeof it === "object" && "id" in it),
-    iAmSender ? removedItems : removedRecipientItems,
-    iAmSender ? accepted : false,
-  );
-  const getImgs = toImgs(
-    getItems.filter((it: any) => it && typeof it === "object" && "id" in it),
-    iAmSender ? removedRecipientItems : removedItems,
-    false,
-  );
-  const myItemIds = iAmSender ? senderIds : recipientIds;
-  const giveOwner = iAmSender ? offer.to_profile : offer.from_profile;
-  const getOwner = iAmSender ? offer.from_profile : offer.to_profile;
+  const giveImgs = isTo ? [...listingImgs, ...ownerExtraImgs] : senderImgs;
+  const getImgs = isTo ? senderImgs : [...listingImgs, ...ownerExtraImgs];
+  const myItemIds = isTo ? recipientIds : senderIds;
+  const giveOwner = isTo ? offer.listing?.owner ?? offer.to_profile : offer.from_profile;
+  const getOwner = isTo ? offer.from_profile : offer.listing?.owner ?? offer.to_profile;
 
   const removeImg = (img: Img) => {
     if (img.to?.kind === "listing") {
