@@ -173,7 +173,18 @@ function OfferDetail() {
 
   const reviseMut = useMutation({
     mutationFn: (ids: string[]) => revise({ data: { id, offered_item_ids: ids } }),
-    onSuccess: () => {
+    onSuccess: (_result, ids) => {
+      qc.setQueryData(["offer", id], (old: any) => {
+        if (!old) return old;
+        const next = { ...old };
+        const currentKey = isTo ? "recipient_item_ids" : "offered_item_ids";
+        const currentListKey = isTo ? "recipient_items" : "items";
+        const base = [...((old[currentListKey] ?? []) as any[]), ...((isTo ? (old.items ?? []) : (old.recipient_items ?? [])) as any[])];
+        const byId = new Map(base.map((it: any) => [it.id, it]));
+        next[currentKey] = ids;
+        next[currentListKey] = ids.map((id) => byId.get(id)).filter(Boolean);
+        return next;
+      });
       invalidateAll();
       setAddOpen(false);
       toast.success("Your side of the trade was updated");
@@ -319,7 +330,9 @@ function OfferDetail() {
 
   const giveImgs = isTo ? [...listingImgs, ...ownerExtraImgs] : senderImgs;
   const getImgs = isTo ? senderImgs : [...listingImgs, ...ownerExtraImgs];
-  const myItemIds = (isTo ? recipientItems : items).map((i) => i.id as string);
+  const mySideIds = (isTo ? (offer.recipient_item_ids ?? []) : (offer.offered_item_ids ?? [])) as string[];
+  const myItemIds = mySideIds.filter(Boolean);
+  const mySideItems = (isTo ? recipientItems : items).filter((i) => mySideIds.includes(i.id));
   const giveOwner = isTo ? offer.listing?.owner ?? offer.to_profile : offer.from_profile;
   const getOwner = isTo ? offer.from_profile : offer.listing?.owner ?? offer.to_profile;
 
@@ -1166,6 +1179,10 @@ function AddItemsModal({
   });
   const [ids, setIds] = useState<string[]>(selected);
   const rows = useMemo(() => (data ?? []) as any[], [data]);
+
+  useEffect(() => {
+    setIds(selected);
+  }, [selected]);
 
   return (
     <Modal onClose={onClose}>
