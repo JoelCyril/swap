@@ -122,10 +122,11 @@ export const getOffer = createServerFn({ method: "GET" })
 
     const fetchItems = async (ids: string[]): Promise<any[]> => {
       if (!ids.length) return [];
-      const { data: rows } = await context.supabase
-  .from("items")
-  .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
-  .in("id", ids);
+      const { data: rows, error } = await context.supabase
+        .from("items")
+        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
+        .in("id", ids);
+      if (error) throw new Error(error.message);
       return (rows ?? []) as any[];
     };
 
