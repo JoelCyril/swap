@@ -124,7 +124,7 @@ export const getOffer = createServerFn({ method: "GET" })
       if (!ids.length) return [];
       const { data: rows, error } = await context.supabase
         .from("items")
-        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
+        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
         .in("id", ids);
       if (error) throw new Error(error.message);
       if ((rows ?? []).length === ids.length) return rows as any[];
@@ -132,7 +132,7 @@ export const getOffer = createServerFn({ method: "GET" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: adminRows, error: adminError } = await supabaseAdmin
         .from("items")
-        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
+        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
         .in("id", ids);
       if (adminError) throw new Error(adminError.message);
       if (adminRows) return adminRows as any[];
