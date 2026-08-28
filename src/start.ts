@@ -43,7 +43,7 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       });
     }
 
-    return new Response(renderErrorPage(), {
+    return new Response(renderErrorPage(message), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
