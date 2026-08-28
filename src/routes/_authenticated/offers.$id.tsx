@@ -325,16 +325,19 @@ function OfferDetail() {
       canRemove: isTo && accepted,
     },
   ];
-  const senderImgs = toImgs(items, removedItems, !isTo);
-  const ownerExtraImgs = toImgs(recipientItems, removedRecipientItems, isTo);
+  const mySideIsFrom = myId === offer.from_user;
+  const myGiveIds = (mySideIsFrom ? (offer.offered_item_ids ?? []) : (offer.recipient_item_ids ?? [])) as string[];
+  const myGetIds = (mySideIsFrom ? (offer.recipient_item_ids ?? []) : (offer.offered_item_ids ?? [])) as string[];
+  const myGiveItems = (mySideIsFrom ? (offer.items ?? []) : (offer.recipient_items ?? [])).filter((i) => myGiveIds.includes(i.id));
+  const myGetItems = (mySideIsFrom ? (offer.recipient_items ?? []) : (offer.items ?? [])).filter((i) => myGetIds.includes(i.id));
+  const myGiveRemoved = mySideIsFrom ? removedItems : removedRecipientItems;
+  const myGetRemoved = mySideIsFrom ? removedRecipientItems : removedItems;
 
-  const giveImgs = isTo ? [...listingImgs, ...ownerExtraImgs] : senderImgs;
-  const getImgs = isTo ? senderImgs : [...listingImgs, ...ownerExtraImgs];
-  const mySideIds = (isTo ? (offer.recipient_item_ids ?? []) : (offer.offered_item_ids ?? [])) as string[];
-  const myItemIds = mySideIds.filter(Boolean);
-  const mySideItems = (isTo ? recipientItems : items).filter((i) => mySideIds.includes(i.id));
-  const giveOwner = isTo ? offer.listing?.owner ?? offer.to_profile : offer.from_profile;
-  const getOwner = isTo ? offer.from_profile : offer.listing?.owner ?? offer.to_profile;
+  const giveImgs = toImgs(myGiveItems, myGiveRemoved, accepted);
+  const getImgs = toImgs(myGetItems, myGetRemoved, false);
+  const myItemIds = myGiveIds.filter(Boolean);
+  const giveOwner = mySideIsFrom ? offer.to_profile : offer.from_profile;
+  const getOwner = mySideIsFrom ? offer.from_profile : offer.to_profile;
 
   const removeImg = (img: Img) => {
     if (img.to?.kind === "listing") {
