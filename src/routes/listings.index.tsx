@@ -205,7 +205,13 @@ function ListingsPage() {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="font-display text-2xl font-black sm:text-3xl">
-                {q ? `Results for “${q}”` : active === "All" ? "All listings" : active}
+                {q
+                  ? `Results for “${q}”`
+                  : active === "All"
+                    ? signedIn
+                      ? "For You"
+                      : "All listings"
+                    : active}
               </h1>
             </div>
             <Link
