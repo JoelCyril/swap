@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlockedIds } from "@/lib/use-blocks";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { CategoryBar } from "@/components/layout/CategoryBar";
 import { Footer } from "@/components/layout/Footer";
@@ -39,7 +39,7 @@ function ListingsPage() {
   const { q } = Route.useSearch();
   const qc = useQueryClient();
   const [active, setActive] = useState<ItemCategory | "All">("All");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(() => getStoredSessionSync()?.user?.id ?? null);
   const [hidden, setHidden] = useState<string[]>([]);
   const [conditions, setConditions] = useState<ItemCondition[]>([]);
   const [emirate, setEmirate] = useState("");
@@ -51,9 +51,23 @@ function ListingsPage() {
   const [seed] = useState(() => Math.random());
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user?.id) setUserId(data.session.user.id);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user.id ?? null));
-    return () => sub.subscription.unsubscribe();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith("sb-") && e.key.endsWith("-auth-token")) {
+        const sync = getStoredSessionSync();
+        setUserId(sync?.user?.id ?? null);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
   const signedIn = !!userId;
 

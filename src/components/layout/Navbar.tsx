@@ -2,7 +2,7 @@ import { handle } from "@/lib/db-types";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Search, User, LogOut, ShieldCheck, Bell, Settings, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,7 +16,7 @@ const logoUrl = "/swap-logo.png";
 export function Navbar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => getStoredSessionSync());
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -25,8 +25,22 @@ export function Navbar() {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    return () => sub.subscription.unsubscribe();
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setSession(data.session);
+    });
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith("sb-") && e.key.endsWith("-auth-token")) {
+        const sync = getStoredSessionSync();
+        setSession(sync);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const getProfile = useServerFn(getMyProfile);

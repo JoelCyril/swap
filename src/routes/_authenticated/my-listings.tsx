@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,7 +25,6 @@ import {
   Search,
   CheckCircle2,
   Clock,
-  ExternalLink,
   Package,
   Camera,
   MapPin,
@@ -59,6 +58,7 @@ const EMPTY_ITEM = {
 type FilterTab = "all" | "listed" | "unlisted" | "in_trade";
 
 function MyInventoryPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const getInventory = useServerFn(listMyInventoryWithListings);
   const createItemFn = useServerFn(createItem);
@@ -405,10 +405,13 @@ function MyInventoryPage() {
                 ? "border-purple-500/50 shadow-purple-500/10"
                 : "border-primary/20 hover:border-primary/50";
 
+              const targetUrl = item.listing?.id ? `/listings/${item.listing.id}` : `/items/${item.id}`;
+
               return (
                 <article
                   key={item.id}
-                  className={`group relative flex flex-col rounded-3xl border-2 bg-card p-3.5 sm:p-4 shadow-card transition-all hover:shadow-card-hover ${cardBorder}`}
+                  onClick={() => navigate({ to: targetUrl })}
+                  className={`group relative flex flex-col rounded-3xl border-2 bg-card p-3.5 sm:p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer hover:border-primary/60 ${cardBorder}`}
                 >
                   {/* Photo Display */}
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
@@ -494,12 +497,13 @@ function MyInventoryPage() {
                       </div>
                     )}
 
-                    <div className="mt-auto pt-3.5">
+                    <div className="mt-auto pt-3.5" onClick={(e) => e.stopPropagation()}>
                       {/* 1-Click List or Unlist Action */}
                       {isUnlisted ? (
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setQuickListModalItem(item);
                             setLookingForText("");
                           }}
@@ -508,29 +512,19 @@ function MyInventoryPage() {
                           <ArrowRightLeft className="h-3.5 w-3.5" /> List on Marketplace
                         </button>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          {item.listing?.id && (
-                            <Link
-                              to="/listings/$id"
-                              params={{ id: item.listing.id }}
-                              className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600/15 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/25 transition text-center"
-                            >
-                              <ExternalLink className="h-3 w-3" /> View
-                            </Link>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm(`Unlist "${item.name}" from marketplace? It will stay in your inventory.`)) {
-                                unlistMut.mutate(item.id);
-                              }
-                            }}
-                            disabled={unlistMut.isPending}
-                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-destructive/30 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/10 transition"
-                          >
-                            Unlist
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Unlist "${item.name}" from marketplace? It will stay in your inventory.`)) {
+                              unlistMut.mutate(item.id);
+                            }
+                          }}
+                          disabled={unlistMut.isPending}
+                          className="w-full inline-flex items-center justify-center gap-1 rounded-full border-2 border-destructive/30 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 transition"
+                        >
+                          Unlist from Marketplace
+                        </button>
                       )}
 
                       {/* Edit / Delete actions */}
@@ -541,7 +535,10 @@ function MyInventoryPage() {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => openEditModal(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(item);
+                            }}
                             className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
                             title="Edit Item"
                           >
@@ -549,7 +546,8 @@ function MyInventoryPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (confirm(`Permanently delete "${item.name}" from your inventory?`)) {
                                 delMut.mutate(item.id);
                               }
@@ -572,7 +570,8 @@ function MyInventoryPage() {
             {filteredStandalone.map((l: any) => (
               <article
                 key={l.id}
-                className="group relative flex flex-col rounded-3xl border-2 border-emerald-500/40 bg-card p-3.5 sm:p-4 shadow-card hover:shadow-card-hover"
+                onClick={() => navigate({ to: `/listings/${l.id}` })}
+                className="group relative flex flex-col rounded-3xl border-2 border-emerald-500/40 bg-card p-3.5 sm:p-4 shadow-card hover:shadow-card-hover cursor-pointer hover:border-emerald-500 transition"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
                   {l.image_urls && l.image_urls.length > 0 ? (
@@ -591,21 +590,18 @@ function MyInventoryPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {l.category} · {l.location}
                   </p>
-                  <div className="mt-auto pt-3.5 flex items-center gap-2">
-                    <Link
-                      to="/listings/$id"
-                      params={{ id: l.id }}
-                      className="flex-1 text-center rounded-full bg-emerald-600/15 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"
-                    >
-                      View
-                    </Link>
+                  <div className="mt-auto pt-3.5 flex items-center justify-between border-t border-border/60" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                      Options
+                    </span>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (confirm(`Delete listing "${l.title}"?`)) deleteStandaloneMut.mutate(l.id);
                       }}
-                      className="rounded-full border border-destructive/30 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
+                      className="rounded-full border border-destructive/30 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5 inline mr-1" /> Delete
                     </button>
                   </div>
                 </div>
