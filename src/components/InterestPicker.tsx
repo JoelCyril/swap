@@ -47,7 +47,8 @@ export function InterestPicker({ onDone, onSkip, isNewUser = false, storageKey }
         localStorage.setItem("swap_interests", JSON.stringify(interests));
         if (!String(error).toLowerCase().includes("interests")) throw error;
       }
-      if (storageKey) localStorage.removeItem(storageKey);
+      if (storageKey) localStorage.setItem(storageKey, "done");
+      localStorage.setItem("swap_interests_prompted", "true");
     },
     onSuccess: (_, interests) => onDone(interests),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save interests"),
@@ -63,7 +64,8 @@ export function InterestPicker({ onDone, onSkip, isNewUser = false, storageKey }
   }
 
   function handleSkip() {
-    if (storageKey) localStorage.setItem(storageKey, "skipped");
+    if (storageKey) localStorage.setItem(storageKey, "done");
+    localStorage.setItem("swap_interests_prompted", "true");
     onSkip?.();
     onDone([]);
   }

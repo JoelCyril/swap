@@ -15,7 +15,7 @@ export const attachSupabaseAuthFresh = createMiddleware({ type: "function" }).cl
       const session = data.session;
       token = session?.access_token;
       const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
-      if (session && expiresAt && expiresAt < Date.now() + 60_000) {
+      if (session && expiresAt && expiresAt < Date.now() + 180_000) {
         const { data: refreshed } = await supabase.auth.refreshSession();
         token = refreshed.session?.access_token ?? token;
       }

@@ -116,10 +116,19 @@ function ListingsPage() {
   );
   const effectiveInterests = myInterests.length > 0 ? myInterests : localInterests;
   const interestPromptKey = userId ? `swap_interests_prompt_${userId}` : null;
+  const hasAlreadyBeenPrompted =
+    !userId ||
+    (typeof window !== "undefined" &&
+      (localStorage.getItem(`swap_interests_prompt_${userId}`) === "done" ||
+        localStorage.getItem(`swap_interests_prompt_${userId}`) === "skipped" ||
+        localStorage.getItem(`swap_interests_seen_${userId}`) === "1" ||
+        localStorage.getItem("swap_interests_prompted") === "true"));
+
   const shouldAskInterests =
     signedIn &&
     !!me?.profile &&
     effectiveInterests.length === 0 &&
+    !hasAlreadyBeenPrompted &&
     !interestPromptDismissed &&
     !interestPromptSkipped;
 
