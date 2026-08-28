@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { moderate } from "./moderation";
+import { notifyUser } from "./notifications.server";
 
 // Define or import your allowed attachment URL validation logic
 
@@ -71,6 +72,26 @@ export const sendMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    const { data: offer, error: offerError } = await context.supabase
+      .from("offers")
+      .select("from_user, to_user")
+      .eq("id", data.offer_id)
+      .maybeSingle();
+
+    if (offerError) throw new Error(offerError.message);
+
+    const recipientId = offer?.from_user === context.userId ? offer.to_user : offer?.to_user === context.userId ? offer.from_user : null;
+    if (recipientId) {
+      const preview = data.body.trim() || "Sent an attachment";
+      await notifyUser({
+        userId: recipientId,
+        type: "message_received",
+        title: "New message",
+        body: preview.length > 120 ? `${preview.slice(0, 117)}...` : preview,
+        link: `/offers/${data.offer_id}`,
+      });
+    }
 
     return row;
   });
