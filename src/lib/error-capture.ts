@@ -8,6 +8,11 @@ function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
 }
 
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  process.on("uncaughtException", (err) => record(err));
+  process.on("unhandledRejection", (reason) => record(reason));
+}
+
 if (typeof globalThis.addEventListener === "function") {
   globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
   globalThis.addEventListener("unhandledrejection", (event) =>

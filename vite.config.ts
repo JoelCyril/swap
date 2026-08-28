@@ -30,6 +30,7 @@ export default defineConfig({
   },
   ssr: {
     target: "node",
+    noExternal: ["tslib", /^@supabase\//],
   },
   environments: {
     ssr: {
