@@ -27,11 +27,8 @@ import {
   Clock,
   ExternalLink,
   Package,
-  Layers,
-  Sparkles,
-  Eye,
-  EyeOff,
-  SlidersHorizontal,
+  Camera,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -93,14 +90,17 @@ function MyInventoryPage() {
 
   // Counts
   const totalItems = items.length + standaloneListings.length;
-  const listedCount = items.filter((i) => i.is_listed && i.listing_status === "active").length + standaloneListings.filter((l: any) => l.status === "active").length;
-  const inTradeCount = items.filter((i) => i.listing_status === "reserved" || i.listing_status === "completed").length + standaloneListings.filter((l: any) => l.status === "reserved" || l.status === "completed").length;
+  const listedCount =
+    items.filter((i) => i.is_listed && i.listing_status === "active").length +
+    standaloneListings.filter((l: any) => l.status === "active").length;
+  const inTradeCount =
+    items.filter((i) => i.listing_status === "reserved" || i.listing_status === "completed").length +
+    standaloneListings.filter((l: any) => l.status === "reserved" || l.status === "completed").length;
   const unlistedCount = items.filter((i) => !i.is_listed).length;
 
   // Filter items
   const q = search.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
-    // Search query match
     const matchSearch =
       !q ||
       item.name.toLowerCase().includes(q) ||
@@ -109,7 +109,6 @@ function MyInventoryPage() {
       (item.description ?? "").toLowerCase().includes(q);
     if (!matchSearch) return false;
 
-    // Tab filter
     if (filterTab === "listed") return item.is_listed && item.listing_status === "active";
     if (filterTab === "unlisted") return !item.is_listed;
     if (filterTab === "in_trade") return item.listing_status === "reserved" || item.listing_status === "completed";
@@ -135,7 +134,9 @@ function MyInventoryPage() {
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Please add an item name");
       if (form.image_urls.length === 0) throw new Error("Please add at least one photo");
-      return editingId ? await updateItemFn({ data: { id: editingId, ...form } }) : await createItemFn({ data: form });
+      return editingId
+        ? await updateItemFn({ data: { id: editingId, ...form } })
+        : await createItemFn({ data: form });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
@@ -182,7 +183,7 @@ function MyInventoryPage() {
       qc.invalidateQueries({ queryKey: ["my-items"] });
       qc.invalidateQueries({ queryKey: ["listings"] });
       toast.success("Listing removed from marketplace", {
-        description: "The item is still safely saved in your inventory.",
+        description: "The item is still saved in your inventory.",
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to unlist item"),
@@ -262,90 +263,91 @@ function MyInventoryPage() {
 
       <Navbar />
 
-      <main className="mx-auto w-full max-w-[1300px] flex-1 px-4 py-6 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-[1300px] flex-1 px-4 py-5 sm:px-6 sm:py-10">
         {/* Top Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
                 <Package className="h-5 w-5" />
               </span>
-              <h1 className="font-display text-2xl font-black sm:text-4xl text-foreground">
-                My Inventory &amp; Listings
+              <h1 className="font-display text-2xl font-black sm:text-3xl text-foreground">
+                My Inventory
               </h1>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              Add all your items to your inventory. Toggle which ones are listed on the marketplace with a single click.
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+              Manage your personal items and list them on the marketplace with a single click.
             </p>
           </div>
 
           <button
             onClick={openNewModal}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 active:scale-95 sm:w-auto"
           >
-            <Plus className="h-4 w-4" /> Add Item to Inventory
+            <Plus className="h-4 w-4" /> Add Item
           </button>
         </div>
 
-        {/* Filter Stats & Tabs */}
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Filter Tabs & Search Bar */}
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+          {/* Horizontally scrollable tabs on phone */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setFilterTab("all")}
-              className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
                 filterTab === "all"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
-              All Items ({totalItems})
+              All ({totalItems})
             </button>
             <button
               onClick={() => setFilterTab("listed")}
-              className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
                 filterTab === "listed"
                   ? "bg-emerald-600 text-white shadow-sm"
                   : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
               }`}
             >
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              Listed on Marketplace ({listedCount})
+              Listed ({listedCount})
             </button>
             <button
               onClick={() => setFilterTab("unlisted")}
-              className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
                 filterTab === "unlisted"
                   ? "bg-slate-700 text-white shadow-sm"
                   : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200"
               }`}
             >
               <span className="h-2 w-2 rounded-full bg-slate-400" />
-              In Inventory Only ({unlistedCount})
+              In Inventory ({unlistedCount})
             </button>
             {inTradeCount > 0 && (
               <button
                 onClick={() => setFilterTab("in_trade")}
-                className={`rounded-full px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
                   filterTab === "in_trade"
                     ? "bg-amber-600 text-white shadow-sm"
                     : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 hover:bg-amber-100"
                 }`}
               >
                 <span className="h-2 w-2 rounded-full bg-amber-400" />
-                In Trade / Reserved ({inTradeCount})
+                In Trade ({inTradeCount})
               </button>
             )}
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-72">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search your inventory…"
-              className="w-full rounded-full border-2 border-primary/20 bg-card py-2 pl-10 pr-8 text-xs outline-none transition focus:border-primary"
+              className="w-full rounded-full border-2 border-primary/20 bg-card py-2 pl-9 pr-8 text-xs outline-none transition focus:border-primary"
             />
             {search && (
               <button
@@ -365,14 +367,14 @@ function MyInventoryPage() {
             <p className="text-sm font-semibold">Loading your inventory…</p>
           </div>
         ) : filteredItems.length === 0 && filteredStandalone.length === 0 ? (
-          <div className="mt-10 rounded-3xl border-2 border-dashed border-primary/30 bg-card p-10 text-center sm:p-16">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-primary/10 text-primary">
-              <Package className="h-8 w-8" />
+          <div className="mt-8 rounded-3xl border-2 border-dashed border-primary/30 bg-card p-8 text-center sm:p-14">
+            <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-3xl bg-primary/10 text-primary">
+              <Package className="h-7 w-7" />
             </div>
-            <h3 className="font-display text-xl font-bold">
-              {search ? `No items match "${search}"` : "Your inventory is currently empty"}
+            <h3 className="font-display text-lg font-bold">
+              {search ? `No items match "${search}"` : "Your inventory is empty"}
             </h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+            <p className="mt-1.5 text-xs text-muted-foreground max-w-sm mx-auto">
               {search
                 ? "Try searching for a different keyword or reset your filter tabs."
                 : "Add the items you own to start building your personal trading inventory."}
@@ -380,14 +382,14 @@ function MyInventoryPage() {
             {!search && (
               <button
                 onClick={openNewModal}
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
               >
                 <Plus className="h-4 w-4" /> Add Your First Item
               </button>
             )}
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredItems.map((item) => {
               const isListed = item.is_listed && item.listing_status === "active";
               const isReserved = item.listing_status === "reserved";
@@ -395,7 +397,6 @@ function MyInventoryPage() {
               const isWithheld = item.listing_status === "withheld";
               const isUnlisted = !item.is_listed || item.listing_status === "not_listed";
 
-              // Distinct Overlay & Border Styling by Status
               const cardBorder = isListed
                 ? "border-emerald-500/50 shadow-emerald-500/10 ring-1 ring-emerald-500/30"
                 : isReserved
@@ -407,9 +408,9 @@ function MyInventoryPage() {
               return (
                 <article
                   key={item.id}
-                  className={`group relative flex flex-col rounded-3xl border-2 bg-card p-4 shadow-card transition-all hover:shadow-card-hover ${cardBorder}`}
+                  className={`group relative flex flex-col rounded-3xl border-2 bg-card p-3.5 sm:p-4 shadow-card transition-all hover:shadow-card-hover ${cardBorder}`}
                 >
-                  {/* Photo / Emoji Display */}
+                  {/* Photo Display */}
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
                     {item.image_urls && item.image_urls.length > 0 ? (
                       <img
@@ -418,55 +419,54 @@ function MyInventoryPage() {
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="grid h-full w-full place-items-center text-6xl">
-                        <span aria-hidden>{item.image_emoji || "📦"}</span>
+                      <div className="grid h-full w-full place-items-center">
+                        <Package className="h-12 w-12 text-primary/40" />
                       </div>
                     )}
 
-                    {/* Overlay Status Badge */}
+                    {/* Status Badge Overlay */}
                     <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
                       {isListed && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/95 backdrop-blur-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
                           <CheckCircle2 className="h-3 w-3" /> Listed Live
                         </span>
                       )}
                       {isReserved && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/95 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/95 backdrop-blur-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
                           <Clock className="h-3 w-3" /> In Trade
                         </span>
                       )}
                       {isCompleted && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-600/95 backdrop-blur-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
                           <CheckCircle2 className="h-3 w-3" /> Swapped
                         </span>
                       )}
                       {isWithheld && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/90 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/95 backdrop-blur-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
                           Review Needed
                         </span>
                       )}
                       {isUnlisted && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 backdrop-blur-md px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-100 shadow-sm">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/85 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-100 shadow-sm">
                           In Inventory
                         </span>
                       )}
 
                       {/* Photo Count badge */}
                       {item.image_urls && item.image_urls.length > 1 && (
-                        <span className="rounded-full bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white">
-                          📷 {item.image_urls.length}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white">
+                          <Camera className="h-2.5 w-2.5" />
+                          {item.image_urls.length}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Item Content */}
-                  <div className="mt-3.5 flex flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-display text-base font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                        {item.name}
-                      </h3>
-                    </div>
+                  {/* Card Content */}
+                  <div className="mt-3 flex flex-1 flex-col">
+                    <h3 className="font-display text-base font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                      {item.name}
+                    </h3>
 
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                       <span className="rounded-md bg-muted px-2 py-0.5 text-foreground/80">{item.category}</span>
@@ -477,68 +477,66 @@ function MyInventoryPage() {
                     </div>
 
                     {item.description && (
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+                      <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
 
-                    {/* Listing Info if Active */}
+                    {/* Listing details if active */}
                     {item.listing && (
-                      <div className="mt-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs">
-                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate">
-                          🎯 Wants: {item.listing.looking_for || "Open to any swap"}
+                      <div className="mt-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs">
+                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate flex items-center gap-1">
+                          <ArrowRightLeft className="h-3 w-3 shrink-0" />
+                          Looking for: {item.listing.looking_for || "Open to offers"}
                         </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          📍 {item.listing.location}, {item.listing.emirate}
+                        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" />
+                          {item.listing.location}, {item.listing.emirate}
                         </p>
                       </div>
                     )}
 
-                    <div className="mt-auto pt-4">
-                      {/* PRIMARY ACTION BUTTON: 1-Click List or Unlist */}
+                    <div className="mt-auto pt-3.5">
+                      {/* 1-Click List or Unlist Action */}
                       {isUnlisted ? (
-                        <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickListModalItem(item);
+                            setLookingForText("");
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-md transition hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <ArrowRightLeft className="h-3.5 w-3.5" /> List on Marketplace
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {item.listing?.id && (
+                            <Link
+                              to="/listings/$id"
+                              params={{ id: item.listing.id }}
+                              className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600/15 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/25 transition text-center"
+                            >
+                              <ExternalLink className="h-3 w-3" /> View
+                            </Link>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
-                              setQuickListModalItem(item);
-                              setLookingForText("");
+                              if (confirm(`Unlist "${item.name}" from marketplace? It will stay in your inventory.`)) {
+                                unlistMut.mutate(item.id);
+                              }
                             }}
-                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-md transition hover:scale-[1.02] hover:shadow-glow active:scale-[0.98]"
+                            disabled={unlistMut.isPending}
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-destructive/30 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/10 transition"
                           >
-                            <ArrowRightLeft className="h-3.5 w-3.5" /> List on Marketplace
+                            Unlist
                           </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            {item.listing?.id && (
-                              <Link
-                                to="/listings/$id"
-                                params={{ id: item.listing.id }}
-                                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600/15 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/25 transition text-center"
-                              >
-                                <ExternalLink className="h-3 w-3" /> View Listing
-                              </Link>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Unlist "${item.name}" from marketplace? It will stay in your inventory.`)) {
-                                  unlistMut.mutate(item.id);
-                                }
-                              }}
-                              disabled={unlistMut.isPending}
-                              className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-destructive/30 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/10 transition"
-                            >
-                              Unlist
-                            </button>
-                          </div>
                         </div>
                       )}
 
-                      {/* SECONDARY ACTIONS: Edit & Delete */}
-                      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2.5">
+                      {/* Edit / Delete actions */}
+                      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
                         <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                          Item Actions
+                          Options
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -570,30 +568,30 @@ function MyInventoryPage() {
               );
             })}
 
-            {/* Standalone Listings (if any were created without linked inventory items) */}
+            {/* Standalone Listings */}
             {filteredStandalone.map((l: any) => (
               <article
                 key={l.id}
-                className="group relative flex flex-col rounded-3xl border-2 border-emerald-500/40 bg-card p-4 shadow-card hover:shadow-card-hover"
+                className="group relative flex flex-col rounded-3xl border-2 border-emerald-500/40 bg-card p-3.5 sm:p-4 shadow-card hover:shadow-card-hover"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-primary-soft/40">
                   {l.image_urls && l.image_urls.length > 0 ? (
                     <img src={l.image_urls[0]} alt={l.title} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center text-6xl">
-                      <span>{l.image_emoji || "📦"}</span>
+                    <div className="grid h-full w-full place-items-center">
+                      <Package className="h-12 w-12 text-primary/40" />
                     </div>
                   )}
-                  <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black uppercase text-white shadow-md">
+                  <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase text-white shadow-md">
                     <CheckCircle2 className="h-3 w-3" /> Listed
                   </span>
                 </div>
-                <div className="mt-3.5 flex flex-1 flex-col">
+                <div className="mt-3 flex flex-1 flex-col">
                   <h3 className="font-display text-base font-bold text-foreground line-clamp-1">{l.title}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {l.category} · {l.location}
                   </p>
-                  <div className="mt-auto pt-4 flex items-center gap-2">
+                  <div className="mt-auto pt-3.5 flex items-center gap-2">
                     <Link
                       to="/listings/$id"
                       params={{ id: l.id }}
@@ -617,10 +615,10 @@ function MyInventoryPage() {
         )}
       </main>
 
-      {/* QUICK LIST DIALOG: When user clicks "List on Marketplace" */}
+      {/* QUICK LIST DIALOG */}
       {quickListModalItem && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl bg-card p-6 shadow-card-hover border-2 border-primary/30">
+          <div className="w-full max-w-md rounded-3xl bg-card p-5 sm:p-6 shadow-card-hover border-2 border-primary/30 max-h-[85dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
@@ -644,7 +642,9 @@ function MyInventoryPage() {
                   className="h-12 w-12 rounded-xl object-cover"
                 />
               ) : (
-                <span className="text-3xl">{quickListModalItem.image_emoji || "📦"}</span>
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Package className="h-6 w-6" />
+                </div>
               )}
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm truncate">{quickListModalItem.name}</p>
@@ -661,7 +661,7 @@ function MyInventoryPage() {
               <textarea
                 value={lookingForText}
                 onChange={(e) => setLookingForText(e.target.value)}
-                placeholder="e.g. Mechanical keyboard, headphones, or open to any offers"
+                placeholder="e.g. Wireless headphones, board games, or open to any offers"
                 rows={2}
                 maxLength={300}
                 className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary resize-none"
@@ -687,7 +687,7 @@ function MyInventoryPage() {
                 disabled={quickListMut.isPending}
                 className="flex-1 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
               >
-                {quickListMut.isPending ? "Listing…" : "Publish Listing"}
+                {quickListMut.isPending ? "Listing…" : "Publish"}
               </button>
             </div>
           </div>
@@ -697,13 +697,15 @@ function MyInventoryPage() {
       {/* ADD / EDIT INVENTORY ITEM MODAL */}
       {openModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-6 shadow-card-hover border-2 border-primary/30">
+          <div className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-5 sm:p-6 shadow-card-hover border-2 border-primary/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
                   <Package className="h-5 w-5" />
                 </span>
-                <h2 className="font-display text-2xl font-black">{editingId ? "Edit Item" : "Add to Inventory"}</h2>
+                <h2 className="font-display text-xl sm:text-2xl font-black">
+                  {editingId ? "Edit Item" : "Add to Inventory"}
+                </h2>
               </div>
               <button
                 onClick={() => setOpenModal(false)}
@@ -713,7 +715,7 @@ function MyInventoryPage() {
               </button>
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="mt-4 space-y-3.5">
               <div>
                 <label className="text-xs font-bold uppercase text-muted-foreground">Item Name *</label>
                 <input
@@ -734,8 +736,8 @@ function MyInventoryPage() {
                     className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
                   >
                     {CATEGORIES.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
+                  <option key={c}>{c}</option>
+                ))}
                   </select>
                 </div>
                 <div>
@@ -755,7 +757,7 @@ function MyInventoryPage() {
               {/* Photos */}
               <div>
                 <label className="text-xs font-bold uppercase text-muted-foreground">Photos (up to 8, required)</label>
-                <div className="mt-2 grid grid-cols-4 gap-2.5">
+                <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {form.image_urls.map((url, i) => (
                     <div
                       key={url}

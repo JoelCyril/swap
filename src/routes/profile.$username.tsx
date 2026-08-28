@@ -9,7 +9,7 @@ import { ListingCard } from "@/components/listings/ListingCard";
 import { BanUserPanel } from "@/components/admin/BanUserPanel";
 import { listListingsByUsername } from "@/lib/listings.functions";
 import { getPublicProfile, getMyProfile } from "@/lib/profile.functions";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck, Package } from "lucide-react";
 import { handle } from "@/lib/db-types";
 import { useBlockedIds } from "@/lib/use-blocks";
 
@@ -160,11 +160,11 @@ function ProfilePage() {
                   params={{ id: it.id }}
                   className="rounded-3xl border-2 border-primary/20 bg-card p-4 shadow-card transition hover:border-primary hover:shadow-card-hover"
                 >
-                  <div className="grid aspect-square place-items-center overflow-hidden rounded-2xl bg-primary-soft text-5xl">
+                  <div className="grid aspect-square place-items-center overflow-hidden rounded-2xl bg-primary-soft">
                     {it.image_urls && it.image_urls.length > 0 ? (
                       <img src={it.image_urls[0]} alt={it.name} className="h-full w-full object-cover" />
                     ) : (
-                      <span aria-hidden>{it.image_emoji}</span>
+                      <Package className="h-10 w-10 text-primary/40" />
                     )}
                   </div>
                   <p className="mt-3 truncate text-sm font-bold">{it.name}</p>

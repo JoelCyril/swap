@@ -202,7 +202,7 @@ function OfferDetail() {
     mutationFn: () => confirmReceived({ data: { id } }),
     onSuccess: (r: any) => {
       invalidateAll();
-      toast.success(r?.both ? "Swap complete 🎉" : "Receipt confirmed — waiting on the other side");
+      toast.success(r?.both ? "Swap complete" : "Receipt confirmed — waiting on the other side");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -358,7 +358,7 @@ function OfferDetail() {
           >
             {offer.status === "completed"
               ? bothReceived
-                ? "Swap complete 🎉"
+                ? "Swap complete"
                 : iConfirmedReceived
                   ? `Waiting on ${handle(other)} to confirm receipt`
                   : "Confirm you received the items"
@@ -406,7 +406,9 @@ function OfferDetail() {
 
             {confirmedProposal && (
               <div className="border-b border-border bg-primary-soft px-4 py-2">
-                <p className="text-[10px] font-black uppercase text-primary">📌 Confirmed meetup</p>
+                <p className="text-[10px] font-black uppercase text-primary flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> Confirmed meetup
+                </p>
                 <p className="text-sm font-semibold flex items-center gap-1">
                   <MapPin className="h-3 w-3" /> {confirmedProposal.place}
                 </p>
@@ -477,14 +479,14 @@ function OfferDetail() {
               )}
               {timeline.length === 0 && !chatOpen && (
                 <p className="py-8 text-center text-xs text-muted-foreground">
-                  🔒 Chat unlocks once the offer is accepted.
+                  Chat unlocks once the offer is accepted.
                 </p>
               )}
               {otherTyping && chatOpen && (
                 <p className="text-[11px] italic text-muted-foreground">{handle(other)} is typing…</p>
               )}
               {timeline.length === 0 && chatOpen && (
-                <p className="py-8 text-center text-xs text-muted-foreground">Say hi and coordinate your swap 👋</p>
+                <p className="py-8 text-center text-xs text-muted-foreground">Say hello and coordinate your swap.</p>
               )}
             </div>
 
@@ -702,11 +704,11 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
           <div className="mt-4 space-y-3">
             <p className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary-soft/40 p-4 text-center text-xs font-semibold text-muted-foreground">
               {offer.status === "completed"
-                ? `Trade marked completed. Both sides must confirm they received the items — you: ${
-                    iConfirmedReceived ? "✅" : "⏳"
-                  } · ${handle(other)}: ${receivedConfirmed.includes(other?.id as string) ? "✅" : "⏳"}`
-                : `Completion needs both sides — you: ${iConfirmedComplete ? "✅" : "⏳"} · ${handle(other)}: ${
-                    completeConfirmed.includes(other?.id as string) ? "✅" : "⏳"
+                ? `Trade marked completed. Both sides must confirm receipt — you: ${
+                    iConfirmedReceived ? "Confirmed" : "Pending"
+                  } · ${handle(other)}: ${receivedConfirmed.includes(other?.id as string) ? "Confirmed" : "Pending"}`
+                : `Completion needs both sides — you: ${iConfirmedComplete ? "Confirmed" : "Pending"} · ${handle(other)}: ${
+                    completeConfirmed.includes(other?.id as string) ? "Confirmed" : "Pending"
                   }`}
             </p>
           </div>
@@ -816,7 +818,7 @@ function SidePanel({
               {img.src ? (
                 <img src={img.src} alt={img.name} className="h-full w-full object-cover" />
               ) : (
-                <span aria-hidden>{img.emoji ?? "📦"}</span>
+                <Package className="h-8 w-8 text-primary/50" />
               )}
               {img.removed && (
                 <span className="absolute inset-0 grid place-items-center bg-destructive/20 text-destructive">
@@ -982,11 +984,13 @@ function MeetupCard({
             </span>
           </label>
           <div className="flex flex-wrap gap-3 text-[11px] font-bold">
-            <span className={confirmedBy.includes(fromUser) ? "text-primary" : "text-muted-foreground"}>
-              {confirmedBy.includes(fromUser) ? "✅" : "⏳"} Sender
+            <span className={confirmedBy.includes(fromUser) ? "text-primary flex items-center gap-1" : "text-muted-foreground flex items-center gap-1"}>
+              <span className={`h-1.5 w-1.5 rounded-full ${confirmedBy.includes(fromUser) ? "bg-primary" : "bg-muted-foreground/40"}`} />
+              Sender {confirmedBy.includes(fromUser) ? "Confirmed" : "Pending"}
             </span>
-            <span className={confirmedBy.includes(toUser) ? "text-primary" : "text-muted-foreground"}>
-              {confirmedBy.includes(toUser) ? "✅" : "⏳"} Recipient
+            <span className={confirmedBy.includes(toUser) ? "text-primary flex items-center gap-1" : "text-muted-foreground flex items-center gap-1"}>
+              <span className={`h-1.5 w-1.5 rounded-full ${confirmedBy.includes(toUser) ? "bg-primary" : "bg-muted-foreground/40"}`} />
+              Recipient {confirmedBy.includes(toUser) ? "Confirmed" : "Pending"}
             </span>
           </div>
           {bothSafe && (

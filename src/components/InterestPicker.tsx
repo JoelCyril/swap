@@ -69,8 +69,8 @@ export function InterestPicker({ onDone, onSkip, isNewUser = false, storageKey }
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-xl">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-start sm:justify-center overflow-y-auto bg-background/95 p-4 py-8 sm:py-12 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="my-auto w-full max-w-xl">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-primary shadow-glow">
             <Sparkles className="h-8 w-8 text-primary-foreground" />

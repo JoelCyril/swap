@@ -13,7 +13,7 @@ import { flagListing } from "@/lib/flags.functions";
 import { getPublicProfile } from "@/lib/profile.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/listings/$id")({
@@ -163,8 +163,8 @@ function ListingDetailPage() {
               {photos.length > 0 ? (
                 <img src={photos[Math.min(activePhoto, photos.length - 1)]} alt={listing.title} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
-                <div className="absolute inset-0 grid place-items-center text-[90px] drop-shadow-lg sm:text-[160px] lg:text-[200px]">
-                  <span aria-hidden>{listing.image_emoji}</span>
+                <div className="absolute inset-0 grid place-items-center">
+                  <Package className="h-24 w-24 text-primary/40 sm:h-32 sm:w-32" />
                 </div>
               )}
 
@@ -331,7 +331,9 @@ function ListingDetailPage() {
                               on ? "border-primary bg-primary-soft" : "border-border hover:border-primary/50"
                             }`}
                           >
-                            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-xl">{it.image_emoji}</span>
+                            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
+                              <Package className="h-5 w-5" />
+                            </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold truncate">{it.name}</p>
                               <p className="text-[10px] text-muted-foreground uppercase">{it.condition}</p>

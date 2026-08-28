@@ -6,7 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { listMyOffers } from "@/lib/offers.functions";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, X, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/offers/")({
   head: () => ({
@@ -126,8 +126,8 @@ function OfferList({ offers, incoming = false, onClear }: { offers: any[]; incom
             params={{ id: o.id }}
             className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border-2 border-primary/20 bg-card p-3 hover:border-primary hover:shadow-card transition sm:flex sm:gap-4 sm:p-4"
           >
-            <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${gradientForId(listing?.id ?? o.id)} text-2xl sm:h-16 sm:w-16 sm:text-3xl`}>
-              {listing?.image_emoji ?? "📦"}
+            <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${gradientForId(listing?.id ?? o.id)} sm:h-16 sm:w-16`}>
+              <Package className="h-7 w-7 text-primary/50" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-display text-base font-bold truncate sm:text-lg">{listing?.title ?? "Listing unavailable"}</p>

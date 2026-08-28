@@ -31,6 +31,7 @@ import {
   Mail,
   EyeOff,
   Check,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -187,7 +188,7 @@ function AdminPage() {
               <div className="space-y-3">
                 {(flagged ?? []).length === 0 ? (
                   <div className="rounded-3xl border-2 border-dashed border-primary/30 p-8 text-center text-muted-foreground">
-                    Nothing flagged. 🎉
+                    Nothing flagged.
                   </div>
                 ) : (
                   (flagged ?? []).map((l: any) => (
@@ -198,9 +199,9 @@ function AdminPage() {
                       className="flex w-full items-center gap-4 rounded-2xl border-2 border-destructive/30 bg-card p-4 text-left hover:border-destructive transition"
                     >
                       <div
-                        className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${gradientForId(l.id)} text-3xl`}
+                        className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${gradientForId(l.id)} text-primary/40`}
                       >
-                        {l.image_emoji}
+                        <Package className="h-8 w-8" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-lg font-bold truncate">{l.title}</p>
@@ -222,7 +223,7 @@ function AdminPage() {
               <div className="space-y-3">
                 {(withheld ?? []).length === 0 ? (
                   <div className="rounded-3xl border-2 border-dashed border-primary/30 p-8 text-center text-muted-foreground">
-                    No listings awaiting review. 🎉
+                    No listings awaiting review.
                   </div>
                 ) : (
                   (withheld ?? []).map((l: any) => (
@@ -386,7 +387,9 @@ function FlaggedListingModal({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 grid place-items-center text-[140px]">{listing.image_emoji}</div>
+                <div className="absolute inset-0 grid place-items-center">
+                  <Package className="h-24 w-24 text-primary/40" />
+                </div>
               )}
               <div className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1 text-xs font-bold uppercase text-primary shadow">
                 {listing.status}

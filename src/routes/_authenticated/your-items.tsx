@@ -8,7 +8,7 @@ import { listMyItems, createItem, deleteItem, updateItem, listMyListedItemIds, l
 import { CATEGORIES, CONDITIONS, type ItemCategory, type ItemCondition } from "@/lib/db-types";
 import { uploadFileTo } from "@/lib/upload";
 import { ImageCropper } from "@/components/ImageCropper";
-import { Plus, Eye, EyeOff, Trash2, X, ArrowRightLeft, Pencil, Search } from "lucide-react";
+import { Plus, Eye, EyeOff, Trash2, X, ArrowRightLeft, Pencil, Search, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/your-items")({
@@ -210,7 +210,7 @@ function YourItemsPage() {
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (
-                  <span aria-hidden>{item.image_emoji}</span>
+                  <Package className="h-12 w-12 text-primary/40" />
                 )}
               </Link>
               <div className="mt-4 flex-1">

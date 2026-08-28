@@ -405,7 +405,7 @@ export const confirmItemsReceived = createServerFn({ method: "POST" })
     await notifyUser({
       userId: other,
       type: both ? "trade_finalised" : "receipt_confirmed",
-      title: both ? "Swap complete 🎉" : "Receipt confirmed",
+      title: both ? "Swap complete" : "Receipt confirmed",
       body: both ? "Both sides confirmed receiving the items." : "Confirm you received the items too.",
       link: `/offers/${data.id}`,
     });

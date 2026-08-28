@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bookmark, Flag, ArrowRightLeft } from "lucide-react";
+import { Bookmark, Flag, ArrowRightLeft, Package } from "lucide-react";
 import { gradientForId, timeAgo, handle, type ListingWithOwner } from "@/lib/db-types";
 import { useServerFn } from "@tanstack/react-start";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
@@ -129,8 +129,8 @@ export function ListingCard({
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="absolute inset-0 grid place-items-center text-7xl drop-shadow-md transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
-            <span aria-hidden>{listing.image_emoji}</span>
+          <div className="absolute inset-0 grid place-items-center">
+            <Package className="h-14 w-14 text-primary/40 transition-transform duration-500 group-hover:scale-110" />
           </div>
         )}
         {owner && (

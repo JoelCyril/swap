@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { getPublicItem, getMyItem } from "@/lib/items.functions";
-import { ChevronLeft, ChevronRight, Info, ArrowRightLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, ArrowRightLeft, Package } from "lucide-react";
 import { handle } from "@/lib/db-types";
 
 export const Route = createFileRoute("/items/$id")({
@@ -79,11 +79,11 @@ function ItemPage() {
       <main className="mx-auto w-full max-w-[1000px] flex-1 px-6 py-10">
         <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_300px]">
           <div>
-            <div className="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-3xl border-2 border-primary/20 bg-primary-soft text-8xl shadow-card">
+            <div className="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-3xl border-2 border-primary/20 bg-primary-soft shadow-card">
               {photos.length > 0 ? (
                 <img src={photos[photo]} alt={item.name} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
-                <span aria-hidden>{item.image_emoji}</span>
+                <Package className="h-24 w-24 text-primary/40" />
               )}
               {photos.length > 1 && (
                 <>

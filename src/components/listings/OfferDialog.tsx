@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMyItems } from "@/lib/items.functions";
 import { createOffer } from "@/lib/offers.functions";
-import { ArrowRightLeft, X } from "lucide-react";
+import { ArrowRightLeft, X, Package } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -94,11 +94,11 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
                       on ? "border-primary bg-primary-soft" : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary-soft text-xl">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary-soft text-primary">
                       {it.image_urls && it.image_urls.length > 0 ? (
                         <img src={it.image_urls[0]} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        it.image_emoji
+                        <Package className="h-5 w-5" />
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
