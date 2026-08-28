@@ -197,12 +197,12 @@ export const reviseOfferItems = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     await notifyUser({
-  userId: listing.owner_id,
-  type: "offer_received",
-  title: "A new swap offer awaits you on SWAP",
-  body: `You've got a swap offer for your listed item: "${listing.title}". Another SWAP member is interested in trading.`,
-  link: `/offers/${row.id}`,
-});
+      userId: other,
+      type: "offer_revised",
+      title: "Offer updated",
+      body: "The other side updated the trade items.",
+      link: `/offers/${data.id}`,
+    });
     return { ok: true };
   });
 
