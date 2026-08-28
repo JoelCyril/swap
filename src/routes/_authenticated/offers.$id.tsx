@@ -103,7 +103,10 @@ function OfferDetail() {
   const { data: terms } = useQuery({ queryKey: ["terms-status"], queryFn: () => termsFn() });
   const isMinor = typeof terms?.age === "number" && terms.age < 18;
 
-  const { data: offer } = useQuery({ queryKey: ["offer", id], queryFn: () => get({ data: { id } }) });
+  const { data: offer, error: offerError, isPending: offerPending } = useQuery({
+    queryKey: ["offer", id],
+    queryFn: () => get({ data: { id } }),
+  });
   const { data: messages } = useQuery({
     queryKey: ["messages", id],
     queryFn: () => list({ data: { offer_id: id } }),
@@ -247,11 +250,34 @@ function OfferDetail() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Message not sent"),
   });
 
-  if (!offer) {
+  if (offerPending) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="p-8 text-center text-muted-foreground">Loading offer…</div>
+      </div>
+    );
+  }
+
+  if (offerError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="mx-auto max-w-lg p-8 text-center">
+          <h1 className="font-display text-2xl font-black">Could not load offer</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {offerError instanceof Error ? offerError.message : "Something went wrong while loading this offer."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!offer) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="p-8 text-center text-muted-foreground">Offer not found.</div>
       </div>
     );
   }

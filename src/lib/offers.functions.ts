@@ -127,6 +127,16 @@ export const getOffer = createServerFn({ method: "GET" })
         .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
         .in("id", ids);
       if (error) throw new Error(error.message);
+      if ((rows ?? []).length === ids.length) return rows as any[];
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: adminRows, error: adminError } = await supabaseAdmin
+        .from("items")
+        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility, status")
+        .in("id", ids);
+      if (adminError) throw new Error(adminError.message);
+      if (adminRows) return adminRows as any[];
+
       return (rows ?? []) as any[];
     };
 
