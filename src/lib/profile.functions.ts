@@ -42,7 +42,10 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .eq("id", context.userId)
       .maybeSingle();
     return {
-      profile,
+      profile: {
+        ...profile,
+        interests: Array.isArray((profile as any)?.interests) ? (profile as any).interests : [],
+      },
       private: privateInfo ?? { full_name: null, birthday: null },
       roles: (roles ?? []).map((r) => r.role),
     };
@@ -76,7 +79,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { full_name, birthday, username, ...rest } = data;
+    const { full_name, birthday, username, interests, ...rest } = data;
     const publicFields: Record<string, unknown> = { ...rest };
 
     if (username) {
@@ -105,6 +108,20 @@ export const updateMyProfile = createServerFn({ method: "POST" })
             ? "That username is already taken — pick another one."
             : error.message,
         );
+      }
+    }
+
+    if (interests !== undefined) {
+      try {
+        const { error: intErr } = await context.supabase
+          .from("profiles")
+          .update({ interests } as never)
+          .eq("id", context.userId);
+        if (intErr) {
+          console.warn("Could not save interests to profiles table:", intErr.message);
+        }
+      } catch (e) {
+        console.warn("Interests update skipped:", e);
       }
     }
 
