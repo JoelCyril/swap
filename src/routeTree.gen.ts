@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as WantedRouteImport } from './routes/wanted'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedFavouritesRouteImport } from './routes/_authenticated/favourites'
 import { Route as AuthenticatedMyListingsRouteImport } from './routes/_authenticated/my-listings'
@@ -63,6 +64,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WantedRoute = WantedRouteImport.update({
+  id: '/wanted',
+  path: '/wanted',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/wanted': typeof WantedRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/favourites': typeof AuthenticatedFavouritesRoute
   '/my-listings': typeof AuthenticatedMyListingsRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/wanted': typeof WantedRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/favourites': typeof AuthenticatedFavouritesRoute
   '/my-listings': typeof AuthenticatedMyListingsRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/wanted': typeof WantedRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/favourites': typeof AuthenticatedFavouritesRoute
   '/_authenticated/my-listings': typeof AuthenticatedMyListingsRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
+    | '/wanted'
     | '/admin'
     | '/favourites'
     | '/my-listings'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
+    | '/wanted'
     | '/admin'
     | '/favourites'
     | '/my-listings'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
+    | '/wanted'
     | '/_authenticated/admin'
     | '/_authenticated/favourites'
     | '/_authenticated/my-listings'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  WantedRoute: typeof WantedRoute
   ItemsIdRoute: typeof ItemsIdRoute
   ListingsIdRoute: typeof ListingsIdRoute
   ProfileUsernameRoute: typeof ProfileUsernameRoute
@@ -340,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wanted': {
+      id: '/wanted'
+      path: '/wanted'
+      fullPath: '/wanted'
+      preLoaderRoute: typeof WantedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -480,6 +500,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  WantedRoute: WantedRoute,
   ItemsIdRoute: ItemsIdRoute,
   ListingsIdRoute: ListingsIdRoute,
   ProfileUsernameRoute: ProfileUsernameRoute,

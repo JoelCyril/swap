@@ -16,7 +16,7 @@ import { listMyFavouriteIds } from "@/lib/favourites.functions";
 import { listMyFlaggedListingIds } from "@/lib/flags.functions";
 import { searchProfiles, getMyProfile } from "@/lib/profile.functions";
 import { CATEGORIES, emirateOf, type ItemCategory, type ItemCondition } from "@/lib/db-types";
-import { Plus } from "lucide-react";
+import { Plus, Megaphone } from "lucide-react";
 
 export const Route = createFileRoute("/listings/")({
   validateSearch: (search: Record<string, unknown>): { q?: string } => ({
@@ -229,13 +229,21 @@ function ListingsPage() {
                     : active}
               </h1>
             </div>
-            <Link
-              to={signedIn ? "/my-listings" : "/auth"}
-              search={signedIn ? { add: true } : undefined}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 sm:px-6 sm:text-sm"
-            >
-              <Plus className="h-4 w-4" /> List an item
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/wanted"
+                className="inline-flex items-center gap-1.5 rounded-full border-2 border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition sm:text-sm"
+              >
+                <Megaphone className="h-4 w-4" /> Wanted (ISO)
+              </Link>
+              <Link
+                to={signedIn ? "/my-listings" : "/auth"}
+                search={signedIn ? { add: true } : undefined}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 sm:px-6 sm:text-sm"
+              >
+                <Plus className="h-4 w-4" /> List an item
+              </Link>
+            </div>
           </div>
 
           <div className="mb-5">

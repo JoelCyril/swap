@@ -11,9 +11,10 @@ import { createOffer } from "@/lib/offers.functions";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
 import { getPublicProfile } from "@/lib/profile.functions";
+import { trackListingView } from "@/lib/views.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package } from "lucide-react";
+import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/listings/$id")({
@@ -39,17 +40,36 @@ function ListingDetailPage() {
   const flag = useServerFn(flagListing);
   const offer = useServerFn(createOffer);
   const removeListing = useServerFn(deleteListing);
+  const trackViewFn = useServerFn(trackListingView);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("");
   const [activePhoto, setActivePhoto] = useState(0);
+  const [viewCount, setViewCount] = useState<number | null>(null);
   const offerPanelRef = useRef<HTMLDivElement>(null);
-
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ["listing", id],
     queryFn: () => get({ data: { id } }),
   });
+
+  // Track listing view on mount
+  useEffect(() => {
+    if (!id) return;
+    const sessionKey = localStorage.getItem("swap_visitor_id") || (() => {
+      const k = `vis_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+      localStorage.setItem("swap_visitor_id", k);
+      return k;
+    })();
+
+    trackViewFn({ data: { listingId: id, visitorKey: sessionKey } })
+      .then((res) => {
+        if (res && typeof res.viewsCount === "number") {
+          setViewCount(res.viewsCount);
+        }
+      })
+      .catch(() => {});
+  }, [id, trackViewFn]);
 
   const publicProfileFn = useServerFn(getPublicProfile);
   const ownerUsername = listing?.owner?.username;
@@ -217,10 +237,15 @@ function ListingDetailPage() {
             <div className="mt-6 min-w-0">
               <h1 className="font-display text-2xl font-black break-words sm:text-3xl lg:text-4xl">{listing.title}</h1>
 
-              <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {listing.location}</span>
                 <span>· {listing.category}</span>
                 <span>· {timeAgo(listing.created_at)}</span>
+                {typeof viewCount === "number" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                    <Eye className="h-3.5 w-3.5" /> {viewCount} {viewCount === 1 ? "view" : "views"}
+                  </span>
+                )}
               </div>
               {listing.description && (
                 <p className="mt-4 text-foreground/80 whitespace-pre-wrap">{listing.description}</p>

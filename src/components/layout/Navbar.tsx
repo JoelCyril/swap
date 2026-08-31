@@ -100,6 +100,7 @@ export function Navbar() {
   const links = session
     ? ([
         { to: "/listings", label: "Browse" },
+        { to: "/wanted", label: "Wanted" },
         { to: "/my-listings", label: "Inventory" },
         { to: "/favourites", label: "Saved" },
         { to: "/offers", label: "Offers" },
@@ -107,6 +108,7 @@ export function Navbar() {
       ] as const)
     : ([
         { to: "/listings", label: "Browse" },
+        { to: "/wanted", label: "Wanted" },
         { to: "/announcements", label: "Announcements" },
       ] as const);
 
