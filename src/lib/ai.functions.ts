@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI } from "./ai.server";
+import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI, estimateItemTradePoints } from "./ai.server";
 
 export const autoFillItemFromPhoto = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -86,15 +86,15 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       ...(myItems ?? []).map((it) => ({
         id: it.id,
         name: it.name,
-        category: it.category,
-        condition: it.condition,
+        category: it.category || "Electronics",
+        condition: it.condition || "Good",
         image_url: it.image_urls?.[0],
       })),
       ...(myListings ?? []).map((l) => ({
         id: l.id,
         name: l.title,
-        category: l.category,
-        condition: l.condition,
+        category: l.category || "Electronics",
+        condition: l.condition || "Good",
         image_url: l.image_urls?.[0],
       })),
     ];
@@ -125,43 +125,64 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       .neq("owner_id", context.userId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
-      .limit(40);
+      .limit(50);
 
     if (!otherListings || otherListings.length === 0) return [];
 
     const matches: SmartMatch[] = [];
-    const seenListingIds = new Set<string>();
 
+    // For EACH item the user owns, find the top matched counter-listing
     for (const myItem of allMyItems) {
-      const myCategory = (myItem.category || "").toLowerCase();
-      const myName = (myItem.name || "").toLowerCase();
+      const myPoints = estimateItemTradePoints({
+        name: myItem.name,
+        category: myItem.category,
+        condition: myItem.condition,
+      });
+
+      let bestMatchForThisItem: { listing: any; score: number; reason: string } | null = null;
 
       for (const listing of otherListings) {
-        if (seenListingIds.has(listing.id)) continue;
+        const listingPoints = estimateItemTradePoints({
+          name: listing.title,
+          category: listing.category,
+          condition: listing.condition,
+        });
+
+        // Value parity score
+        const parityRatio = Math.min(myPoints, listingPoints) / Math.max(1, Math.max(myPoints, listingPoints));
+        let matchScore = Math.round(parityRatio * 50) + 35; // 35 to 85 base
 
         const lookingFor = (listing.looking_for || "").toLowerCase();
-        const listingCategory = (listing.category || "").toLowerCase();
-        const listingTitle = (listing.title || "").toLowerCase();
+        const myCategory = myItem.category.toLowerCase();
+        const myName = myItem.name.toLowerCase();
 
-        let score = 65;
-        let reason = `Compatible ${listing.category} trade.`;
+        let reason = `Compatible ${myItem.category} value tier.`;
 
-        // Check if listing owner is looking for my item category or keywords
+        // Direct looking-for keyword bonus
         if (lookingFor && (lookingFor.includes(myCategory) || lookingFor.includes(myName))) {
-          score += 25;
+          matchScore += 18;
           reason = `Trader is specifically looking for "${myItem.name}" or ${myItem.category}.`;
         } else if (lookingFor.includes("open") || lookingFor.includes("any") || lookingFor.length < 5) {
-          score += 15;
+          matchScore += 8;
           reason = `Trader is open to all offers on "${listing.title}".`;
         }
 
-        // Category affinity
-        if (myCategory === listingCategory) {
-          score += 15;
-          reason = `Same category trade: both items are in ${myItem.category}.`;
+        // Category affinity bonus
+        if (myItem.category === listing.category) {
+          matchScore += 10;
+          if (!lookingFor.includes(myName)) {
+            reason = `Same category trade: both are in ${myItem.category}.`;
+          }
         }
 
-        seenListingIds.add(listing.id);
+        matchScore = Math.min(99, Math.max(70, matchScore));
+
+        if (!bestMatchForThisItem || matchScore > bestMatchForThisItem.score) {
+          bestMatchForThisItem = { listing, score: matchScore, reason };
+        }
+      }
+
+      if (bestMatchForThisItem) {
         matches.push({
           my_item: {
             id: myItem.id,
@@ -171,27 +192,24 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
             image_url: myItem.image_url,
           },
           matched_listing: {
-            id: listing.id,
-            title: listing.title,
-            category: listing.category,
-            condition: listing.condition,
-            looking_for: listing.looking_for || "Open to offers",
-            location: listing.location,
-            emirate: listing.emirate,
-            image_url: listing.image_urls?.[0],
-            owner: (listing.owner as any) || {
-              id: listing.owner_id,
+            id: bestMatchForThisItem.listing.id,
+            title: bestMatchForThisItem.listing.title,
+            category: bestMatchForThisItem.listing.category,
+            condition: bestMatchForThisItem.listing.condition,
+            looking_for: bestMatchForThisItem.listing.looking_for || "Open to offers",
+            location: bestMatchForThisItem.listing.location,
+            emirate: bestMatchForThisItem.listing.emirate,
+            image_url: bestMatchForThisItem.listing.image_urls?.[0],
+            owner: (bestMatchForThisItem.listing.owner as any) || {
+              id: bestMatchForThisItem.listing.owner_id,
               username: "trader",
               display_name: "SWAP Trader",
             },
           },
-          match_score: Math.min(99, Math.max(75, score)),
-          match_reason: reason,
+          match_score: bestMatchForThisItem.score,
+          match_reason: bestMatchForThisItem.reason,
         });
-
-        if (matches.length >= 6) break;
       }
-      if (matches.length >= 6) break;
     }
 
     return matches.sort((a, b) => b.match_score - a.match_score);

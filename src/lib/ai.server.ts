@@ -35,24 +35,23 @@ export async function analyzeItemPhotoWithAI(imageUrl: string): Promise<ItemAnal
   }
 
   try {
-    // Fetch the image as arrayBuffer to send to Gemini
     const res = await fetch(imageUrl);
     const buffer = await res.arrayBuffer();
     const base64Image = Buffer.from(buffer).toString("base64");
     const mimeType = res.headers.get("content-type") || "image/jpeg";
 
     const prompt = `You are an AI assistant for SWAP (the UAE barter & item trade marketplace).
-Analyze this uploaded item photo carefully. Identify the exact item, brand, and type.
+Analyze this uploaded item photo carefully. Identify the exact item, brand, and model.
 Available categories: ${CATEGORIES.join(", ")}.
 Available conditions: ${CONDITIONS.join(", ")}.
 
 Respond ONLY with valid JSON in this exact schema without markdown backticks:
 {
-  "name": "Exact Brand and Model of the item (e.g. Sony WH-1000XM4 Wireless Headphones)",
+  "name": "Exact Brand and Model (e.g. Sony WH-1000XM4 Headphones)",
   "category": "One of the available categories",
   "condition": "One of the available conditions",
-  "description": "2-3 crisp sentences describing the item features, appearance, and value.",
-  "suggested_looking_for": "What a typical trader might want in exchange (e.g. iPad, Gaming setup, or Smartphone)"
+  "description": "2-3 sentences describing key features, appearance, and value.",
+  "suggested_looking_for": "What a trader might want in exchange (e.g. iPad, Gaming setup, or Smartphone)"
 }`;
 
     const response = await client.models.generateContent({
@@ -106,6 +105,50 @@ export interface TradeFairnessResult {
   advice: string;
 }
 
+// Market valuation weights
+const CATEGORY_TIER_POINTS: Record<string, number> = {
+  "Phones & Tablets": 450,
+  "Laptops & Computers": 550,
+  "Gaming & Consoles": 400,
+  "Cameras & Optics": 380,
+  "Audio & Tech": 280,
+  "Electronics": 320,
+  "Watches & Jewelry": 350,
+  "Fashion & Apparel": 180,
+  "Sports & Outdoors": 200,
+  "Home & Appliances": 220,
+  "Musical Instruments": 300,
+  "Toys & Collectibles": 160,
+  "Books & Hobbies": 100,
+  "Other": 150,
+};
+
+const HIGH_TIER_KEYWORDS = [
+  "iphone", "macbook", "ipad", "ps5", "playstation", "xbox", "rtx", "sony",
+  "nintendo switch", "dji", "canon", "nikon", "rolex", "apple watch", "galaxy", "bose"
+];
+
+export function estimateItemTradePoints(item: { name: string; category: string; condition: string }): number {
+  let basePoints = CATEGORY_TIER_POINTS[item.category] || 200;
+
+  const nameLower = (item.name || "").toLowerCase();
+  for (const kw of HIGH_TIER_KEYWORDS) {
+    if (nameLower.includes(kw)) {
+      basePoints *= 1.35;
+      break;
+    }
+  }
+
+  const condMultipliers: Record<string, number> = {
+    "Brand New": 1.15,
+    "Like New": 0.95,
+    "Good": 0.75,
+    "Fair": 0.50,
+  };
+
+  return Math.round(basePoints * (condMultipliers[item.condition] || 0.75));
+}
+
 export async function evaluateTradeFairnessAI(params: {
   targetListing: {
     title: string;
@@ -120,79 +163,45 @@ export async function evaluateTradeFairnessAI(params: {
     description?: string;
   }>;
 }): Promise<TradeFairnessResult> {
-  const client = getAIClient();
+  const targetPoints = estimateItemTradePoints({
+    name: params.targetListing.title,
+    category: params.targetListing.category,
+    condition: params.targetListing.condition,
+  });
 
-  const fallbackCalculate = (): TradeFairnessResult => {
-    // Condition weights
-    const condWeight: Record<string, number> = {
-      "Brand New": 1.0,
-      "Like New": 0.85,
-      "Good": 0.7,
-      "Fair": 0.5,
-    };
+  const offeredPoints = params.offeredItems.reduce(
+    (acc, it) => acc + estimateItemTradePoints({ name: it.name, category: it.category, condition: it.condition }),
+    0,
+  );
 
-    const targetVal = condWeight[params.targetListing.condition] || 0.7;
-    const offeredVal = params.offeredItems.reduce((acc, item) => acc + (condWeight[item.condition] || 0.7), 0);
+  const ratio = offeredPoints / Math.max(1, targetPoints);
 
-    const ratio = offeredVal / Math.max(0.1, targetVal);
-    let score = Math.min(100, Math.round(ratio * 75));
-    if (score < 40) score = 45;
-    if (score > 98) score = 95;
+  // Parity percentage
+  let score = 100 - Math.round(Math.abs(1.0 - ratio) * 50);
+  score = Math.max(30, Math.min(99, score));
 
-    let verdict: TradeFairnessResult["verdict"] = "Balanced Swap";
-    if (ratio > 1.3) verdict = "Slight Advantage to You";
-    else if (ratio < 0.75) verdict = "Favorable to Partner";
+  let verdict: TradeFairnessResult["verdict"] = "Balanced Swap";
+  let summary = "";
+  let advice = "";
 
-    return {
-      score,
-      verdict,
-      summary: `Trade includes ${params.offeredItems.length} offered item(s) in ${params.offeredItems.map(i => i.condition).join(", ")} condition for "${params.targetListing.title}".`,
-      advice: verdict === "Balanced Swap" ? "Fair and balanced trade proposal." : "Review item conditions and details before finalizing meetup.",
-    };
+  if (ratio >= 0.85 && ratio <= 1.25) {
+    verdict = "Balanced Swap";
+    summary = `Equitable trade. ${params.offeredItems.length} offered item(s) matches the market tier of "${params.targetListing.title}".`;
+    advice = "Great barter match! Proceed with meetup coordination.";
+  } else if (ratio > 1.25) {
+    verdict = "Slight Advantage to You";
+    summary = `The offered bundle holds higher estimated market value than "${params.targetListing.title}".`;
+    advice = "Very favorable proposal for you.";
+  } else {
+    verdict = "Favorable to Partner";
+    summary = `The requested item ("${params.targetListing.title}") holds higher estimated value than the offered item(s).`;
+    advice = "Consider adding an accessory or item to balance the trade.";
+  }
+
+  return {
+    score,
+    verdict,
+    summary,
+    advice,
   };
-
-  if (!client) {
-    return fallbackCalculate();
-  }
-
-  try {
-    const prompt = `You are the Fair Trade AI adjudicator for SWAP (the UAE barter & trading marketplace).
-Evaluate the fairness of this trade proposal based on secondhand market parity in the UAE.
-
-Target Listing being requested:
-- Title: ${params.targetListing.title}
-- Category: ${params.targetListing.category}
-- Condition: ${params.targetListing.condition}
-- Description: ${params.targetListing.description || "N/A"}
-
-Items Offered in exchange (${params.offeredItems.length} items):
-${params.offeredItems.map((i, idx) => `${idx + 1}. "${i.name}" (${i.category}, Condition: ${i.condition})`).join("\n")}
-
-Respond ONLY with valid JSON in this exact format without markdown backticks:
-{
-  "score": 85,
-  "verdict": "Balanced Swap", // Choose one: "Balanced Swap" | "Slight Advantage to You" | "Favorable to Partner" | "Value Imbalance"
-  "summary": "1-2 sentences explaining why this swap is or isn't balanced in the UAE market.",
-  "advice": "1 practical sentence advising either trader on how to make the deal smoother."
-}`;
-
-    const res = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
-
-    const text = res.text?.trim() || "";
-    const cleanJson = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-    const parsed = JSON.parse(cleanJson);
-
-    return {
-      score: typeof parsed.score === "number" ? Math.max(10, Math.min(100, parsed.score)) : 85,
-      verdict: parsed.verdict || "Balanced Swap",
-      summary: parsed.summary || "Balanced swap based on UAE marketplace categories.",
-      advice: parsed.advice || "Verify item functionality during public safe-zone meetup.",
-    };
-  } catch (err) {
-    console.error("[AI] Error evaluating trade fairness:", err);
-    return fallbackCalculate();
-  }
 }
