@@ -55,7 +55,7 @@ Respond ONLY with valid JSON in this exact schema without markdown backticks:
 }`;
 
     const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           role: "user",
