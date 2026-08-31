@@ -5,9 +5,17 @@ import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI, estimateItemTradePoint
 
 export const autoFillItemFromPhoto = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ imageUrl: z.string().url() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        imageUrl: z.string().optional(),
+        imageBase64: z.string().optional(),
+        mimeType: z.string().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data }) => {
-    return await analyzeItemPhotoWithAI(data.imageUrl);
+    return await analyzeItemPhotoWithAI(data);
   });
 
 export const getTradeFairnessScore = createServerFn({ method: "POST" })

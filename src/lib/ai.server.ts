@@ -21,7 +21,11 @@ export interface ItemAnalysisResult {
   suggested_looking_for?: string;
 }
 
-export async function analyzeItemPhotoWithAI(imageUrl: string): Promise<ItemAnalysisResult> {
+export async function analyzeItemPhotoWithAI(params: {
+  imageUrl?: string;
+  imageBase64?: string;
+  mimeType?: string;
+}): Promise<ItemAnalysisResult> {
   const client = getAIClient();
 
   if (!client) {
@@ -35,23 +39,37 @@ export async function analyzeItemPhotoWithAI(imageUrl: string): Promise<ItemAnal
   }
 
   try {
-    const res = await fetch(imageUrl);
-    const buffer = await res.arrayBuffer();
-    const base64Image = Buffer.from(buffer).toString("base64");
-    const mimeType = res.headers.get("content-type") || "image/jpeg";
+    let base64Data = params.imageBase64 || "";
+    let mime = params.mimeType || "image/jpeg";
 
-    const prompt = `You are an AI assistant for SWAP (the UAE barter & item trade marketplace).
-Analyze this uploaded item photo carefully. Identify the exact item, brand, and model.
-Available categories: ${CATEGORIES.join(", ")}.
-Available conditions: ${CONDITIONS.join(", ")}.
+    if (!base64Data && params.imageUrl) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      try {
+        const res = await fetch(params.imageUrl, { signal: controller.signal });
+        const buffer = await res.arrayBuffer();
+        base64Data = Buffer.from(buffer).toString("base64");
+        mime = res.headers.get("content-type") || "image/jpeg";
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
 
-Respond ONLY with valid JSON in this exact schema without markdown backticks:
+    if (!base64Data) {
+      throw new Error("No image data provided for analysis");
+    }
+
+    const prompt = `Analyze this item photo for UAE trade marketplace (SWAP).
+Categories: ${CATEGORIES.join(", ")}.
+Conditions: ${CONDITIONS.join(", ")}.
+
+Output JSON:
 {
-  "name": "Exact Brand and Model (e.g. Sony WH-1000XM4 Headphones)",
-  "category": "One of the available categories",
-  "condition": "One of the available conditions",
-  "description": "2-3 sentences describing key features, appearance, and value.",
-  "suggested_looking_for": "What a trader might want in exchange (e.g. iPad, Gaming setup, or Smartphone)"
+  "name": "Item brand and model name",
+  "category": "Category",
+  "condition": "Condition",
+  "description": "Short 1-2 sentence description highlighting key features",
+  "suggested_looking_for": "1-2 items trader might want in exchange"
 }`;
 
     const response = await client.models.generateContent({
@@ -63,18 +81,23 @@ Respond ONLY with valid JSON in this exact schema without markdown backticks:
             { text: prompt },
             {
               inlineData: {
-                data: base64Image,
-                mimeType,
+                data: base64Data,
+                mimeType: mime,
               },
             },
           ],
         },
       ],
+      config: {
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 50 },
+        maxOutputTokens: 300,
+        temperature: 0.1,
+      },
     });
 
-    const text = response.text?.trim() || "";
-    const cleanJson = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-    const parsed = JSON.parse(cleanJson);
+    const text = response.text?.trim() || "{}";
+    const parsed = JSON.parse(text);
 
     const validCategory = CATEGORIES.includes(parsed.category) ? parsed.category : "Electronics";
     const validCondition = CONDITIONS.includes(parsed.condition) ? parsed.condition : "Good";

@@ -830,7 +830,53 @@ function MyInventoryPage() {
                     onClick={async () => {
                       try {
                         setAiLoading(true);
-                        const res = await autoFillFn({ data: { imageUrl: form.image_urls[0] } });
+                        const url = form.image_urls[0];
+                        
+                        // Ultra fast downsampled client thumbnail
+                        let base64Data: string | undefined = undefined;
+                        try {
+                          base64Data = await new Promise<string | undefined>((resolve) => {
+                            const img = new Image();
+                            img.crossOrigin = "anonymous";
+                            img.onload = () => {
+                              try {
+                                const maxDim = 512;
+                                let w = img.width;
+                                let h = img.height;
+                                if (w > maxDim || h > maxDim) {
+                                  if (w > h) {
+                                    h = Math.round((h * maxDim) / w);
+                                    w = maxDim;
+                                  } else {
+                                    w = Math.round((w * maxDim) / h);
+                                    h = maxDim;
+                                  }
+                                }
+                                const canvas = document.createElement("canvas");
+                                canvas.width = w;
+                                canvas.height = h;
+                                const ctx = canvas.getContext("2d");
+                                if (!ctx) return resolve(undefined);
+                                ctx.drawImage(img, 0, 0, w, h);
+                                const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                                resolve(dataUrl.split(",")[1]);
+                              } catch {
+                                resolve(undefined);
+                              }
+                            };
+                            img.onerror = () => resolve(undefined);
+                            img.src = url;
+                          });
+                        } catch {}
+
+                        const res = await autoFillFn({
+                          data: {
+                            imageUrl: url,
+                            imageBase64: base64Data,
+                            mimeType: "image/jpeg",
+                          },
+                        });
+
                         if (res) {
                           setForm((f) => ({
                             ...f,
@@ -839,7 +885,7 @@ function MyInventoryPage() {
                             condition: res.condition || f.condition,
                             description: res.description || f.description,
                           }));
-                          toast.success("AI analyzed photo and filled in details!", {
+                          toast.success("AI auto-filled item details!", {
                             description: `Detected: ${res.name} (${res.category})`,
                           });
                         }
@@ -853,7 +899,7 @@ function MyInventoryPage() {
                   >
                     {aiLoading ? (
                       <>
-                        <Sparkles className="h-3.5 w-3.5 animate-spin" /> AI Analyzing Photo…
+                        <Sparkles className="h-3.5 w-3.5 animate-spin" /> Analyzing Photo…
                       </>
                     ) : (
                       <>
