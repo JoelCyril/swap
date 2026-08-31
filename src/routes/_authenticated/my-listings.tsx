@@ -13,6 +13,8 @@ import {
   unlistInventoryItem,
 } from "@/lib/items.functions";
 import { deleteListing } from "@/lib/listings.functions";
+import { autoFillItemFromPhoto } from "@/lib/ai.functions";
+import { SmartMatchesSection } from "@/components/browse/SmartMatchesSection";
 import { CATEGORIES, CONDITIONS, type ItemCategory, type ItemCondition } from "@/lib/db-types";
 import { uploadFileTo } from "@/lib/upload";
 import { ImageCropper } from "@/components/ImageCropper";
@@ -28,6 +30,7 @@ import {
   Package,
   Camera,
   MapPin,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,12 +70,14 @@ function MyInventoryPage() {
   const quickListFn = useServerFn(quickListInventoryItem);
   const unlistFn = useServerFn(unlistInventoryItem);
   const deleteListingFn = useServerFn(deleteListing);
+  const autoFillFn = useServerFn(autoFillItemFromPhoto);
 
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [queue, setQueue] = useState<File[]>([]);
   const [form, setForm] = useState({ ...EMPTY_ITEM });
 
@@ -359,6 +364,13 @@ function MyInventoryPage() {
             )}
           </div>
         </div>
+
+        {/* AI 2-Way Smart Trade Matches */}
+        {!search && filterTab === "all" && (
+          <div className="mt-6">
+            <SmartMatchesSection />
+          </div>
+        )}
 
         {/* Gallery Grid */}
         {isLoading ? (
@@ -795,6 +807,46 @@ function MyInventoryPage() {
                     </label>
                   )}
                 </div>
+
+                {form.image_urls.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={aiLoading}
+                    onClick={async () => {
+                      try {
+                        setAiLoading(true);
+                        const res = await autoFillFn({ data: { imageUrl: form.image_urls[0] } });
+                        if (res) {
+                          setForm((f) => ({
+                            ...f,
+                            name: res.name || f.name,
+                            category: res.category || f.category,
+                            condition: res.condition || f.condition,
+                            description: res.description || f.description,
+                          }));
+                          toast.success("AI analyzed photo and filled in details!", {
+                            description: `Detected: ${res.name} (${res.category})`,
+                          });
+                        }
+                      } catch (err) {
+                        toast.error("Could not analyze photo, please fill in details manually");
+                      } finally {
+                        setAiLoading(false);
+                      }
+                    }}
+                    className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border-2 border-primary/30 bg-primary/10 py-2.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition shadow-sm"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 animate-spin" /> AI Analyzing Photo…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" /> ✨ AI Auto-Fill Details from Photo
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div>

@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { InterestPicker } from "@/components/InterestPicker";
 import { FilterSidebar, MobileFilters, type SortKey } from "@/components/listings/FilterSidebar";
 import { ListingCard } from "@/components/listings/ListingCard";
+import { SmartMatchesSection } from "@/components/browse/SmartMatchesSection";
 import { listListings } from "@/lib/listings.functions";
 import { listMyFavouriteIds } from "@/lib/favourites.functions";
 import { listMyFlaggedListingIds } from "@/lib/flags.functions";
@@ -282,6 +283,8 @@ function ListingsPage() {
               </div>
             </section>
           )}
+
+          {!q && active === "All" && signedIn && <SmartMatchesSection />}
 
           {isLoading ? (
             <div className="rounded-3xl border-2 border-dashed border-primary/30 bg-card p-12 text-center text-muted-foreground">
