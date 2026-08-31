@@ -26,17 +26,39 @@ export async function sendEmail(params: {
 }) {
   const client = getResend();
 
-  const { error } = await client.emails.send({
-    from: emailFrom,
+  const primaryFrom = process.env.EMAIL_FROM || "SWAP <notifications@swapuae.com>";
+  const fallbackFrom = "SWAP <onboarding@resend.dev>";
+
+  const res = await client.emails.send({
+    from: primaryFrom,
     to: params.to,
     subject: params.subject,
     html: params.html,
     text: params.text,
   });
 
-  if (error) {
-    throw new Error(error.message);
+  if (res.error) {
+    if (
+      res.error.message?.toLowerCase().includes("not verified") ||
+      res.error.message?.toLowerCase().includes("domain")
+    ) {
+      console.warn(`[Email] ${primaryFrom} not verified in Resend yet, falling back to ${fallbackFrom}`);
+      const fallbackRes = await client.emails.send({
+        from: fallbackFrom,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+      });
+      if (fallbackRes.error) {
+        throw new Error(fallbackRes.error.message);
+      }
+      return fallbackRes;
+    }
+    throw new Error(res.error.message);
   }
+
+  return res;
 }
 
 export function absoluteUrl(path: string) {
