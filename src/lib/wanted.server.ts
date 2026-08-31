@@ -24,77 +24,11 @@ export interface WantedRequestItem {
 // In-memory persistent store + Supabase sync
 const inMemoryWantedRequests = new Map<string, WantedRequestItem>();
 
-// Seed default initial requests if empty so the community board feels active and inspiring immediately
-function ensureSeedRequests() {
-  if (inMemoryWantedRequests.size === 0) {
-    const seed: WantedRequestItem[] = [
-      {
-        id: "wanted-seed-1",
-        user_id: "seed-user-1",
-        title: "PlayStation 5 Disc Edition (Slim or Original)",
-        category: "Electronics",
-        offering_description: "Willing to trade my Apple Watch Series 8 (45mm, Like New) + Sony Wireless Noise Cancelling Headphones.",
-        emirate: "Dubai",
-        location: "Dubai Marina",
-        status: "active",
-        created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
-        updated_at: new Date().toISOString(),
-        user: {
-          id: "seed-user-1",
-          username: "tariq_dxb",
-          display_name: "Tariq M.",
-          avatar_color: "#ea580c",
-        },
-      },
-      {
-        id: "wanted-seed-2",
-        user_id: "seed-user-2",
-        title: "Mirrorless Camera (Sony Alpha / Fujifilm / Canon)",
-        category: "Electronics",
-        offering_description: "Offering DJI Mini 3 Drone with Fly More Combo kit or iPad Air 5th Gen.",
-        emirate: "Abu Dhabi",
-        location: "Al Reem Island",
-        status: "active",
-        created_at: new Date(Date.now() - 3600000 * 7).toISOString(),
-        updated_at: new Date().toISOString(),
-        user: {
-          id: "seed-user-2",
-          username: "sara_k",
-          display_name: "Sara K.",
-          avatar_color: "#9333ea",
-        },
-      },
-      {
-        id: "wanted-seed-3",
-        user_id: "seed-user-3",
-        title: "Acoustic or Classical Guitar with Case",
-        category: "Hobbies & Music" as any,
-        offering_description: "Willing to swap high-end mechanical gaming keyboard (Keychron Q1 Pro) + gaming mouse.",
-        emirate: "Sharjah",
-        location: "Al Majaz",
-        status: "active",
-        created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-        updated_at: new Date().toISOString(),
-        user: {
-          id: "seed-user-3",
-          username: "ahmed_uae",
-          display_name: "Ahmed S.",
-          avatar_color: "#059669",
-        },
-      },
-    ];
-
-    seed.forEach((r) => inMemoryWantedRequests.set(r.id, r));
-  }
-}
-
 export async function fetchWantedRequests(params?: {
   emirate?: string;
   category?: string;
   search?: string;
 }): Promise<WantedRequestItem[]> {
-  ensureSeedRequests();
-
   let list = Array.from(inMemoryWantedRequests.values()).filter((r) => r.status === "active");
 
   if (params?.emirate && params.emirate !== "All" && params.emirate !== "all") {
