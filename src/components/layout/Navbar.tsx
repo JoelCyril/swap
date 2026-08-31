@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { listMyNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/notifications.functions";
 import { listAnnouncements } from "@/lib/announcements.functions";
+import { PendingOfferPopup } from "@/components/offers/PendingOfferPopup";
 
 import { toast } from "sonner";
 const logoUrl = "/swap-logo.png";
@@ -352,6 +353,7 @@ export function Navbar() {
         </nav>
       )}
     </header>
+    <PendingOfferPopup />
     </>
   );
 }

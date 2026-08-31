@@ -106,6 +106,43 @@ export const listMyOffers = createServerFn({ method: "GET" })
     return { viewer_id: context.userId, offers: data ?? [] };
   });
 
+export const listMyPendingIncomingOffers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("offers")
+      .select(`
+        id,
+        listing_id,
+        from_user,
+        to_user,
+        status,
+        message,
+        created_at,
+        listing:listings(
+          id,
+          title,
+          image_urls,
+          image_emoji
+        ),
+        from_profile:profiles!offers_from_profile_fkey(
+          id,
+          username,
+          display_name,
+          avatar_color,
+          avatar_url
+        )
+      `)
+      .eq("to_user", context.userId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to list pending incoming offers", error);
+      return [];
+    }
+    return (data ?? []) as any[];
+  });
+
 export const getOffer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))

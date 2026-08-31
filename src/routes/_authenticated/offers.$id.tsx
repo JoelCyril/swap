@@ -161,6 +161,9 @@ function OfferDetail() {
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["offer", id] });
     qc.invalidateQueries({ queryKey: ["offers"] });
+    qc.invalidateQueries({ queryKey: ["my-offers"] });
+    qc.invalidateQueries({ queryKey: ["pending-incoming-offers"] });
+    qc.invalidateQueries({ queryKey: ["notifications"] });
     qc.invalidateQueries({ queryKey: ["meetup-proposals", id] });
   };
 

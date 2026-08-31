@@ -129,12 +129,16 @@ export async function notifyUser(params: {
 
     const key = prefKeyFor(params.type);
     if (key) {
-      const { data: prefs } = await supabaseAdmin
-        .from("notification_prefs")
-        .select(key)
-        .eq("user_id", params.userId)
-        .maybeSingle();
-      if (prefs && (prefs as Record<string, boolean>)[key] === false) return;
+      try {
+        const { data: prefs } = await supabaseAdmin
+          .from("notification_prefs")
+          .select(key)
+          .eq("user_id", params.userId)
+          .maybeSingle();
+        if (prefs && (prefs as Record<string, boolean>)[key] === false) return;
+      } catch (err) {
+        console.warn("Could not check notification prefs, proceeding with notification", err);
+      }
     }
 
     const { error } = await supabaseAdmin.from("notifications").insert({
@@ -164,22 +168,27 @@ export async function notifyUser(params: {
       const listingTitle =
         params.body?.match(/"([^"]+)"/)?.[1] ?? "your listed item";
 
-      await sendEmail({
-        to: recipientEmail,
-        subject: "A new swap offer awaits you on SWAP",
-        html: offerEmailHtml({
-          listingTitle,
-          offerUrl,
-          unsubscribeUrl,
-          privacyUrl,
-        }),
-        text: offerEmailText({
-          listingTitle,
-          offerUrl,
-          unsubscribeUrl,
-          privacyUrl,
-        }),
-      });
+      try {
+        await sendEmail({
+          to: recipientEmail,
+          subject: `New Swap Offer: "${listingTitle}" on SWAP`,
+          html: offerEmailHtml({
+            listingTitle,
+            offerUrl,
+            unsubscribeUrl,
+            privacyUrl,
+          }),
+          text: offerEmailText({
+            listingTitle,
+            offerUrl,
+            unsubscribeUrl,
+            privacyUrl,
+          }),
+        });
+        console.log(`[Email] Offer notification email sent to ${recipientEmail}`);
+      } catch (emailErr) {
+        console.error("[Email] Failed to send offer email:", emailErr);
+      }
     }
   } catch (error) {
     console.error("Notification dispatch failed", error);
