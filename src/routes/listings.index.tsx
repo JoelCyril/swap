@@ -230,7 +230,8 @@ function ListingsPage() {
               </h1>
             </div>
             <Link
-              to={signedIn ? "/new-listing" : "/auth"}
+              to={signedIn ? "/my-listings" : "/auth"}
+              search={signedIn ? { add: true } : undefined}
               className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 sm:px-6 sm:text-sm"
             >
               <Plus className="h-4 w-4" /> List an item

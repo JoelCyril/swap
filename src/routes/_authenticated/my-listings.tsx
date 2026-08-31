@@ -35,6 +35,9 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/my-listings")({
+  validateSearch: (search: Record<string, unknown>): { add?: boolean } => ({
+    add: search.add === true || search.add === "true" || search.add === "1" ? true : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "My Inventory & Listings — SWAP" },
@@ -61,6 +64,7 @@ const EMPTY_ITEM = {
 type FilterTab = "all" | "listed" | "unlisted" | "in_trade";
 
 function MyInventoryPage() {
+  const { add } = Route.useSearch();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const getInventory = useServerFn(listMyInventoryWithListings);
@@ -74,7 +78,7 @@ function MyInventoryPage() {
 
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
-  const [openModal, setOpenModal] = useState(false);
+  const [openModal, setOpenModal] = useState<boolean>(() => Boolean(add));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
