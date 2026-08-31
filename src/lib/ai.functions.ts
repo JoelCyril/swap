@@ -68,15 +68,38 @@ export interface SmartMatch {
 export const getSmartTradeMatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SmartMatch[]> => {
-    // 1. Fetch current user's active inventory items
+    // 1. Fetch current user's inventory items
     const { data: myItems } = await context.supabase
       .from("items")
       .select("id, name, category, condition, image_urls, status")
       .eq("owner_id", context.userId)
-      .neq("status", "swapped")
-      .limit(10);
+      .neq("status", "swapped");
 
-    if (!myItems || myItems.length === 0) return [];
+    // Also fetch user's own active listings
+    const { data: myListings } = await context.supabase
+      .from("listings")
+      .select("id, title, category, condition, image_urls, status")
+      .eq("owner_id", context.userId)
+      .eq("status", "active");
+
+    const allMyItems = [
+      ...(myItems ?? []).map((it) => ({
+        id: it.id,
+        name: it.name,
+        category: it.category,
+        condition: it.condition,
+        image_url: it.image_urls?.[0],
+      })),
+      ...(myListings ?? []).map((l) => ({
+        id: l.id,
+        name: l.title,
+        category: l.category,
+        condition: l.condition,
+        image_url: l.image_urls?.[0],
+      })),
+    ];
+
+    if (allMyItems.length === 0) return [];
 
     // 2. Fetch active marketplace listings from other users
     const { data: otherListings } = await context.supabase
@@ -101,71 +124,75 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       `)
       .neq("owner_id", context.userId)
       .eq("status", "active")
-      .limit(30);
+      .order("created_at", { ascending: false })
+      .limit(40);
 
     if (!otherListings || otherListings.length === 0) return [];
 
     const matches: SmartMatch[] = [];
+    const seenListingIds = new Set<string>();
 
-    for (const myItem of myItems) {
-      const myCategory = myItem.category.toLowerCase();
-      const myName = myItem.name.toLowerCase();
+    for (const myItem of allMyItems) {
+      const myCategory = (myItem.category || "").toLowerCase();
+      const myName = (myItem.name || "").toLowerCase();
 
       for (const listing of otherListings) {
-        const lookingFor = (listing.looking_for || "").toLowerCase();
-        const listingCategory = listing.category.toLowerCase();
-        const listingTitle = listing.title.toLowerCase();
+        if (seenListingIds.has(listing.id)) continue;
 
-        let score = 0;
-        let reason = "";
+        const lookingFor = (listing.looking_for || "").toLowerCase();
+        const listingCategory = (listing.category || "").toLowerCase();
+        const listingTitle = (listing.title || "").toLowerCase();
+
+        let score = 65;
+        let reason = `Compatible ${listing.category} trade.`;
 
         // Check if listing owner is looking for my item category or keywords
-        if (lookingFor.includes(myCategory) || lookingFor.includes(myName)) {
-          score += 45;
-          reason = `They are specifically looking for "${myItem.name}" or ${myItem.category}.`;
-        } else if (lookingFor.includes("open") || lookingFor.includes("anything") || lookingFor.length < 5) {
+        if (lookingFor && (lookingFor.includes(myCategory) || lookingFor.includes(myName))) {
           score += 25;
-          reason = `They are open to all offers on their "${listing.title}".`;
+          reason = `Trader is specifically looking for "${myItem.name}" or ${myItem.category}.`;
+        } else if (lookingFor.includes("open") || lookingFor.includes("any") || lookingFor.length < 5) {
+          score += 15;
+          reason = `Trader is open to all offers on "${listing.title}".`;
         }
 
-        // Category cross-affinity bonus (e.g. electronics for electronics)
+        // Category affinity
         if (myCategory === listingCategory) {
-          score += 35;
-          if (!reason) reason = `Same category trade (${myItem.category}).`;
+          score += 15;
+          reason = `Same category trade: both items are in ${myItem.category}.`;
         }
 
-        if (score >= 40) {
-          const finalScore = Math.min(99, Math.max(70, score + 20));
-          matches.push({
-            my_item: {
-              id: myItem.id,
-              name: myItem.name,
-              category: myItem.category,
-              condition: myItem.condition,
-              image_url: myItem.image_urls?.[0],
+        seenListingIds.add(listing.id);
+        matches.push({
+          my_item: {
+            id: myItem.id,
+            name: myItem.name,
+            category: myItem.category,
+            condition: myItem.condition,
+            image_url: myItem.image_url,
+          },
+          matched_listing: {
+            id: listing.id,
+            title: listing.title,
+            category: listing.category,
+            condition: listing.condition,
+            looking_for: listing.looking_for || "Open to offers",
+            location: listing.location,
+            emirate: listing.emirate,
+            image_url: listing.image_urls?.[0],
+            owner: (listing.owner as any) || {
+              id: listing.owner_id,
+              username: "trader",
+              display_name: "SWAP Trader",
             },
-            matched_listing: {
-              id: listing.id,
-              title: listing.title,
-              category: listing.category,
-              condition: listing.condition,
-              looking_for: listing.looking_for || "Open to offers",
-              location: listing.location,
-              emirate: listing.emirate,
-              image_url: listing.image_urls?.[0],
-              owner: (listing.owner as any) || {
-                id: listing.owner_id,
-                username: "trader",
-                display_name: "SWAP Trader",
-              },
-            },
-            match_score: finalScore,
-            match_reason: reason || "High category and value compatibility.",
-          });
-        }
+          },
+          match_score: Math.min(99, Math.max(75, score)),
+          match_reason: reason,
+        });
+
+        if (matches.length >= 6) break;
       }
+      if (matches.length >= 6) break;
     }
 
-    // Sort by match score descending
-    return matches.sort((a, b) => b.match_score - a.match_score).slice(0, 8);
+    return matches.sort((a, b) => b.match_score - a.match_score);
   });

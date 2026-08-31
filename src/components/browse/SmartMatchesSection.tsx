@@ -23,7 +23,7 @@ export function SmartMatchesSection() {
     staleTime: 60000,
   });
 
-  if (!userId || (!isLoading && matches.length === 0)) return null;
+  if (!userId) return null;
 
   return (
     <section className="mb-8 rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-6 shadow-card">
@@ -59,6 +59,21 @@ export function SmartMatchesSection() {
         <div className="mt-4 flex items-center justify-center py-6 text-xs text-muted-foreground">
           <Sparkles className="h-4 w-4 animate-spin text-primary mr-2" />
           Finding matching traders across UAE…
+        </div>
+      ) : matches.length === 0 ? (
+        <div className="mt-4 rounded-2xl bg-primary/5 p-4 text-center border border-primary/20">
+          <p className="text-xs font-bold text-foreground">
+            Add items to your inventory to discover instant 2-way trade matches!
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Once you add items you want to swap, our AI automatically pairs you with UAE members looking for what you have.
+          </p>
+          <Link
+            to="/my-listings"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm transition hover:scale-105"
+          >
+            + Add Item to Inventory
+          </Link>
         </div>
       ) : (
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
