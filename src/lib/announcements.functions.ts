@@ -13,7 +13,7 @@ export const listAnnouncements = createServerFn({ method: "GET" }).handler(async
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).filter((a) => !a.body?.startsWith('{"kind":"wanted_request"'));
 });
 
 export const createAnnouncement = createServerFn({ method: "POST" })
