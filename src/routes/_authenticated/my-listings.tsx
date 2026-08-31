@@ -14,7 +14,6 @@ import {
 } from "@/lib/items.functions";
 import { deleteListing } from "@/lib/listings.functions";
 import { autoFillItemFromPhoto } from "@/lib/ai.functions";
-import { SmartMatchesSection } from "@/components/browse/SmartMatchesSection";
 import { CATEGORIES, CONDITIONS, type ItemCategory, type ItemCondition } from "@/lib/db-types";
 import { uploadFileTo } from "@/lib/upload";
 import { ImageCropper } from "@/components/ImageCropper";
@@ -368,13 +367,6 @@ function MyInventoryPage() {
             )}
           </div>
         </div>
-
-        {/* AI 2-Way Smart Trade Matches */}
-        {!search && filterTab === "all" && (
-          <div className="mt-6">
-            <SmartMatchesSection />
-          </div>
-        )}
 
         {/* Gallery Grid */}
         {isLoading ? (
