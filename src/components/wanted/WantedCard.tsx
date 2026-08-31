@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { type WantedRequestItem } from "@/lib/wanted.server";
 import { timeAgo, handle } from "@/lib/db-types";
-import { ArrowRightLeft, MapPin, Sparkles, Clock, Trash2, Megaphone } from "lucide-react";
+import { ArrowRightLeft, MapPin, Sparkles, Clock, Trash2, Megaphone, Pencil } from "lucide-react";
 
 interface WantedCardProps {
   request: WantedRequestItem;
   myId?: string | null;
   onFulfill: (req: WantedRequestItem) => void;
+  onEdit?: (req: WantedRequestItem) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -78,13 +79,22 @@ export function WantedCard({ request, myId, onFulfill, onDelete }: WantedCardPro
 
         {/* Action Button */}
         {isMine ? (
-          <button
-            type="button"
-            onClick={() => onDelete?.(request.id)}
-            className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Remove
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onEdit?.(request)}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition"
+            >
+              <Pencil className="h-3 w-3" /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete?.(request.id)}
+              className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+            >
+              <Trash2 className="h-3 w-3" /> Remove
+            </button>
+          </div>
         ) : (
           <button
             type="button"

@@ -175,6 +175,76 @@ export async function insertWantedRequest(
   };
 }
 
+export async function updateWantedRequest(
+  userId: string,
+  id: string,
+  data: {
+    title: string;
+    category: ItemCategory;
+    offering_description: string;
+    emirate: string;
+    location: string;
+  },
+): Promise<WantedRequestItem> {
+  const payload = {
+    kind: "wanted_request",
+    title: data.title.trim(),
+    category: data.category,
+    offering_description: data.offering_description.trim(),
+    emirate: data.emirate || "Dubai",
+    location: data.location || "Dubai",
+  };
+
+  const { data: row, error } = await supabaseAdmin
+    .from("announcements")
+    .update({
+      body: JSON.stringify(payload),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("author_id", userId)
+    .select(`
+      id,
+      author_id,
+      body,
+      created_at,
+      updated_at,
+      author:profiles!announcements_author_id_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        avatar_color
+      )
+    `)
+    .single();
+
+  if (error || !row) {
+    throw new Error(error?.message || "Failed to update wanted request");
+  }
+
+  const author = row.author as any;
+  return {
+    id: row.id,
+    user_id: row.author_id,
+    title: payload.title,
+    category: payload.category as ItemCategory,
+    offering_description: payload.offering_description,
+    emirate: payload.emirate,
+    location: payload.location,
+    status: "active",
+    created_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
+    user: {
+      id: row.author_id,
+      username: author?.username || "trader",
+      display_name: author?.display_name || author?.username || "Trader",
+      avatar_url: author?.avatar_url,
+      avatar_color: author?.avatar_color || "#ea580c",
+    },
+  };
+}
+
 export async function removeWantedRequest(id: string, userId: string): Promise<boolean> {
   const { error } = await supabaseAdmin
     .from("announcements")

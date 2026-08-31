@@ -52,6 +52,7 @@ function WantedBoardPage() {
   const [search, setSearch] = useState("");
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<WantedRequestItem | null>(null);
   const [activeFulfillRequest, setActiveFulfillRequest] = useState<WantedRequestItem | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
@@ -200,6 +201,7 @@ function WantedBoardPage() {
                   navigate({ to: "/auth" });
                   return;
                 }
+                setEditingRequest(null);
                 setCreateModalOpen(true);
               }}
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
@@ -214,6 +216,10 @@ function WantedBoardPage() {
                 key={r.id}
                 request={r}
                 myId={userId}
+                onEdit={(req) => {
+                  setEditingRequest(req);
+                  setCreateModalOpen(true);
+                }}
                 onFulfill={(req) => {
                   if (!signedIn) {
                     navigate({ to: "/auth" });
@@ -229,7 +235,14 @@ function WantedBoardPage() {
       </main>
 
       {/* Modals */}
-      <CreateWantedModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
+      <CreateWantedModal
+        open={createModalOpen}
+        editingRequest={editingRequest}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setEditingRequest(null);
+        }}
+      />
       <FulfillWantedModal
         request={activeFulfillRequest}
         onClose={() => setActiveFulfillRequest(null)}

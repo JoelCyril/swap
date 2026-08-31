@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createWantedRequest } from "@/lib/wanted.functions";
+import { createWantedRequest, editWantedRequest } from "@/lib/wanted.functions";
+import { type WantedRequestItem } from "@/lib/wanted.server";
 import { CATEGORIES, EMIRATES, NEIGHBOURHOODS, OTHER_LOCATION, type ItemCategory } from "@/lib/db-types";
-import { X, Sparkles, Megaphone, ArrowRightLeft, MapPin } from "lucide-react";
+import { X, Sparkles, Megaphone, ArrowRightLeft, MapPin, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 interface CreateWantedModalProps {
   open: boolean;
   onClose: () => void;
+  editingRequest?: WantedRequestItem | null;
 }
 
-export function CreateWantedModal({ open, onClose }: CreateWantedModalProps) {
+export function CreateWantedModal({ open, onClose, editingRequest }: CreateWantedModalProps) {
   const qc = useQueryClient();
   const createFn = useServerFn(createWantedRequest);
+  const editFn = useServerFn(editWantedRequest);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<ItemCategory>("Electronics");
@@ -22,34 +25,77 @@ export function CreateWantedModal({ open, onClose }: CreateWantedModalProps) {
   const [locationChoice, setLocationChoice] = useState<string>(NEIGHBOURHOODS[0]);
   const [otherLocation, setOtherLocation] = useState("");
 
-  const createMut = useMutation({
+  const isEditing = Boolean(editingRequest);
+
+  useEffect(() => {
+    if (editingRequest) {
+      setTitle(editingRequest.title);
+      setCategory(editingRequest.category);
+      setOfferingDescription(editingRequest.offering_description);
+      setEmirate(editingRequest.emirate || "Dubai");
+      if (NEIGHBOURHOODS.includes(editingRequest.location)) {
+        setLocationChoice(editingRequest.location);
+        setOtherLocation("");
+      } else {
+        setLocationChoice(OTHER_LOCATION);
+        setOtherLocation(editingRequest.location || "");
+      }
+    } else {
+      setTitle("");
+      setCategory("Electronics");
+      setOfferingDescription("");
+      setEmirate("Dubai");
+      setLocationChoice(NEIGHBOURHOODS[0]);
+      setOtherLocation("");
+    }
+  }, [editingRequest, open]);
+
+  const saveMut = useMutation({
     mutationFn: async () => {
       const location = locationChoice === OTHER_LOCATION ? otherLocation.trim() : locationChoice;
       if (!title.trim()) throw new Error("Please enter what you are looking for");
       if (!offeringDescription.trim()) throw new Error("Please describe what you are willing to swap in return");
       if (!location) throw new Error("Please enter a location");
 
-      return await createFn({
-        data: {
-          title: title.trim(),
-          category,
-          offering_description: offeringDescription.trim(),
-          emirate,
-          location,
-        },
-      });
+      if (isEditing && editingRequest) {
+        return await editFn({
+          data: {
+            id: editingRequest.id,
+            title: title.trim(),
+            category,
+            offering_description: offeringDescription.trim(),
+            emirate,
+            location,
+          },
+        });
+      } else {
+        return await createFn({
+          data: {
+            title: title.trim(),
+            category,
+            offering_description: offeringDescription.trim(),
+            emirate,
+            location,
+          },
+        });
+      }
     },
     onSuccess: () => {
-      toast.success("Wanted request posted to the Community Board!", {
-        description: "Traders who have this item will be able to propose swaps with you directly.",
-      });
+      toast.success(
+        isEditing
+          ? "Wanted request updated!"
+          : "Wanted request posted to the Community Board!",
+        {
+          description: isEditing
+            ? "Your changes have been saved."
+            : "Traders who have this item will be able to propose swaps with you directly.",
+        },
+      );
       qc.invalidateQueries({ queryKey: ["wanted-requests"] });
       onClose();
-      setTitle("");
-      setOfferingDescription("");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to post request");
+      toast.error(err instanceof Error ? err.message : "Failed to save request");
     },
   });
 
@@ -62,14 +108,16 @@ export function CreateWantedModal({ open, onClose }: CreateWantedModalProps) {
         <div className="flex items-center justify-between border-b border-border/60 pb-3">
           <div className="flex items-center gap-2.5">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
-              <Megaphone className="h-5 w-5" />
+              {isEditing ? <Pencil className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
             </span>
             <div>
               <h2 className="font-display text-lg sm:text-xl font-black text-foreground">
-                Post a Wanted Request
+                {isEditing ? "Edit Wanted Request" : "Post a Wanted Request"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Tell the UAE barter community what you're looking for (ISO)
+                {isEditing
+                  ? "Update what you are looking for and offering"
+                  : "Tell the UAE barter community what you're looking for (ISO)"}
               </p>
             </div>
           </div>
@@ -85,7 +133,7 @@ export function CreateWantedModal({ open, onClose }: CreateWantedModalProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createMut.mutate();
+            saveMut.mutate();
           }}
           className="mt-4 space-y-4"
         >
@@ -186,11 +234,15 @@ export function CreateWantedModal({ open, onClose }: CreateWantedModalProps) {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={createMut.isPending || !title.trim() || !offeringDescription.trim()}
+              disabled={saveMut.isPending || !title.trim() || !offeringDescription.trim()}
               className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 transition hover:scale-[1.02] active:scale-[0.98]"
             >
-              {createMut.isPending ? (
-                "Posting Request…"
+              {saveMut.isPending ? (
+                "Saving…"
+              ) : isEditing ? (
+                <>
+                  <Pencil className="h-4 w-4" /> Save Changes
+                </>
               ) : (
                 <>
                   <Megaphone className="h-4 w-4" /> Post to Wanted Board
