@@ -58,10 +58,24 @@ export function InquiryUpdates({
           </div>
           <div className="max-h-72 space-y-3 overflow-y-auto p-4">
             {items.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                You haven't sent any inquiries yet. Send one from the Help page and moderator replies
-                will show up here.
-              </p>
+              <div className="space-y-2.5 text-xs text-muted-foreground">
+                <p>
+                  You haven't sent any inquiries yet. Send your inquiries directly to{" "}
+                  <a
+                    href="mailto:swapuaeofficial@gmail.com"
+                    className="font-bold text-primary underline underline-offset-2 hover:text-primary-hover"
+                  >
+                    swapuaeofficial@gmail.com
+                  </a>{" "}
+                  or submit one from the Help page.
+                </p>
+                <a
+                  href="mailto:swapuaeofficial@gmail.com"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary/10 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition"
+                >
+                  Email swapuaeofficial@gmail.com
+                </a>
+              </div>
             )}
             {items.map((i) => (
               <div key={i.id} className="rounded-2xl bg-muted p-3">

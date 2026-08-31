@@ -60,9 +60,33 @@ function HelpPage() {
           <LifeBuoy className="h-7 w-7 text-primary" /> Help &amp; support
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Fill in the form and our moderator team will reply — signed-in members see replies in the
-          “Inquiry updates” panel.
+          Need assistance or have questions? You can email us directly at{" "}
+          <a
+            href="mailto:swapuaeofficial@gmail.com"
+            className="font-bold text-primary underline underline-offset-2 hover:text-primary-hover"
+          >
+            swapuaeofficial@gmail.com
+          </a>{" "}
+          or fill in the inquiry form below. Signed-in members can track replies in the “Inquiry updates” widget.
         </p>
+
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-primary/20 bg-primary-soft/40 p-3.5 sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">Direct Email Support</p>
+              <p className="text-xs text-muted-foreground">swapuaeofficial@gmail.com</p>
+            </div>
+          </div>
+          <a
+            href="mailto:swapuaeofficial@gmail.com"
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-bold text-primary-foreground shadow transition hover:opacity-90"
+          >
+            Email Us
+          </a>
+        </div>
 
         <form
           onSubmit={(e) => {
