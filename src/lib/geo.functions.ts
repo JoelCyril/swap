@@ -181,9 +181,9 @@ export const detectLocationFromCoords = createServerFn({ method: "POST" })
         console.warn("BigDataCloud geocode failed:", e);
       }
 
-      // 2. OpenStreetMap Nominatim for refined neighbourhood
+      // 2. OpenStreetMap Nominatim for refined neighbourhood (English language)
       try {
-        const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+        const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=en`;
         const nomRes = await fetch(nomUrl, {
           headers: { "User-Agent": "SwapUAE/1.0 (https://swapuae.com; contact@swapuae.com)" },
         });
