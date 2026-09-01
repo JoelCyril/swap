@@ -16,6 +16,7 @@ import {
   type ItemCategory,
   type ItemCondition,
 } from "@/lib/db-types";
+import { LocationDetectButton } from "@/components/common/LocationDetectButton";
 import { toast } from "sonner";
 import { X, Upload } from "lucide-react";
 
@@ -237,41 +238,61 @@ function EditListingPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground">Emirate</label>
-                <select
-                  required
-                  value={form.emirate}
-                  onChange={(e) => setForm({ ...form, emirate: e.target.value })}
-                  className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
-                >
-                  <option value="">Select emirate</option>
-                  {EMIRATES.map((name) => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </div>
-              <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground">Neighbourhood</label>
-              <select
-                value={locationChoice}
-                onChange={(e) => setLocationChoice(e.target.value)}
-                className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
-              >
-                {NEIGHBOURHOODS.map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-                <option value={OTHER_LOCATION}>Other (type your own)</option>
-              </select>
-              {locationChoice === OTHER_LOCATION && (
-                <input
-                  required
-                  placeholder="Enter your neighbourhood"
-                  maxLength={120}
-                  value={otherLocation}
-                  onChange={(e) => setOtherLocation(e.target.value)}
-                  className="mt-2 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold uppercase text-muted-foreground">Location *</span>
+                <LocationDetectButton
+                  onDetected={({ emirate, location, isKnownNeighbourhood }) => {
+                    setForm((f) => ({ ...f, emirate }));
+                    if (isKnownNeighbourhood) {
+                      setLocationChoice(location);
+                      setOtherLocation("");
+                    } else {
+                      setLocationChoice(OTHER_LOCATION);
+                      setOtherLocation(location);
+                    }
+                  }}
+                  label="Auto-detect location"
                 />
-              )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Emirate *</label>
+                  <select
+                    required
+                    value={form.emirate}
+                    onChange={(e) => setForm({ ...form, emirate: e.target.value })}
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
+                  >
+                    <option value="" disabled>Select emirate</option>
+                    {EMIRATES.map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Neighbourhood *</label>
+                  <select
+                    value={locationChoice}
+                    onChange={(e) => setLocationChoice(e.target.value)}
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
+                  >
+                    <option value="" disabled>Select neighbourhood</option>
+                    {NEIGHBOURHOODS.map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                    <option value={OTHER_LOCATION}>Other (type your own)</option>
+                  </select>
+                  {locationChoice === OTHER_LOCATION && (
+                    <input
+                      required
+                      placeholder="Enter your neighbourhood"
+                      maxLength={120}
+                      value={otherLocation}
+                      onChange={(e) => setOtherLocation(e.target.value)}
+                      className="mt-2 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
+                    />
+                  )}
+                </div>
               </div>
             </div>
 

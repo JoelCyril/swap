@@ -26,6 +26,7 @@ import {
   type ItemCondition,
 } from "@/lib/db-types";
 import { ImageCropper } from "@/components/ImageCropper";
+import { LocationDetectButton } from "@/components/common/LocationDetectButton";
 import {
   Plus,
   ArrowRightLeft,
@@ -706,6 +707,23 @@ function MyInventoryPage() {
 
             {/* Emirate & Area Location (Mandatory) */}
             <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-muted-foreground">Location Details *</span>
+                <LocationDetectButton
+                  onDetected={({ emirate, location, isKnownNeighbourhood }) => {
+                    setQuickListEmirate(emirate);
+                    if (isKnownNeighbourhood) {
+                      setQuickListLocationChoice(location);
+                      setQuickListOtherLocation("");
+                    } else {
+                      setQuickListLocationChoice(OTHER_LOCATION);
+                      setQuickListOtherLocation(location);
+                    }
+                  }}
+                  label="Auto-detect location"
+                />
+              </div>
+
               <div>
                 <label className="text-xs font-bold uppercase text-muted-foreground">
                   Emirate *

@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { ImageCropper } from "@/components/ImageCropper";
+import { LocationDetectButton } from "@/components/common/LocationDetectButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -363,28 +364,45 @@ function ProfileTab() {
             className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
           />
         </div>
-        <div>
-          <label className="text-xs font-bold uppercase text-muted-foreground">Emirate</label>
-          <select
-            value={form.emirate}
-            onChange={(e) => setForm({ ...form, emirate: e.target.value })}
-            className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
-          >
-            <option value="">Not set</option>
-            {EMIRATES.map((n) => (
-              <option key={n}>{n}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold uppercase text-muted-foreground">General location</label>
-          <input
-            maxLength={120}
-            placeholder="e.g. Al Barsha"
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
-          />
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase text-muted-foreground">Location</span>
+            <LocationDetectButton
+              onDetected={({ emirate, location }) => {
+                setForm((f) => ({
+                  ...f,
+                  emirate,
+                  location,
+                }));
+              }}
+              label="Auto-detect location"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase text-muted-foreground">Emirate</label>
+            <select
+              value={form.emirate}
+              onChange={(e) => setForm({ ...form, emirate: e.target.value })}
+              className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
+            >
+              <option value="">Not set</option>
+              {EMIRATES.map((n) => (
+                <option key={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase text-muted-foreground">General location / Area</label>
+            <input
+              maxLength={120}
+              placeholder="e.g. Al Barsha, Downtown, JVC"
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
         </div>
         <div>
           <label className="text-xs font-bold uppercase text-muted-foreground">Bio</label>
