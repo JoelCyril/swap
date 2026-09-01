@@ -81,7 +81,7 @@ export function LocationMapModal({
     [detectFn],
   );
 
-  // Trigger browser native Geolocation on user button click
+  // Trigger browser native Geolocation (prompts Google/Browser "Allow location" popup)
   const handleDetectLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setPermissionStatus("unavailable");
@@ -110,7 +110,7 @@ export function LocationMapModal({
         setDetecting(false);
         if (error.code === 1 || error.code === error.PERMISSION_DENIED) {
           setPermissionStatus("denied");
-          toast.error("Location permission was blocked in your browser settings.", {
+          toast.error("Location access is blocked in your browser settings.", {
             description: "Click the lock icon in your browser URL bar to allow location, or drag the pin manually.",
           });
         } else if (error.code === 2 || error.code === error.POSITION_UNAVAILABLE) {
@@ -176,7 +176,7 @@ export function LocationMapModal({
         // Add Zoom Control to bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // Ultra-reliable OpenStreetMap Tile Layer (Free, CORS-friendly, zero watermark, high performance)
+        // Ultra-reliable OpenStreetMap Tile Layer
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19,
@@ -210,7 +210,7 @@ export function LocationMapModal({
         });
       }
 
-      // Robust invalidateSize calls to ensure tiles render immediately upon modal opening
+      // Invalidate map size on open so tiles render immediately
       const resizeMap = () => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
@@ -221,7 +221,6 @@ export function LocationMapModal({
       setTimeout(resizeMap, 200);
       setTimeout(resizeMap, 500);
 
-      // ResizeObserver to handle modal transitions
       const resizeObserver = new ResizeObserver(() => {
         resizeMap();
       });
@@ -249,9 +248,8 @@ export function LocationMapModal({
     };
   }, []);
 
-  // Search UAE location in English
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Search UAE location in English without submitting any parent form
+  const executeSearch = async () => {
     const query = searchQuery.trim();
     if (!query) return;
 
@@ -286,7 +284,6 @@ export function LocationMapModal({
   // Confirm selection: Always uses the CURRENT marker position
   const handleConfirm = () => {
     if (!currentAddress || !hasPinned) {
-      // If user hasn't detected or moved, geocode current marker position
       if (markerInstanceRef.current) {
         const pos = markerInstanceRef.current.getLatLng();
         geocodeCoords(pos.lat, pos.lng).then(() => {
@@ -338,21 +335,29 @@ export function LocationMapModal({
         <div className="relative flex-1 w-full bg-muted overflow-hidden">
           {/* PERMISSION DENIED BANNER OVERLAY */}
           {permissionStatus === "denied" && (
-            <div className="absolute top-16 left-4 right-4 z-[400] max-w-lg mx-auto rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-3.5 backdrop-blur-md shadow-xl animate-in slide-in-from-top-2">
+            <div className="absolute top-16 left-4 right-4 z-[400] max-w-lg mx-auto rounded-2xl border-2 border-amber-500/40 bg-card/95 p-3.5 backdrop-blur-md shadow-2xl animate-in slide-in-from-top-2">
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
-                  <p className="font-bold text-foreground">Location permission is blocked in your browser</p>
-                  <p className="text-muted-foreground text-[11px] leading-relaxed">
-                    To enable GPS: Click the lock / settings icon (🔒) in your browser address bar, set Location to <strong>Allow</strong>, and click <strong>Try Again</strong>.
+                <div className="text-xs space-y-1.5">
+                  <p className="font-bold text-foreground text-sm">Google Location Permission Blocked</p>
+                  <p className="text-muted-foreground text-[12px] leading-relaxed">
+                    Your browser previously blocked location for <strong>swapuae.com</strong>.
                   </p>
-                  <div className="pt-1.5 flex items-center gap-2">
+                  <div className="bg-muted/60 rounded-xl p-2 text-[11px] text-foreground space-y-1">
+                    <p><strong>To see Google's Allow popup:</strong></p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
+                      <li>Click the lock / tune icon (🔒 / ⚙️) next to the website URL at the top.</li>
+                      <li>Switch <strong>Location</strong> from <em>Block</em> to <strong>Allow</strong> (or Reset).</li>
+                      <li>Click <strong>"Try Again"</strong> below to trigger the prompt.</li>
+                    </ol>
+                  </div>
+                  <div className="pt-1 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleDetectLocation}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-bold text-white hover:bg-amber-600 transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
                     >
-                      <RotateCw className="h-3 w-3" /> Try Again
+                      <RotateCw className="h-3.5 w-3.5" /> Try Again
                     </button>
                     <span className="text-[11px] text-muted-foreground">or simply drag the pin on the map</span>
                   </div>
@@ -361,28 +366,33 @@ export function LocationMapModal({
             </div>
           )}
 
-          {/* SEARCH BAR OVERLAY */}
+          {/* SEARCH BAR OVERLAY (DIV CONTAINER, NO FORM TO PREVENT NESTED FORM SUBMISSIONS) */}
           <div className="absolute top-4 left-4 right-4 z-[400] max-w-md">
-            <form
-              onSubmit={handleSearch}
-              className="flex items-center gap-1.5 rounded-2xl border-2 border-primary/30 bg-card/95 p-1.5 shadow-lg backdrop-blur"
-            >
+            <div className="flex items-center gap-1.5 rounded-2xl border-2 border-primary/30 bg-card/95 p-1.5 shadow-lg backdrop-blur">
               <Search className="h-4 w-4 text-muted-foreground ml-2 shrink-0" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    executeSearch();
+                  }
+                }}
                 placeholder="Search area, landmark, or street (e.g. Marina Mall, Corniche)…"
                 className="flex-1 bg-transparent px-2 py-1 text-xs outline-none text-foreground"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={executeSearch}
                 disabled={searching || !searchQuery.trim()}
                 className="rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50 cursor-pointer"
               >
                 {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search"}
               </button>
-            </form>
+            </div>
           </div>
 
           {/* DETECT MY LOCATION PROMINENT FLOATING BUTTON */}
