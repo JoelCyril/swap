@@ -14,10 +14,12 @@ import {
   replyToInquiry,
   listWithheldListings,
   reviewWithheldListing,
+  getModeratorAnalytics,
 } from "@/lib/admin.functions";
 import { liftBan } from "@/lib/bans.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { gradientForId, timeAgo } from "@/lib/db-types";
+import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import {
   ShieldCheck,
   Trash2,
@@ -32,6 +34,7 @@ import {
   EyeOff,
   Check,
   Package,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,7 +58,8 @@ function AdminPage() {
   const redeem = useServerFn(redeemAdminCode);
   const [code, setCode] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"flagged" | "withheld" | "banned" | "inquiries">("flagged");
+  const [tab, setTab] = useState<"analytics" | "flagged" | "withheld" | "banned" | "inquiries">("analytics");
+  const analyticsFn = useServerFn(getModeratorAnalytics);
   const withheldFn = useServerFn(listWithheldListings);
   const reviewFn = useServerFn(reviewWithheldListing);
   const bannedFn = useServerFn(listBannedUsers);
@@ -64,6 +68,12 @@ function AdminPage() {
 
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => me() });
   const isAdmin = profile?.roles?.includes("admin");
+
+  const { data: analytics, isLoading: isAnalyticsLoading } = useQuery({
+    queryKey: ["admin-analytics"],
+    queryFn: () => analyticsFn(),
+    enabled: !!isAdmin,
+  });
 
   const { data: flagged } = useQuery({
     queryKey: ["admin-flagged"],
@@ -161,9 +171,10 @@ function AdminPage() {
 
         {isAdmin && (
           <>
-            <div className="mb-5 flex flex-wrap gap-2">
+            <div className="mb-6 flex flex-wrap gap-2">
               {(
                 [
+                  ["analytics", "Analytics & Members", (analytics?.users ?? []).length, BarChart3],
                   ["flagged", "Flagged listings", (flagged ?? []).length, Flag],
                   ["withheld", "Withheld listings", (withheld ?? []).length, EyeOff],
                   ["banned", "Banned users", (banned ?? []).length, Ban],
@@ -183,6 +194,10 @@ function AdminPage() {
                 </button>
               ))}
             </div>
+
+            {tab === "analytics" && (
+              <AnalyticsPanel data={analytics} isLoading={isAnalyticsLoading} />
+            )}
 
             {tab === "flagged" && (
               <div className="space-y-3">
