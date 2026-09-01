@@ -16,7 +16,7 @@ import {
   type ItemCategory,
   type ItemCondition,
 } from "@/lib/db-types";
-import { LocationDetectButton } from "@/components/common/LocationDetectButton";
+import { LocationPickerControls } from "@/components/common/LocationPickerControls";
 import { toast } from "sonner";
 import { X, Upload } from "lucide-react";
 
@@ -239,10 +239,10 @@ function EditListingPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
                 <span className="text-xs font-bold uppercase text-muted-foreground">Location *</span>
-                <LocationDetectButton
-                  onDetected={({ emirate, location, isKnownNeighbourhood }) => {
+                <LocationPickerControls
+                  onLocationSelected={({ emirate, location, isKnownNeighbourhood }) => {
                     setForm((f) => ({ ...f, emirate }));
                     if (isKnownNeighbourhood) {
                       setLocationChoice(location);
@@ -252,7 +252,8 @@ function EditListingPage() {
                       setOtherLocation(location);
                     }
                   }}
-                  label="Auto-detect location"
+                  currentEmirate={form.emirate || "Dubai"}
+                  currentLocation={locationChoice || ""}
                 />
               </div>
 
