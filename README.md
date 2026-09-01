@@ -154,6 +154,6 @@ swap-marketplace/
 └── README.md                   # Project documentation
 
 🌐 Live Application
-Deploy the application to the hosting provider of your choice after configuring the environment variables in `.env.example`.
+swapuae.com
 "# Swop" 
  joel was here
