@@ -14,7 +14,7 @@ import { getPublicProfile } from "@/lib/profile.functions";
 import { trackListingView } from "@/lib/views.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package, Eye } from "lucide-react";
+import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/listings/$id")({
@@ -241,11 +241,6 @@ function ListingDetailPage() {
                 <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {listing.location}</span>
                 <span>· {listing.category}</span>
                 <span>· {timeAgo(listing.created_at)}</span>
-                {typeof viewCount === "number" && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                    <Eye className="h-3.5 w-3.5" /> {viewCount} {viewCount === 1 ? "view" : "views"}
-                  </span>
-                )}
               </div>
               {listing.description && (
                 <p className="mt-4 text-foreground/80 whitespace-pre-wrap">{listing.description}</p>

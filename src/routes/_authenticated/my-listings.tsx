@@ -14,7 +14,6 @@ import {
 } from "@/lib/items.functions";
 import { deleteListing } from "@/lib/listings.functions";
 import { autoFillItemFromPhoto } from "@/lib/ai.functions";
-import { fetchBulkListingViews } from "@/lib/views.functions";
 import { uploadFileTo } from "@/lib/upload";
 import {
   CATEGORIES,
@@ -101,8 +100,6 @@ function MyInventoryPage() {
   const [quickListEmirate, setQuickListEmirate] = useState<string>("");
   const [quickListLocationChoice, setQuickListLocationChoice] = useState<string>("");
   const [quickListOtherLocation, setQuickListOtherLocation] = useState<string>("");
-  const getViewsFn = useServerFn(fetchBulkListingViews);
-
   const { data, isLoading } = useQuery({
     queryKey: ["my-inventory-listings"],
     queryFn: () => getInventory(),
@@ -110,17 +107,6 @@ function MyInventoryPage() {
 
   const items = data?.items ?? [];
   const standaloneListings = data?.standaloneListings ?? [];
-
-  const allListingIds = [
-    ...items.map((i) => i.listing?.id).filter(Boolean),
-    ...standaloneListings.map((l: any) => l.id).filter(Boolean),
-  ] as string[];
-
-  const { data: viewsMap } = useQuery({
-    queryKey: ["my-listings-views", allListingIds],
-    queryFn: () => getViewsFn({ data: { listingIds: allListingIds } }),
-    enabled: allListingIds.length > 0,
-  });
 
   // Counts
   const totalItems = items.length + standaloneListings.length;
@@ -536,15 +522,10 @@ function MyInventoryPage() {
                     {/* Listing details if active */}
                     {item.listing && (
                       <div className="mt-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs">
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate flex items-center gap-1">
-                            <ArrowRightLeft className="h-3 w-3 shrink-0" />
-                            Looking for: {item.listing.looking_for || "Open to offers"}
-                          </p>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-900 dark:text-emerald-200 shrink-0">
-                            <Eye className="h-3 w-3" /> {(viewsMap ?? {})[item.listing.id] || 0}
-                          </span>
-                        </div>
+                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate flex items-center gap-1">
+                          <ArrowRightLeft className="h-3 w-3 shrink-0" />
+                          Looking for: {item.listing.looking_for || "Open to offers"}
+                        </p>
                         <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                           <MapPin className="h-2.5 w-2.5 shrink-0" />
                           {item.listing.location}, {item.listing.emirate}
