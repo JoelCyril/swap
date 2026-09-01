@@ -77,77 +77,60 @@ export const matchNearbyAreas = createServerFn({ method: "POST" })
   });
 
 /**
- * Reverse geocodes GPS coordinates (lat, lon) into a verified UAE Emirate
- * and Area / Neighbourhood. If GPS is unavailable, falls back to IP/headers.
+ * Reverse geocodes exact coordinates (lat, lon) into a verified UAE Emirate
+ * and Area / Neighbourhood.
  */
 export const detectLocationFromCoords = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        latitude: z.number().min(-90).max(90).optional(),
-        longitude: z.number().min(-180).max(180).optional(),
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    let lat = data?.latitude;
-    let lon = data?.longitude;
+    const { latitude: lat, longitude: lon } = data;
     const { NEIGHBOURHOODS, emirateOf, EMIRATES, getEmirateFromCoords } = await import("./db-types");
 
-    let detectedEmirate = lat !== undefined && lon !== undefined ? getEmirateFromCoords(lat, lon) : "Abu Dhabi";
+    // 1. Determine exact Emirate mathematically from coordinates
+    let detectedEmirate = getEmirateFromCoords(lat, lon);
     let detectedArea = "";
     let fullAddress = "";
 
-    // If no coordinates provided (e.g. browser permission denied or desktop GPS unavailable),
-    // read Vercel geolocation headers or IP geolocation service
-    if (lat === undefined || lon === undefined) {
-      try {
-        const { getRequest } = await import("@tanstack/react-start/server");
-        const req = getRequest();
-        const vercelCity = req.headers.get("x-vercel-ip-city");
-        const vercelRegion = req.headers.get("x-vercel-ip-country-region");
-        const vercelLat = req.headers.get("x-vercel-ip-latitude");
-        const vercelLon = req.headers.get("x-vercel-ip-longitude");
+    // 2. OpenStreetMap Nominatim for refined English neighbourhood & area
+    try {
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=en`;
+      const nomRes = await fetch(nomUrl, {
+        headers: { "User-Agent": "SwapUAE/1.0 (https://swapuae.com; contact@swapuae.com)" },
+      });
+      if (nomRes.ok) {
+        const nomData = await nomRes.json();
+        const addr = nomData.address || {};
+        const neighbourhood =
+          addr.neighbourhood ||
+          addr.suburb ||
+          addr.residential ||
+          addr.city_district ||
+          addr.quarter ||
+          addr.district ||
+          addr.commercial ||
+          addr.city ||
+          addr.town ||
+          "";
+        const state = addr.state || addr.province || addr.city || "";
 
-        if (vercelLat && vercelLon) {
-          lat = parseFloat(vercelLat);
-          lon = parseFloat(vercelLon);
-        }
-
-        if (vercelCity || vercelRegion) {
-          const em = emirateOf(vercelRegion) || emirateOf(vercelCity);
-          if (em) detectedEmirate = em;
-          if (vercelCity) detectedArea = decodeURIComponent(vercelCity);
-        }
-      } catch (e) {
-        console.warn("Could not read request headers for geo:", e);
+        const emFromText = emirateOf(state) || emirateOf(neighbourhood) || emirateOf(nomData.display_name);
+        if (emFromText) detectedEmirate = emFromText;
+        if (neighbourhood) detectedArea = neighbourhood;
+        if (nomData.display_name) fullAddress = nomData.display_name;
       }
-
-      // If still no coordinates, query IP geolocation lookup
-      if (lat === undefined || lon === undefined) {
-        try {
-          const ipRes = await fetch("https://ipwho.is/", {
-            headers: { "User-Agent": "SwapUAE/1.0" },
-          });
-          if (ipRes.ok) {
-            const ipData = await ipRes.json();
-            if (ipData.success) {
-              lat = ipData.latitude;
-              lon = ipData.longitude;
-              const em = emirateOf(ipData.region) || emirateOf(ipData.city);
-              if (em) detectedEmirate = em;
-              if (ipData.city) detectedArea = ipData.city;
-            }
-          }
-        } catch (e) {
-          console.warn("IP lookup fallback failed:", e);
-        }
-      }
+    } catch (e) {
+      console.warn("Nominatim reverse geocode error:", e);
     }
 
-    // If we have coordinates, query reverse geocoders
-    if (lat !== undefined && lon !== undefined) {
-      // 1. BigDataCloud reverse geocode client (fast, no key required)
+    // 3. If area name not yet resolved, try BigDataCloud as secondary provider
+    if (!detectedArea) {
       try {
         const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
         const bdcRes = await fetch(bdcUrl, {
@@ -178,38 +161,7 @@ export const detectLocationFromCoords = createServerFn({ method: "POST" })
           }
         }
       } catch (e) {
-        console.warn("BigDataCloud geocode failed:", e);
-      }
-
-      // 2. OpenStreetMap Nominatim for refined neighbourhood (English language)
-      try {
-        const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=en`;
-        const nomRes = await fetch(nomUrl, {
-          headers: { "User-Agent": "SwapUAE/1.0 (https://swapuae.com; contact@swapuae.com)" },
-        });
-        if (nomRes.ok) {
-          const nomData = await nomRes.json();
-          const addr = nomData.address || {};
-          const neighbourhood =
-            addr.neighbourhood ||
-            addr.suburb ||
-            addr.residential ||
-            addr.city_district ||
-            addr.quarter ||
-            addr.district ||
-            addr.commercial ||
-            addr.city ||
-            addr.town ||
-            "";
-          const state = addr.state || addr.province || addr.city || "";
-
-          const em = emirateOf(state) || emirateOf(neighbourhood) || emirateOf(nomData.display_name);
-          if (em) detectedEmirate = em;
-          if (neighbourhood) detectedArea = neighbourhood;
-          if (nomData.display_name) fullAddress = nomData.display_name;
-        }
-      } catch (e) {
-        console.warn("Nominatim geocode fallback failed:", e);
+        console.warn("BigDataCloud geocode error:", e);
       }
     }
 
@@ -217,20 +169,22 @@ export const detectLocationFromCoords = createServerFn({ method: "POST" })
       detectedArea = detectedEmirate;
     }
 
-    // Match against known NEIGHBOURHOODS
+    // 4. Match against known list of NEIGHBOURHOODS for select dropdowns
     const knownMatch = NEIGHBOURHOODS.find((n) => {
       const nLower = n.toLowerCase();
       const aLower = detectedArea.toLowerCase();
       return nLower === aLower || nLower.includes(aLower) || aLower.includes(nLower);
     });
 
-    const finalEmirate = (EMIRATES.includes(detectedEmirate as any) ? detectedEmirate : "Dubai") as string;
+    const finalEmirate = (EMIRATES.includes(detectedEmirate as any) ? detectedEmirate : "Abu Dhabi") as string;
 
     return {
       emirate: finalEmirate,
       location: knownMatch || detectedArea,
       isKnownNeighbourhood: Boolean(knownMatch),
       fullAddress: fullAddress || `${detectedArea}, ${finalEmirate}`,
+      latitude: lat,
+      longitude: lon,
     };
   });
 

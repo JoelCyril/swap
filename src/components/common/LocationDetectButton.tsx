@@ -9,6 +9,8 @@ export interface DetectedLocationResult {
   location: string;
   isKnownNeighbourhood: boolean;
   fullAddress: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface LocationDetectButtonProps {

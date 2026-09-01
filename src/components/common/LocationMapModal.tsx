@@ -8,8 +8,6 @@ import {
   Search,
   Check,
   Loader2,
-  Crosshair,
-  Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DetectedLocationResult } from "./LocationDetectButton";
@@ -26,7 +24,7 @@ export function LocationMapModal({
   isOpen,
   onClose,
   onSelectLocation,
-  initialEmirate = "Dubai",
+  initialEmirate = "Abu Dhabi",
   initialLocation = "",
 }: LocationMapModalProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -37,12 +35,11 @@ export function LocationMapModal({
   const [detecting, setDetecting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [gpsStatus, setGpsStatus] = useState<"idle" | "requesting" | "located" | "denied">("idle");
   const [currentAddress, setCurrentAddress] = useState<DetectedLocationResult>({
-    emirate: initialEmirate || "Dubai",
-    location: initialLocation || "Dubai",
+    emirate: initialEmirate || "Abu Dhabi",
+    location: initialLocation || "Abu Dhabi",
     isKnownNeighbourhood: false,
-    fullAddress: "Move map or search to place pin",
+    fullAddress: initialLocation ? `${initialLocation}, ${initialEmirate}` : "Tap 'Detect my location' or drag the pin",
   });
 
   const detectFn = useServerFn(detectLocationFromCoords);
@@ -56,7 +53,11 @@ export function LocationMapModal({
           data: { latitude: lat, longitude: lng },
         });
         if (result) {
-          setCurrentAddress(result);
+          setCurrentAddress({
+            ...result,
+            latitude: lat,
+            longitude: lng,
+          });
         }
       } catch (err) {
         console.warn("Geocoding failed for pin:", err);
@@ -67,67 +68,47 @@ export function LocationMapModal({
     [detectFn],
   );
 
-  // Function to ask phone/browser for location and fly to it
-  const requestPhoneLocation = useCallback(
-    (map: any, marker: any) => {
-      if (!("geolocation" in navigator)) {
-        return;
-      }
+  // Trigger browser native Geolocation on user button click
+  const handleDetectLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
 
-      setGpsStatus("requesting");
-      setDetecting(true);
+    setDetecting(true);
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          setGpsStatus("located");
-          if (map && marker) {
-            map.flyTo([latitude, longitude], 16, { duration: 1.2 });
-            marker.setLatLng([latitude, longitude]);
-          }
-          geocodeCoords(latitude, longitude);
-          toast.success("📍 Moved to your device location. Fine-tune by dragging the pin!");
-        },
-        () => {
-          // Retry with standard WiFi / network accuracy
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const { latitude, longitude } = pos.coords;
-              setGpsStatus("located");
-              if (map && marker) {
-                map.flyTo([latitude, longitude], 15, { duration: 1.2 });
-                marker.setLatLng([latitude, longitude]);
-              }
-              geocodeCoords(latitude, longitude);
-              toast.success("📍 Moved to your location. Fine-tune by dragging the pin!");
-            },
-            async (err2) => {
-              console.warn("Device GPS denied or unavailable:", err2);
-              setGpsStatus("denied");
-              try {
-                const res = await detectFn({ data: {} });
-                if (res) {
-                  setCurrentAddress(res);
-                }
-              } catch {}
-              setDetecting(false);
-            },
-            {
-              enableHighAccuracy: false,
-              timeout: 6000,
-              maximumAge: 60000,
-            },
-          );
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 7000,
-          maximumAge: 30000,
-        },
-      );
-    },
-    [geocodeCoords, detectFn],
-  );
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setDetecting(false);
+
+        if (mapInstanceRef.current && markerInstanceRef.current) {
+          mapInstanceRef.current.flyTo([latitude, longitude], 16, { duration: 1.4 });
+          markerInstanceRef.current.setLatLng([latitude, longitude]);
+        }
+
+        geocodeCoords(latitude, longitude);
+        toast.success("📍 Moved to your device location. You can drag the pin to fine-tune!");
+      },
+      (error) => {
+        setDetecting(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error("Location permission was denied. You can manually select your location on the map.");
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          toast.error("Device location could not be determined. You can drag the pin on the map.");
+        } else if (error.code === error.TIMEOUT) {
+          toast.error("Location detection timed out. Please tap 'Detect my location' again or move the pin manually.");
+        } else {
+          toast.error("Unable to retrieve location. Please drag the pin on the map.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+  }, [geocodeCoords]);
 
   // Initialize Leaflet map when modal opens
   useEffect(() => {
@@ -139,8 +120,8 @@ export function LocationMapModal({
     import("leaflet").then((L) => {
       if (!isMounted || !mapContainerRef.current) return;
 
-      // Default UAE Center (Dubai)
-      const defaultCenter: [number, number] = [25.2048, 55.2708];
+      // Default UAE Center (Abu Dhabi coordinates)
+      const defaultCenter: [number, number] = [24.4539, 54.3773];
 
       // Custom Clean Marker Icon
       const pinIcon = L.divIcon({
@@ -163,14 +144,14 @@ export function LocationMapModal({
       if (!mapInstanceRef.current) {
         const map = L.map(mapContainerRef.current, {
           center: defaultCenter,
-          zoom: 13,
+          zoom: 12,
           zoomControl: false,
         });
 
         // Add Zoom Control to bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // 100% English Map Tiles (ESRI World Street Map - No API Key, No Watermark)
+        // 100% English Map Tiles (ESRI World Street Map - No Watermark, No API Key Required)
         L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
           {
@@ -204,9 +185,6 @@ export function LocationMapModal({
           marker.setLatLng(e.latlng);
           geocodeCoords(e.latlng.lat, e.latlng.lng);
         });
-
-        // Auto-request location when modal opens
-        requestPhoneLocation(map, marker);
       }
 
       // Re-trigger size update in case container resized
@@ -220,7 +198,7 @@ export function LocationMapModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, geocodeCoords, requestPhoneLocation]);
+  }, [isOpen, geocodeCoords]);
 
   // Clean up map when modal fully destroyed
   useEffect(() => {
@@ -231,13 +209,6 @@ export function LocationMapModal({
       }
     };
   }, []);
-
-  // Re-trigger GPS Locate Me
-  const handleLocateMe = () => {
-    if (mapInstanceRef.current && markerInstanceRef.current) {
-      requestPhoneLocation(mapInstanceRef.current, markerInstanceRef.current);
-    }
-  };
 
   // Search UAE location in English
   const handleSearch = async (e: React.FormEvent) => {
@@ -273,10 +244,15 @@ export function LocationMapModal({
     }
   };
 
-  // Confirm selection
+  // Confirm selection: Always uses the CURRENT marker position
   const handleConfirm = () => {
-    onSelectLocation(currentAddress);
-    toast.success(`📍 Location set: ${currentAddress.location}, ${currentAddress.emirate}`);
+    const currentPos = markerInstanceRef.current ? markerInstanceRef.current.getLatLng() : null;
+    const finalResult: DetectedLocationResult = {
+      ...currentAddress,
+      ...(currentPos ? { latitude: currentPos.lat, longitude: currentPos.lng } : {}),
+    };
+    onSelectLocation(finalResult);
+    toast.success(`📍 Location confirmed: ${finalResult.location}, ${finalResult.emirate}`);
     onClose();
   };
 
@@ -294,7 +270,7 @@ export function LocationMapModal({
             <div>
               <h2 className="font-display font-black text-base text-foreground">Pin Your Location</h2>
               <p className="text-xs text-muted-foreground">
-                Move the pointer or tap the map to fine-tune your location
+                Tap "Detect my location" or drag the pin to fine-tune your spot
               </p>
             </div>
           </div>
@@ -320,7 +296,7 @@ export function LocationMapModal({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search area, landmark, or street in English (e.g. Marina Mall, JVC)…"
+                placeholder="Search area, landmark, or street (e.g. Marina Mall, Corniche)…"
                 className="flex-1 bg-transparent px-2 py-1 text-xs outline-none text-foreground"
               />
               <button
@@ -333,20 +309,33 @@ export function LocationMapModal({
             </form>
           </div>
 
-          {/* GPS LOCATE ME FLOATING BUTTON */}
+          {/* DETECT MY LOCATION PROMINENT FLOATING BUTTON */}
           <button
             type="button"
-            onClick={handleLocateMe}
-            className="absolute bottom-6 right-4 z-[400] flex items-center gap-2 rounded-full border-2 border-primary/40 bg-card px-4 py-2.5 text-xs font-bold text-primary shadow-xl hover:bg-primary-soft transition cursor-pointer active:scale-95"
-            title="Request permission and center on your phone location"
+            onClick={handleDetectLocation}
+            disabled={detecting}
+            className="absolute bottom-6 right-4 z-[400] flex items-center gap-2 rounded-full border-2 border-primary/40 bg-card px-4 py-2.5 text-xs font-black text-primary shadow-xl hover:bg-primary/10 transition cursor-pointer active:scale-95 disabled:opacity-60"
+            title="Detect your device location using GPS"
           >
-            {gpsStatus === "requesting" ? (
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            {detecting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span>Detecting location…</span>
+              </>
             ) : (
-              <Navigation className="h-4 w-4 text-primary fill-primary/20" />
+              <>
+                <Navigation className="h-4 w-4 text-primary fill-primary/20" />
+                <span>📍 Detect my location</span>
+              </>
             )}
-            <span>Use My Location</span>
           </button>
+
+          {/* MAP DRAG HELPER BANNER */}
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+            <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-bold text-white shadow-md backdrop-blur">
+              📍 Drag the pin to fine-tune your location
+            </span>
+          </div>
 
           {/* MAP CANVAS */}
           <div ref={mapContainerRef} className="h-full w-full" />

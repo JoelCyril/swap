@@ -14,7 +14,7 @@ interface LocationPickerControlsProps {
 
 export function LocationPickerControls({
   onLocationSelected,
-  currentEmirate = "Dubai",
+  currentEmirate = "",
   currentLocation = "",
   className = "",
 }: LocationPickerControlsProps) {
