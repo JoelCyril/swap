@@ -9,11 +9,11 @@ import { WantedCard } from "@/components/wanted/WantedCard";
 import { FulfillWantedModal } from "@/components/wanted/FulfillWantedModal";
 import { type WantedRequestItem } from "@/lib/wanted.server";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
-import { CATEGORIES, EMIRATES, type ItemCategory } from "@/lib/db-types";
-import { Megaphone, Plus, Search, Filter, Sparkles, MapPin, X } from "lucide-react";
+import { CATEGORIES, EMIRATES } from "@/lib/db-types";
+import { Megaphone, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/wanted")({
+export const Route = createFileRoute("/wanted/")({
   head: () => ({
     meta: [
       { title: "Wanted Board (ISO) — SWAP UAE" },

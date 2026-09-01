@@ -16,7 +16,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as WantedRouteImport } from './routes/wanted'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedFavouritesRouteImport } from './routes/_authenticated/favourites'
 import { Route as AuthenticatedMyListingsRouteImport } from './routes/_authenticated/my-listings'
@@ -28,6 +27,7 @@ import { Route as ItemsIdRouteImport } from './routes/items.$id'
 import { Route as ListingsIndexRouteImport } from './routes/listings.index'
 import { Route as ListingsIdRouteImport } from './routes/listings.$id'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
+import { Route as WantedIndexRouteImport } from './routes/wanted.index'
 import { Route as WantedPostRouteImport } from './routes/wanted.post'
 import { Route as AuthenticatedEditListingIdRouteImport } from './routes/_authenticated/edit-listing.$id'
 import { Route as AuthenticatedOffersIndexRouteImport } from './routes/_authenticated/offers.index'
@@ -65,11 +65,6 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WantedRoute = WantedRouteImport.update({
-  id: '/wanted',
-  path: '/wanted',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -128,10 +123,15 @@ const ProfileUsernameRoute = ProfileUsernameRouteImport.update({
   path: '/profile/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WantedIndexRoute = WantedIndexRouteImport.update({
+  id: '/wanted/',
+  path: '/wanted/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WantedPostRoute = WantedPostRouteImport.update({
-  id: '/post',
-  path: '/post',
-  getParentRoute: () => WantedRoute,
+  id: '/wanted/post',
+  path: '/wanted/post',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedEditListingIdRoute =
   AuthenticatedEditListingIdRouteImport.update({
@@ -158,7 +158,6 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
-  '/wanted': typeof WantedRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/favourites': typeof AuthenticatedFavouritesRoute
   '/my-listings': typeof AuthenticatedMyListingsRoute
@@ -171,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/profile/$username': typeof ProfileUsernameRoute
   '/wanted/post': typeof WantedPostRoute
   '/listings/': typeof ListingsIndexRoute
+  '/wanted/': typeof WantedIndexRoute
   '/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/offers/$id': typeof AuthenticatedOffersIdRoute
   '/offers/': typeof AuthenticatedOffersIndexRoute
@@ -182,7 +182,6 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
-  '/wanted': typeof WantedRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/favourites': typeof AuthenticatedFavouritesRoute
   '/my-listings': typeof AuthenticatedMyListingsRoute
@@ -195,6 +194,7 @@ export interface FileRoutesByTo {
   '/profile/$username': typeof ProfileUsernameRoute
   '/wanted/post': typeof WantedPostRoute
   '/listings': typeof ListingsIndexRoute
+  '/wanted': typeof WantedIndexRoute
   '/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/offers/$id': typeof AuthenticatedOffersIdRoute
   '/offers': typeof AuthenticatedOffersIndexRoute
@@ -208,7 +208,6 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
-  '/wanted': typeof WantedRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/favourites': typeof AuthenticatedFavouritesRoute
   '/_authenticated/my-listings': typeof AuthenticatedMyListingsRoute
@@ -221,6 +220,7 @@ export interface FileRoutesById {
   '/profile/$username': typeof ProfileUsernameRoute
   '/wanted/post': typeof WantedPostRoute
   '/listings/': typeof ListingsIndexRoute
+  '/wanted/': typeof WantedIndexRoute
   '/_authenticated/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/_authenticated/offers/$id': typeof AuthenticatedOffersIdRoute
   '/_authenticated/offers/': typeof AuthenticatedOffersIndexRoute
@@ -234,7 +234,6 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
-    | '/wanted'
     | '/admin'
     | '/favourites'
     | '/my-listings'
@@ -247,6 +246,7 @@ export interface FileRouteTypes {
     | '/profile/$username'
     | '/wanted/post'
     | '/listings/'
+    | '/wanted/'
     | '/edit-listing/$id'
     | '/offers/$id'
     | '/offers/'
@@ -258,7 +258,6 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
-    | '/wanted'
     | '/admin'
     | '/favourites'
     | '/my-listings'
@@ -271,6 +270,7 @@ export interface FileRouteTypes {
     | '/profile/$username'
     | '/wanted/post'
     | '/listings'
+    | '/wanted'
     | '/edit-listing/$id'
     | '/offers/$id'
     | '/offers'
@@ -283,7 +283,6 @@ export interface FileRouteTypes {
     | '/help'
     | '/reset-password'
     | '/terms'
-    | '/wanted'
     | '/_authenticated/admin'
     | '/_authenticated/favourites'
     | '/_authenticated/my-listings'
@@ -296,6 +295,7 @@ export interface FileRouteTypes {
     | '/profile/$username'
     | '/wanted/post'
     | '/listings/'
+    | '/wanted/'
     | '/_authenticated/edit-listing/$id'
     | '/_authenticated/offers/$id'
     | '/_authenticated/offers/'
@@ -309,11 +309,12 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
-  WantedRoute: typeof WantedRouteWithChildren
   ItemsIdRoute: typeof ItemsIdRoute
   ListingsIdRoute: typeof ListingsIdRoute
   ProfileUsernameRoute: typeof ProfileUsernameRoute
+  WantedPostRoute: typeof WantedPostRoute
   ListingsIndexRoute: typeof ListingsIndexRoute
+  WantedIndexRoute: typeof WantedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -365,13 +366,6 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/wanted': {
-      id: '/wanted'
-      path: '/wanted'
-      fullPath: '/wanted'
-      preLoaderRoute: typeof WantedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -451,12 +445,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wanted/': {
+      id: '/wanted/'
+      path: '/wanted'
+      fullPath: '/wanted/'
+      preLoaderRoute: typeof WantedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wanted/post': {
       id: '/wanted/post'
-      path: '/post'
+      path: '/wanted/post'
       fullPath: '/wanted/post'
       preLoaderRoute: typeof WantedPostRouteImport
-      parentRoute: typeof WantedRoute
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/edit-listing/$id': {
       id: '/_authenticated/edit-listing/$id'
@@ -511,17 +512,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface WantedRouteChildren {
-  WantedPostRoute: typeof WantedPostRoute
-}
-
-const WantedRouteChildren: WantedRouteChildren = {
-  WantedPostRoute: WantedPostRoute,
-}
-
-const WantedRouteWithChildren =
-  WantedRoute._addFileChildren(WantedRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -530,11 +520,12 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
-  WantedRoute: WantedRouteWithChildren,
   ItemsIdRoute: ItemsIdRoute,
   ListingsIdRoute: ListingsIdRoute,
   ProfileUsernameRoute: ProfileUsernameRoute,
+  WantedPostRoute: WantedPostRoute,
   ListingsIndexRoute: ListingsIndexRoute,
+  WantedIndexRoute: WantedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
