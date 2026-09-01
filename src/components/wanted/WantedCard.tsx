@@ -80,17 +80,13 @@ export function WantedCard({ request, myId, onFulfill, onDelete }: WantedCardPro
         {/* Action Button */}
         {isMine ? (
           <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onEdit?.(request);
-              }}
+            <Link
+              to="/wanted/post"
+              search={{ edit: request.id }}
               className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition cursor-pointer active:scale-95"
             >
               <Pencil className="h-3 w-3" /> Edit
-            </button>
+            </Link>
             <button
               type="button"
               onClick={(e) => {

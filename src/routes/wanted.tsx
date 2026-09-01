@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,7 +6,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { listWantedRequests, deleteWantedRequest } from "@/lib/wanted.functions";
 import { WantedCard } from "@/components/wanted/WantedCard";
-import { CreateWantedModal } from "@/components/wanted/CreateWantedModal";
 import { FulfillWantedModal } from "@/components/wanted/FulfillWantedModal";
 import { type WantedRequestItem } from "@/lib/wanted.server";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
@@ -56,8 +55,6 @@ function WantedBoardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [search, setSearch] = useState("");
 
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editingRequest, setEditingRequest] = useState<WantedRequestItem | null>(null);
   const [activeFulfillRequest, setActiveFulfillRequest] = useState<WantedRequestItem | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
@@ -104,18 +101,12 @@ function WantedBoardPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              if (!signedIn) {
-                navigate({ to: "/auth" });
-                return;
-              }
-              setCreateModalOpen(true);
-            }}
+          <Link
+            to="/wanted/post"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 active:scale-95 sm:w-auto shrink-0"
           >
             <Plus className="h-4 w-4" /> Post Wanted Request
-          </button>
+          </Link>
         </div>
 
         {/* Filters & Search Row */}
@@ -200,19 +191,12 @@ function WantedBoardPage() {
             <p className="mt-1.5 text-xs text-muted-foreground max-w-sm mx-auto">
               Be the first to post what you're looking for and let other UAE traders find you!
             </p>
-            <button
-              onClick={() => {
-                if (!signedIn) {
-                  navigate({ to: "/auth" });
-                  return;
-                }
-                setEditingRequest(null);
-                setCreateModalOpen(true);
-              }}
+            <Link
+              to="/wanted/post"
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
             >
               <Plus className="h-4 w-4" /> Post a Request
-            </button>
+            </Link>
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -221,10 +205,6 @@ function WantedBoardPage() {
                 key={r.id}
                 request={r}
                 myId={userId}
-                onEdit={(req) => {
-                  setEditingRequest(req);
-                  setCreateModalOpen(true);
-                }}
                 onFulfill={(req) => {
                   if (!signedIn) {
                     navigate({ to: "/auth" });
@@ -240,15 +220,6 @@ function WantedBoardPage() {
       </main>
 
       {/* Modals */}
-      <CreateWantedModal
-        key={editingRequest?.id || (createModalOpen ? "create" : "idle")}
-        open={createModalOpen}
-        editingRequest={editingRequest}
-        onClose={() => {
-          setCreateModalOpen(false);
-          setEditingRequest(null);
-        }}
-      />
       <FulfillWantedModal
         request={activeFulfillRequest}
         onClose={() => setActiveFulfillRequest(null)}

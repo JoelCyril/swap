@@ -278,3 +278,50 @@ export async function removeWantedRequest(id: string, userId: string): Promise<b
 
   return !error;
 }
+
+export async function fetchWantedRequestById(id: string): Promise<WantedRequestItem | null> {
+  try {
+    const { data: row, error } = await supabaseAdmin
+      .from("announcements")
+      .select("id, author_id, body, created_at, updated_at")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error || !row || !row.body || !row.body.startsWith('{"kind":"wanted_request"')) {
+      return null;
+    }
+
+    const payload = JSON.parse(row.body);
+    if (payload.kind !== "wanted_request") return null;
+
+    const { data: author } = await supabaseAdmin
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, avatar_color")
+      .eq("id", row.author_id)
+      .maybeSingle();
+
+    return {
+      id: row.id,
+      user_id: row.author_id,
+      title: payload.title || "Wanted Item",
+      category: (payload.category as ItemCategory) || "Electronics",
+      offering_description: payload.offering_description || "",
+      emirate: payload.emirate || "Dubai",
+      location: payload.location || "Dubai",
+      status: "active",
+      created_at: row.created_at,
+      updated_at: row.updated_at || row.created_at,
+      user: {
+        id: row.author_id,
+        username: author?.username || "trader",
+        display_name: author?.display_name || author?.username || "Trader",
+        avatar_url: author?.avatar_url,
+        avatar_color: author?.avatar_color || "#ea580c",
+      },
+    };
+  } catch (err) {
+    console.error("[Wanted] Error fetching single request:", err);
+    return null;
+  }
+}
+

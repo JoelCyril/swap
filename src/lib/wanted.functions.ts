@@ -67,3 +67,10 @@ export const deleteWantedRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     return await removeWantedRequest(data.id, context.userId);
   });
+
+export const getWantedRequest = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({ id: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    const { fetchWantedRequestById } = await import("./wanted.server");
+    return await fetchWantedRequestById(data.id);
+  });
