@@ -8,6 +8,9 @@ import {
   Search,
   Check,
   Loader2,
+  AlertCircle,
+  RotateCw,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DetectedLocationResult } from "./LocationDetectButton";
@@ -20,12 +23,14 @@ interface LocationMapModalProps {
   initialLocation?: string;
 }
 
+type PermissionStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable" | "timeout";
+
 export function LocationMapModal({
   isOpen,
   onClose,
   onSelectLocation,
-  initialEmirate = "Abu Dhabi",
-  initialLocation = "",
+  initialEmirate,
+  initialLocation,
 }: LocationMapModalProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -35,16 +40,23 @@ export function LocationMapModal({
   const [detecting, setDetecting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentAddress, setCurrentAddress] = useState<DetectedLocationResult>({
-    emirate: initialEmirate || "Abu Dhabi",
-    location: initialLocation || "Abu Dhabi",
-    isKnownNeighbourhood: false,
-    fullAddress: initialLocation ? `${initialLocation}, ${initialEmirate}` : "Tap 'Detect my location' or drag the pin",
-  });
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("idle");
+  const [hasPinned, setHasPinned] = useState<boolean>(Boolean(initialLocation));
+
+  const [currentAddress, setCurrentAddress] = useState<DetectedLocationResult | null>(
+    initialLocation && initialEmirate
+      ? {
+          emirate: initialEmirate,
+          location: initialLocation,
+          isKnownNeighbourhood: true,
+          fullAddress: `${initialLocation}, ${initialEmirate}`,
+        }
+      : null,
+  );
 
   const detectFn = useServerFn(detectLocationFromCoords);
 
-  // Reverse geocode given coordinates in English
+  // Reverse geocode exact coordinates
   const geocodeCoords = useCallback(
     async (lat: number, lng: number) => {
       setDetecting(true);
@@ -58,6 +70,7 @@ export function LocationMapModal({
             latitude: lat,
             longitude: lng,
           });
+          setHasPinned(true);
         }
       } catch (err) {
         console.warn("Geocoding failed for pin:", err);
@@ -71,35 +84,44 @@ export function LocationMapModal({
   // Trigger browser native Geolocation on user button click
   const handleDetectLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
+      setPermissionStatus("unavailable");
       toast.error("Geolocation is not supported by your browser");
       return;
     }
 
     setDetecting(true);
+    setPermissionStatus("requesting");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setDetecting(false);
+        setPermissionStatus("granted");
 
         if (mapInstanceRef.current && markerInstanceRef.current) {
-          mapInstanceRef.current.flyTo([latitude, longitude], 16, { duration: 1.4 });
+          mapInstanceRef.current.flyTo([latitude, longitude], 16, { duration: 1.2 });
           markerInstanceRef.current.setLatLng([latitude, longitude]);
         }
 
         geocodeCoords(latitude, longitude);
-        toast.success("📍 Moved to your device location. You can drag the pin to fine-tune!");
+        toast.success("📍 GPS location detected! You can drag the pin to fine-tune.");
       },
       (error) => {
         setDetecting(false);
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error("Location permission was denied. You can manually select your location on the map.");
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          toast.error("Device location could not be determined. You can drag the pin on the map.");
-        } else if (error.code === error.TIMEOUT) {
-          toast.error("Location detection timed out. Please tap 'Detect my location' again or move the pin manually.");
+        if (error.code === 1 || error.code === error.PERMISSION_DENIED) {
+          setPermissionStatus("denied");
+          toast.error("Location permission was blocked in your browser settings.", {
+            description: "Click the lock icon in your browser URL bar to allow location, or drag the pin manually.",
+          });
+        } else if (error.code === 2 || error.code === error.POSITION_UNAVAILABLE) {
+          setPermissionStatus("unavailable");
+          toast.error("Device location is unavailable. You can drag the pin manually.");
+        } else if (error.code === 3 || error.code === error.TIMEOUT) {
+          setPermissionStatus("timeout");
+          toast.error("Location request timed out. Please try again or drag the pin.");
         } else {
-          toast.error("Unable to retrieve location. Please drag the pin on the map.");
+          setPermissionStatus("unavailable");
+          toast.error("Could not retrieve GPS location. Please drag the pin on the map.");
         }
       },
       {
@@ -116,11 +138,14 @@ export function LocationMapModal({
 
     let isMounted = true;
 
+    // Reset temporary error statuses
+    setPermissionStatus("idle");
+
     // Dynamically import Leaflet to prevent SSR window reference error
     import("leaflet").then((L) => {
       if (!isMounted || !mapContainerRef.current) return;
 
-      // Default UAE Center (Abu Dhabi coordinates)
+      // UAE General Overview Center
       const defaultCenter: [number, number] = [24.4539, 54.3773];
 
       // Custom Clean Marker Icon
@@ -144,21 +169,19 @@ export function LocationMapModal({
       if (!mapInstanceRef.current) {
         const map = L.map(mapContainerRef.current, {
           center: defaultCenter,
-          zoom: 12,
+          zoom: 11,
           zoomControl: false,
         });
 
         // Add Zoom Control to bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // 100% English Map Tiles (ESRI World Street Map - No Watermark, No API Key Required)
-        L.tileLayer(
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-          {
-            attribution: "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, TomTom",
-            maxZoom: 19,
-          },
-        ).addTo(map);
+        // Ultra-reliable OpenStreetMap Tile Layer (Free, CORS-friendly, zero watermark, high performance)
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+          crossOrigin: true,
+        }).addTo(map);
 
         const marker = L.marker(defaultCenter, {
           icon: pinIcon,
@@ -187,12 +210,28 @@ export function LocationMapModal({
         });
       }
 
-      // Re-trigger size update in case container resized
-      setTimeout(() => {
+      // Robust invalidateSize calls to ensure tiles render immediately upon modal opening
+      const resizeMap = () => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
         }
-      }, 200);
+      };
+
+      setTimeout(resizeMap, 50);
+      setTimeout(resizeMap, 200);
+      setTimeout(resizeMap, 500);
+
+      // ResizeObserver to handle modal transitions
+      const resizeObserver = new ResizeObserver(() => {
+        resizeMap();
+      });
+      if (mapContainerRef.current) {
+        resizeObserver.observe(mapContainerRef.current);
+      }
+
+      return () => {
+        resizeObserver.disconnect();
+      };
     });
 
     return () => {
@@ -234,7 +273,7 @@ export function LocationMapModal({
           geocodeCoords(lat, lon);
           toast.success(`Jumped to: ${results[0].display_name.split(",")[0]}`);
         } else {
-          toast.error("Location not found. Try searching by community or mall name.");
+          toast.error("Location not found. Try searching by community, building, or mall name.");
         }
       }
     } catch {
@@ -246,11 +285,23 @@ export function LocationMapModal({
 
   // Confirm selection: Always uses the CURRENT marker position
   const handleConfirm = () => {
+    if (!currentAddress || !hasPinned) {
+      // If user hasn't detected or moved, geocode current marker position
+      if (markerInstanceRef.current) {
+        const pos = markerInstanceRef.current.getLatLng();
+        geocodeCoords(pos.lat, pos.lng).then(() => {
+          toast.info("Location pinned. Tap Confirm again to proceed.");
+        });
+      }
+      return;
+    }
+
     const currentPos = markerInstanceRef.current ? markerInstanceRef.current.getLatLng() : null;
     const finalResult: DetectedLocationResult = {
       ...currentAddress,
       ...(currentPos ? { latitude: currentPos.lat, longitude: currentPos.lng } : {}),
     };
+
     onSelectLocation(finalResult);
     toast.success(`📍 Location confirmed: ${finalResult.location}, ${finalResult.emirate}`);
     onClose();
@@ -270,7 +321,7 @@ export function LocationMapModal({
             <div>
               <h2 className="font-display font-black text-base text-foreground">Pin Your Location</h2>
               <p className="text-xs text-muted-foreground">
-                Tap "Detect my location" or drag the pin to fine-tune your spot
+                Tap "Detect my location", search, or drag the orange pin to your area
               </p>
             </div>
           </div>
@@ -285,6 +336,31 @@ export function LocationMapModal({
 
         {/* MAP CONTAINER & OVERLAYS */}
         <div className="relative flex-1 w-full bg-muted overflow-hidden">
+          {/* PERMISSION DENIED BANNER OVERLAY */}
+          {permissionStatus === "denied" && (
+            <div className="absolute top-16 left-4 right-4 z-[400] max-w-lg mx-auto rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-3.5 backdrop-blur-md shadow-xl animate-in slide-in-from-top-2">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-foreground">Location permission is blocked in your browser</p>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    To enable GPS: Click the lock / settings icon (🔒) in your browser address bar, set Location to <strong>Allow</strong>, and click <strong>Try Again</strong>.
+                  </p>
+                  <div className="pt-1.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-bold text-white hover:bg-amber-600 transition cursor-pointer"
+                    >
+                      <RotateCw className="h-3 w-3" /> Try Again
+                    </button>
+                    <span className="text-[11px] text-muted-foreground">or simply drag the pin on the map</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SEARCH BAR OVERLAY */}
           <div className="absolute top-4 left-4 right-4 z-[400] max-w-md">
             <form
@@ -315,7 +391,7 @@ export function LocationMapModal({
             onClick={handleDetectLocation}
             disabled={detecting}
             className="absolute bottom-6 right-4 z-[400] flex items-center gap-2 rounded-full border-2 border-primary/40 bg-card px-4 py-2.5 text-xs font-black text-primary shadow-xl hover:bg-primary/10 transition cursor-pointer active:scale-95 disabled:opacity-60"
-            title="Detect your device location using GPS"
+            title="Detect your device location using browser GPS"
           >
             {detecting ? (
               <>
@@ -330,32 +406,45 @@ export function LocationMapModal({
             )}
           </button>
 
-          {/* MAP DRAG HELPER BANNER */}
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
-            <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-bold text-white shadow-md backdrop-blur">
-              📍 Drag the pin to fine-tune your location
-            </span>
-          </div>
+          {/* MAP DRAG HELPER BADGE */}
+          {permissionStatus !== "denied" && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+              <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-bold text-white shadow-md backdrop-blur">
+                📍 Drag the pin to fine-tune your location
+              </span>
+            </div>
+          )}
 
           {/* MAP CANVAS */}
-          <div ref={mapContainerRef} className="h-full w-full" />
+          <div ref={mapContainerRef} className="h-full w-full" style={{ minHeight: "350px", zIndex: 1 }} />
         </div>
 
         {/* BOTTOM CONFIRMATION BAR */}
         <div className="p-4 sm:p-5 border-t border-border bg-card shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-black text-primary">
-                {currentAddress.emirate}
-              </span>
-              <p className="font-display font-bold text-base text-foreground truncate">
-                {currentAddress.location}
-              </p>
-              {detecting && <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />}
-            </div>
-            <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xl">
-              {currentAddress.fullAddress}
-            </p>
+            {currentAddress ? (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-black text-primary">
+                    {currentAddress.emirate}
+                  </span>
+                  <p className="font-display font-bold text-base text-foreground truncate">
+                    {currentAddress.location}
+                  </p>
+                  {detecting && <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />}
+                </div>
+                <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xl">
+                  {currentAddress.fullAddress}
+                </p>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Info className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-xs">
+                  Tap <strong>"Detect my location"</strong> or drag the pin to set your area
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
