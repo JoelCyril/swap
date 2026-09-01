@@ -58,21 +58,150 @@ export type Emirate = (typeof EMIRATES)[number];
 
 /** Best-effort mapping of a free-text location to its emirate. */
 export function emirateOf(location: string | null | undefined): Emirate | null {
-  const l = (location ?? "").toLowerCase();
+  const l = (location ?? "").toLowerCase().replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ").trim();
   if (!l) return null;
   const rules: [Emirate, string[]][] = [
-    ["Abu Dhabi", ["abu dhabi", "reem", "yas island", "al raha", "khalifa city", "corniche", "bateen", "saadiyat", "mussafah", "al ain", "shakhbout", "ruwais", "masdar"]],
-    ["Dubai", ["dubai", "jbr", "marina", "palm jumeirah", "jumeirah", "business bay", "deira", "bur dubai", "jlt", "silicon oasis", "mirdif", "barsha", "tecom", "motor city", "arabian ranches", "damac", "jvc"]],
-    ["Sharjah", ["sharjah", "majaz", "muwaileh", "nahda", "khan", "qasimia", "kalba", "khor fakkan"]],
-    ["Ajman", ["ajman", "nuaimiya", "rashidiya"]],
-    ["Umm Al Quwain", ["umm al quwain", "umm al quwayn", "uaq"]],
-    ["Ras Al Khaimah", ["ras al khaimah", "rak ", "al hamra", "mina al arab"]],
-    ["Fujairah", ["fujairah", "dibba"]],
+    [
+      "Abu Dhabi",
+      [
+        "abu dhabi",
+        "abudhabi",
+        "abu zaby",
+        "abu daby",
+        "abu dabi",
+        "zaby",
+        "al ain",
+        "alain",
+        "reem",
+        "yas island",
+        "yas",
+        "al raha",
+        "khalifa city",
+        "khalifa",
+        "khalidiya",
+        "khalidiyah",
+        "corniche",
+        "bateen",
+        "al bateen",
+        "saadiyat",
+        "mussafah",
+        "musaffah",
+        "shakhbout",
+        "ruwais",
+        "masdar",
+        "al maryah",
+        "maryah",
+        "al reef",
+        "al shamkha",
+        "mushrif",
+        "karamah",
+        "rawdah",
+        "madinat zayed",
+        "liwa",
+        "al dhafra",
+        "dhafra",
+      ],
+    ],
+    [
+      "Dubai",
+      [
+        "dubai",
+        "jbr",
+        "marina",
+        "palm jumeirah",
+        "jumeirah",
+        "business bay",
+        "deira",
+        "bur dubai",
+        "jlt",
+        "silicon oasis",
+        "mirdif",
+        "barsha",
+        "tecom",
+        "motor city",
+        "arabian ranches",
+        "damac",
+        "jvc",
+        "jvt",
+        "al quoz",
+        "karama",
+        "satwa",
+        "difc",
+        "downtown",
+      ],
+    ],
+    [
+      "Sharjah",
+      [
+        "sharjah",
+        "majaz",
+        "al majaz",
+        "muwaileh",
+        "nahda",
+        "al nahda",
+        "khan",
+        "al khan",
+        "qasimia",
+        "kalba",
+        "khor fakkan",
+        "al taawun",
+        "rollo",
+      ],
+    ],
+    [
+      "Ajman",
+      ["ajman", "nuaimiya", "al nuaimiya", "rashidiya", "al rashidiya", "al jurf", "jurf", "al rawda"],
+    ],
+    [
+      "Umm Al Quwain",
+      ["umm al quwain", "umm al quwayn", "uaq", "al salamah", "falaj al mualla"],
+    ],
+    [
+      "Ras Al Khaimah",
+      ["ras al khaimah", "rak", "al hamra", "mina al arab", "nakheel", "khuzam", "jazeerah"],
+    ],
+    [
+      "Fujairah",
+      ["fujairah", "dibba", "khorfakkan", "mirbah", "qidfa"],
+    ],
   ];
   for (const [emirate, keys] of rules) {
     if (keys.some((k) => l.includes(k))) return emirate;
   }
   return null;
+}
+
+/** Mathematical coordinate-based detection of UAE Emirate. */
+export function getEmirateFromCoords(lat: number, lon: number): Emirate {
+  // East coast / Fujairah
+  if (lon > 56.12 || (lat >= 25.0 && lat <= 25.6 && lon >= 56.15)) {
+    return "Fujairah";
+  }
+  // Ras Al Khaimah (Northern UAE)
+  if (lat >= 25.60) {
+    return "Ras Al Khaimah";
+  }
+  // Umm Al Quwain
+  if (lat >= 25.48 && lat < 25.60 && lon >= 55.50 && lon <= 55.85) {
+    return "Umm Al Quwain";
+  }
+  // Ajman
+  if (lat >= 25.38 && lat < 25.46 && lon >= 55.45 && lon <= 55.58) {
+    return "Ajman";
+  }
+  // Sharjah
+  if (lat >= 25.30 && lat < 25.44 && lon >= 55.35 && lon <= 55.70) {
+    return "Sharjah";
+  }
+  // Dubai (approx 24.85° to 25.32° N, 55.0° to 55.45° E)
+  if (lat >= 24.85 && lat < 25.32 && lon >= 55.0 && lon <= 55.5) {
+    return "Dubai";
+  }
+  // Abu Dhabi (lat < 24.85 or western/southern UAE)
+  if (lat < 24.85 || lon < 55.0) {
+    return "Abu Dhabi";
+  }
+  return "Abu Dhabi";
 }
 
 

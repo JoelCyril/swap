@@ -92,9 +92,9 @@ export const detectLocationFromCoords = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     let lat = data?.latitude;
     let lon = data?.longitude;
-    const { NEIGHBOURHOODS, emirateOf, EMIRATES } = await import("./db-types");
+    const { NEIGHBOURHOODS, emirateOf, EMIRATES, getEmirateFromCoords } = await import("./db-types");
 
-    let detectedEmirate = "Dubai";
+    let detectedEmirate = lat !== undefined && lon !== undefined ? getEmirateFromCoords(lat, lon) : "Abu Dhabi";
     let detectedArea = "";
     let fullAddress = "";
 

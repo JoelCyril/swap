@@ -88,19 +88,45 @@ export function LocationMapModal({
           geocodeCoords(latitude, longitude);
           toast.success("📍 Moved to your device location. Fine-tune by dragging the pin!");
         },
-        (err) => {
-          console.warn("Phone GPS permission denied or failed:", err);
-          setGpsStatus("denied");
-          setDetecting(false);
+        () => {
+          // Retry with standard WiFi / network accuracy
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const { latitude, longitude } = pos.coords;
+              setGpsStatus("located");
+              if (map && marker) {
+                map.flyTo([latitude, longitude], 15, { duration: 1.2 });
+                marker.setLatLng([latitude, longitude]);
+              }
+              geocodeCoords(latitude, longitude);
+              toast.success("📍 Moved to your location. Fine-tune by dragging the pin!");
+            },
+            async (err2) => {
+              console.warn("Device GPS denied or unavailable:", err2);
+              setGpsStatus("denied");
+              try {
+                const res = await detectFn({ data: {} });
+                if (res) {
+                  setCurrentAddress(res);
+                }
+              } catch {}
+              setDetecting(false);
+            },
+            {
+              enableHighAccuracy: false,
+              timeout: 6000,
+              maximumAge: 60000,
+            },
+          );
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 7000,
           maximumAge: 30000,
         },
       );
     },
-    [geocodeCoords],
+    [geocodeCoords, detectFn],
   );
 
   // Initialize Leaflet map when modal opens
