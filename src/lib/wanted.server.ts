@@ -27,41 +27,45 @@ export async function fetchWantedRequests(params?: {
   search?: string;
 }): Promise<WantedRequestItem[]> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from("announcements")
-      .select(`
-        id,
-        author_id,
-        body,
-        created_at,
-        updated_at,
-        author:profiles!announcements_author_id_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url,
-          avatar_color
-        )
-      `)
+      .select("id, author_id, body, created_at, updated_at")
       .order("created_at", { ascending: false })
       .limit(100);
 
-    if (error || !data) return [];
+    if (error || !rows) return [];
+
+    const wantedRows = rows.filter(
+      (r) => r.body && typeof r.body === "string" && r.body.startsWith('{"kind":"wanted_request"'),
+    );
+
+    if (wantedRows.length === 0) return [];
+
+    const authorIds = [...new Set(wantedRows.map((r) => r.author_id).filter(Boolean))];
+
+    const { data: profiles } =
+      authorIds.length > 0
+        ? await supabaseAdmin
+            .from("profiles")
+            .select("id, username, display_name, avatar_url, avatar_color")
+            .in("id", authorIds)
+        : { data: [] };
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
     const list: WantedRequestItem[] = [];
 
-    for (const row of data) {
-      if (!row.body || !row.body.startsWith('{"kind":"wanted_request"')) continue;
+    for (const row of wantedRows) {
       try {
         const payload = JSON.parse(row.body);
         if (payload.kind !== "wanted_request") continue;
 
-        const author = row.author as any;
+        const author = profileMap.get(row.author_id);
         list.push({
           id: row.id,
           user_id: row.author_id,
           title: payload.title || "Wanted Item",
-          category: payload.category || "Electronics",
+          category: (payload.category as ItemCategory) || "Electronics",
           offering_description: payload.offering_description || "",
           emirate: payload.emirate || "Dubai",
           location: payload.location || "Dubai",
@@ -133,27 +137,19 @@ export async function insertWantedRequest(
       body: JSON.stringify(payload),
       image_urls: [],
     })
-    .select(`
-      id,
-      author_id,
-      body,
-      created_at,
-      updated_at,
-      author:profiles!announcements_author_id_fkey(
-        id,
-        username,
-        display_name,
-        avatar_url,
-        avatar_color
-      )
-    `)
+    .select("id, author_id, body, created_at, updated_at")
     .single();
 
   if (error || !row) {
     throw new Error(error?.message || "Failed to persist wanted request");
   }
 
-  const author = row.author as any;
+  const { data: author } = await supabaseAdmin
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, avatar_color")
+    .eq("id", userId)
+    .maybeSingle();
+
   return {
     id: row.id,
     user_id: row.author_id,
