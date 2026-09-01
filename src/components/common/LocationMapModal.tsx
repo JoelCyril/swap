@@ -11,6 +11,7 @@ import {
   AlertCircle,
   RotateCw,
   Info,
+  Move,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DetectedLocationResult } from "./LocationDetectButton";
@@ -153,7 +154,7 @@ export function LocationMapModal({
         className: "custom-map-pin",
         html: `
           <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: grab;">
-            <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 10px; border-radius: 9999px; box-shadow: 0 12px 30px -4px rgba(234, 88, 12, 0.6); border: 2.5px solid white; display: flex; align-items: center; justify-content: center;">
+            <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 10px; border-radius: 9999px; box-shadow: 0 14px 30px -4px rgba(234, 88, 12, 0.65); border: 2.5px solid white; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
                 <circle cx="12" cy="10" r="3"/>
@@ -307,8 +308,8 @@ export function LocationMapModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="relative flex flex-col w-full max-w-4xl h-[88vh] max-h-[720px] rounded-3xl bg-card border-2 border-primary/20 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in duration-200">
+      <div className="relative flex flex-col w-full max-w-4xl h-[88vh] max-h-[740px] rounded-3xl bg-card border-2 border-primary/20 shadow-2xl overflow-hidden">
         {/* MODAL HEADER */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card/95 backdrop-blur shrink-0 z-10">
           <div className="flex items-center gap-2.5">
@@ -318,7 +319,7 @@ export function LocationMapModal({
             <div>
               <h2 className="font-display font-black text-base text-foreground">Pin Your Location</h2>
               <p className="text-xs text-muted-foreground">
-                Tap "Detect my location", search, or drag the orange pin to your area
+                Detect location with GPS or drag the pin anywhere in UAE
               </p>
             </div>
           </div>
@@ -333,9 +334,60 @@ export function LocationMapModal({
 
         {/* MAP CONTAINER & OVERLAYS */}
         <div className="relative flex-1 w-full bg-muted overflow-hidden">
+          {/* TOP CONTROLS BAR OVERLAY */}
+          <div className="absolute top-4 left-4 right-4 z-[400] flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-2xl">
+            {/* DETECT MY LOCATION BUTTON (TOP HERO ACTION) */}
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={detecting}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-lg hover:bg-primary/90 transition cursor-pointer active:scale-95 disabled:opacity-60 shrink-0"
+              title="Click to trigger browser location permission popup"
+            >
+              {detecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Detecting GPS…</span>
+                </>
+              ) : (
+                <>
+                  <Navigation className="h-4 w-4 fill-primary-foreground/30" />
+                  <span>Detect my location</span>
+                </>
+              )}
+            </button>
+
+            {/* SEARCH INPUT OVERLAY */}
+            <div className="flex-1 flex items-center gap-1.5 rounded-2xl border-2 border-primary/30 bg-card/95 p-1 shadow-lg backdrop-blur">
+              <Search className="h-4 w-4 text-muted-foreground ml-2 shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    executeSearch();
+                  }
+                }}
+                placeholder="Search area, landmark, or mall (e.g. Marina Mall, Corniche)…"
+                className="flex-1 bg-transparent px-2 py-1 text-xs outline-none text-foreground"
+              />
+              <button
+                type="button"
+                onClick={executeSearch}
+                disabled={searching || !searchQuery.trim()}
+                className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition disabled:opacity-50 cursor-pointer"
+              >
+                {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search"}
+              </button>
+            </div>
+          </div>
+
           {/* PERMISSION DENIED BANNER OVERLAY */}
           {permissionStatus === "denied" && (
-            <div className="absolute top-16 left-4 right-4 z-[400] max-w-lg mx-auto rounded-2xl border-2 border-amber-500/40 bg-card/95 p-3.5 backdrop-blur-md shadow-2xl animate-in slide-in-from-top-2">
+            <div className="absolute top-20 sm:top-16 left-4 right-4 z-[400] max-w-lg mx-auto rounded-2xl border-2 border-amber-500/40 bg-card/95 p-3.5 backdrop-blur-md shadow-2xl animate-in slide-in-from-top-2">
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1.5">
@@ -359,68 +411,19 @@ export function LocationMapModal({
                     >
                       <RotateCw className="h-3.5 w-3.5" /> Try Again
                     </button>
-                    <span className="text-[11px] text-muted-foreground">or simply drag the pin on the map</span>
+                    <span className="text-[11px] text-muted-foreground">or drag the pin on the map</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* SEARCH BAR OVERLAY (DIV CONTAINER, NO FORM TO PREVENT NESTED FORM SUBMISSIONS) */}
-          <div className="absolute top-4 left-4 right-4 z-[400] max-w-md">
-            <div className="flex items-center gap-1.5 rounded-2xl border-2 border-primary/30 bg-card/95 p-1.5 shadow-lg backdrop-blur">
-              <Search className="h-4 w-4 text-muted-foreground ml-2 shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    executeSearch();
-                  }
-                }}
-                placeholder="Search area, landmark, or street (e.g. Marina Mall, Corniche)…"
-                className="flex-1 bg-transparent px-2 py-1 text-xs outline-none text-foreground"
-              />
-              <button
-                type="button"
-                onClick={executeSearch}
-                disabled={searching || !searchQuery.trim()}
-                className="rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50 cursor-pointer"
-              >
-                {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search"}
-              </button>
-            </div>
-          </div>
-
-          {/* DETECT MY LOCATION PROMINENT FLOATING BUTTON */}
-          <button
-            type="button"
-            onClick={handleDetectLocation}
-            disabled={detecting}
-            className="absolute bottom-6 right-4 z-[400] flex items-center gap-2 rounded-full border-2 border-primary/40 bg-card px-4 py-2.5 text-xs font-black text-primary shadow-xl hover:bg-primary/10 transition cursor-pointer active:scale-95 disabled:opacity-60"
-            title="Detect your device location using browser GPS"
-          >
-            {detecting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span>Detecting location…</span>
-              </>
-            ) : (
-              <>
-                <Navigation className="h-4 w-4 text-primary fill-primary/20" />
-                <span>📍 Detect my location</span>
-              </>
-            )}
-          </button>
-
-          {/* MAP DRAG HELPER BADGE */}
+          {/* DRAG PIN INSTRUCTION BADGE (CENTER OVERLAY) */}
           {permissionStatus !== "denied" && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
-              <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-bold text-white shadow-md backdrop-blur">
-                📍 Drag the pin to fine-tune your location
+            <div className="absolute top-24 sm:top-20 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/80 px-3.5 py-1.5 text-xs font-bold text-white shadow-xl backdrop-blur border border-white/10 animate-in fade-in">
+                <Move className="h-3.5 w-3.5 text-primary animate-pulse" />
+                <span>Drag the pin to fine-tune your location</span>
               </span>
             </div>
           )}
@@ -431,9 +434,9 @@ export function LocationMapModal({
 
         {/* BOTTOM CONFIRMATION BAR */}
         <div className="p-4 sm:p-5 border-t border-border bg-card shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {currentAddress ? (
-              <>
+              <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-black text-primary">
                     {currentAddress.emirate}
@@ -446,7 +449,7 @@ export function LocationMapModal({
                 <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xl">
                   {currentAddress.fullAddress}
                 </p>
-              </>
+              </div>
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Info className="h-4 w-4 text-primary shrink-0" />
@@ -468,7 +471,7 @@ export function LocationMapModal({
             <button
               type="button"
               onClick={handleConfirm}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-7 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition cursor-pointer active:scale-95"
             >
               <Check className="h-4 w-4" /> Confirm Location
             </button>
