@@ -23,7 +23,13 @@ function publicClient() {
 }
 
 const itemSchema = z.object({
-  name: z.string().min(1).max(120),
+  name: z
+    .string()
+    .min(2, "Item name must be at least 2 characters")
+    .max(120)
+    .refine((val) => !["item", "new item", "none", "test", "n/a"].includes(val.trim().toLowerCase()), {
+      message: "Please provide a specific item name (not just 'item')",
+    }),
   category: z.enum([
     "Electronics",
     "Household Items",
@@ -38,7 +44,7 @@ const itemSchema = z.object({
   image_emoji: z.string().max(8).default("📦"),
   description: z.string().max(1000).optional().nullable(),
   visibility: z.enum(["public", "private"]).default("public"),
-  image_urls: z.array(z.string().url()).max(8).default([]),
+  image_urls: z.array(z.string().url()).min(1, "Please upload at least 1 photo of the item").max(8),
 });
 
 export const listMyItems = createServerFn({ method: "GET" })
@@ -64,7 +70,7 @@ export const listMyListedItemIds = createServerFn({ method: "GET" })
       .neq("status", "removed")
       .not("item_id", "is", null);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((r) => r.item_id as string);
+    return (data ?? []).map((r: any) => r.item_id).filter(Boolean) as string[];
   });
 
 
@@ -145,23 +151,25 @@ export const updateItem = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
-    const { error } = await context.supabase
+    const { data: row, error } = await context.supabase
       .from("items")
       .update(rest)
       .eq("id", id)
-      .eq("owner_id", context.userId);
+      .eq("owner_id", context.userId)
+      .select()
+      .single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return row;
   });
 
 export const deleteItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    // Delete any associated listing first
+    // Unlink or delete listings referencing this item
     await context.supabase
       .from("listings")
-      .delete()
+      .update({ status: "removed" as const })
       .eq("item_id", data.id)
       .eq("owner_id", context.userId);
 
@@ -176,8 +184,23 @@ export const deleteItem = createServerFn({ method: "POST" })
 
 export const quickListInventoryItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { itemId: string; looking_for?: string }) =>
-    z.object({ itemId: z.string().uuid(), looking_for: z.string().max(500).optional() }).parse(d),
+  .inputValidator((d: { itemId: string; looking_for?: string; emirate: string; location: string }) =>
+    z
+      .object({
+        itemId: z.string().uuid(),
+        looking_for: z.string().max(500).optional(),
+        emirate: z.enum([
+          "Abu Dhabi",
+          "Dubai",
+          "Sharjah",
+          "Ajman",
+          "Umm Al Quwain",
+          "Ras Al Khaimah",
+          "Fujairah",
+        ]),
+        location: z.string().min(2, "Please specify your neighbourhood location").max(120),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await ensureProfile(context.userId);
@@ -214,16 +237,15 @@ export const quickListInventoryItem = createServerFn({ method: "POST" })
       throw new Error("You can have at most 10 active listings. Remove one before listing another.");
     }
 
-    // Get user profile for location/emirate default
-    const { data: profile } = await context.supabase
-      .from("profiles")
-      .select("location, emirate")
-      .eq("id", context.userId)
-      .maybeSingle();
+    const location = data.location.trim();
+    const emirate = data.emirate;
+    const looking_for = data.looking_for?.trim() || "Open to swap offers";
 
-    const location = profile?.location || "Dubai";
-    const emirate = (profile?.emirate || "Dubai") as any;
-    const looking_for = data.looking_for || "Open to swap offers";
+    // Update user profile location/emirate preferences
+    await context.supabase
+      .from("profiles")
+      .update({ location, emirate })
+      .eq("id", context.userId);
 
     const verdict = moderate(`${item.name}\n${item.description ?? ""}\n${looking_for}`, "listing");
     const held = verdict.flagged
@@ -253,7 +275,11 @@ export const quickListInventoryItem = createServerFn({ method: "POST" })
       .single();
 
     if (listErr) throw new Error(listErr.message);
-    return listing;
+
+    return {
+      listing,
+      withheld: verdict.flagged,
+    };
   });
 
 export const unlistInventoryItem = createServerFn({ method: "POST" })

@@ -14,9 +14,15 @@ import {
 } from "@/lib/items.functions";
 import { deleteListing } from "@/lib/listings.functions";
 import { autoFillItemFromPhoto } from "@/lib/ai.functions";
-import { fetchBulkListingViews } from "@/lib/views.functions";
-import { CATEGORIES, CONDITIONS, type ItemCategory, type ItemCondition } from "@/lib/db-types";
-import { uploadFileTo } from "@/lib/upload";
+import {
+  CATEGORIES,
+  CONDITIONS,
+  EMIRATES,
+  NEIGHBOURHOODS,
+  OTHER_LOCATION,
+  type ItemCategory,
+  type ItemCondition,
+} from "@/lib/db-types";
 import { ImageCropper } from "@/components/ImageCropper";
 import {
   Plus,
@@ -54,8 +60,8 @@ export const Route = createFileRoute("/_authenticated/my-listings")({
 
 const EMPTY_ITEM = {
   name: "",
-  category: "Electronics" as ItemCategory,
-  condition: "Good" as ItemCondition,
+  category: "" as unknown as ItemCategory,
+  condition: "" as unknown as ItemCondition,
   image_emoji: "📦",
   description: "",
   visibility: "public" as "public" | "private",
@@ -86,9 +92,12 @@ function MyInventoryPage() {
   const [queue, setQueue] = useState<File[]>([]);
   const [form, setForm] = useState({ ...EMPTY_ITEM });
 
-  // Quick List Dialog state for customizing "Looking for"
+  // Quick List Dialog state for customizing "Looking for" and location
   const [quickListModalItem, setQuickListModalItem] = useState<any | null>(null);
   const [lookingForText, setLookingForText] = useState("");
+  const [quickListEmirate, setQuickListEmirate] = useState<string>("");
+  const [quickListLocationChoice, setQuickListLocationChoice] = useState<string>("");
+  const [quickListOtherLocation, setQuickListOtherLocation] = useState<string>("");
   const getViewsFn = useServerFn(fetchBulkListingViews);
 
   const { data, isLoading } = useQuery({
@@ -154,7 +163,13 @@ function MyInventoryPage() {
   // Mutations
   const saveMut = useMutation({
     mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("Please add an item name");
+      const name = form.name.trim();
+      if (!name) throw new Error("Please enter a name for the item");
+      if (["item", "new item", "none", "test", "n/a"].includes(name.toLowerCase())) {
+        throw new Error("Please provide a specific item name (not just 'item')");
+      }
+      if (!form.category) throw new Error("Please select a category");
+      if (!form.condition) throw new Error("Please select the item condition");
       if (form.image_urls.length === 0) throw new Error("Please add at least one photo");
       return editingId
         ? await updateItemFn({ data: { id: editingId, ...form } })
@@ -183,14 +198,24 @@ function MyInventoryPage() {
   });
 
   const quickListMut = useMutation({
-    mutationFn: (vars: { itemId: string; lookingFor?: string }) =>
-      quickListFn({ data: { itemId: vars.itemId, looking_for: vars.lookingFor } }),
+    mutationFn: (vars: { itemId: string; lookingFor?: string; emirate: string; location: string }) =>
+      quickListFn({
+        data: {
+          itemId: vars.itemId,
+          looking_for: vars.lookingFor,
+          emirate: vars.emirate as any,
+          location: vars.location,
+        },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-inventory-listings"] });
       qc.invalidateQueries({ queryKey: ["my-items"] });
       qc.invalidateQueries({ queryKey: ["listings"] });
       setQuickListModalItem(null);
       setLookingForText("");
+      setQuickListEmirate("");
+      setQuickListLocationChoice("");
+      setQuickListOtherLocation("");
       toast.success("Item is now live on the marketplace!", {
         description: "Neighbours can now see and make swap offers on this item.",
       });
@@ -677,18 +702,75 @@ function MyInventoryPage() {
               </div>
             </div>
 
-            <div className="mt-4">
-              <label className="text-xs font-bold uppercase text-muted-foreground">
-                What are you looking to swap for? (Optional)
-              </label>
-              <textarea
-                value={lookingForText}
-                onChange={(e) => setLookingForText(e.target.value)}
-                placeholder="e.g. Wireless headphones, board games, or open to any offers"
-                rows={2}
-                maxLength={300}
-                className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary resize-none"
-              />
+            {/* Emirate & Area Location (Mandatory) */}
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">
+                  Emirate *
+                </label>
+                <select
+                  value={quickListEmirate}
+                  onChange={(e) => setQuickListEmirate(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary font-medium"
+                  required
+                >
+                  <option value="" disabled>
+                    -- Select Emirate * --
+                  </option>
+                  {EMIRATES.map((em) => (
+                    <option key={em} value={em}>
+                      {em}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">
+                  Area / Neighbourhood *
+                </label>
+                <select
+                  value={quickListLocationChoice}
+                  onChange={(e) => setQuickListLocationChoice(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary font-medium"
+                  required
+                >
+                  <option value="" disabled>
+                    -- Select Area / Neighbourhood * --
+                  </option>
+                  {NEIGHBOURHOODS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                  <option value={OTHER_LOCATION}>Other (Type your own)</option>
+                </select>
+
+                {quickListLocationChoice === OTHER_LOCATION && (
+                  <input
+                    required
+                    maxLength={100}
+                    placeholder="Enter your area (e.g. Al Barsha, JVC, Corniche)"
+                    value={quickListOtherLocation}
+                    onChange={(e) => setQuickListOtherLocation(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary"
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground">
+                  What are you looking to swap for? (Optional)
+                </label>
+                <textarea
+                  value={lookingForText}
+                  onChange={(e) => setLookingForText(e.target.value)}
+                  placeholder="e.g. Wireless headphones, board games, or open to any offers"
+                  rows={2}
+                  maxLength={300}
+                  className="mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary resize-none"
+                />
+              </div>
             </div>
 
             <div className="mt-5 flex gap-2">
@@ -701,14 +783,33 @@ function MyInventoryPage() {
               </button>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  const effectiveLoc =
+                    quickListLocationChoice === OTHER_LOCATION
+                      ? quickListOtherLocation.trim()
+                      : quickListLocationChoice;
+                  if (!quickListEmirate) {
+                    toast.error("Please select an Emirate");
+                    return;
+                  }
+                  if (!effectiveLoc) {
+                    toast.error("Please select or enter your Area / Neighbourhood");
+                    return;
+                  }
                   quickListMut.mutate({
                     itemId: quickListModalItem.id,
                     lookingFor: lookingForText.trim() || undefined,
-                  })
+                    emirate: quickListEmirate,
+                    location: effectiveLoc,
+                  });
+                }}
+                disabled={
+                  quickListMut.isPending ||
+                  !quickListEmirate ||
+                  !quickListLocationChoice ||
+                  (quickListLocationChoice === OTHER_LOCATION && !quickListOtherLocation.trim())
                 }
-                disabled={quickListMut.isPending}
-                className="flex-1 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
+                className="flex-1 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 transition hover:scale-[1.02] active:scale-[0.98]"
               >
                 {quickListMut.isPending ? "Listing…" : "Publish"}
               </button>
@@ -752,26 +853,38 @@ function MyInventoryPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Category</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Category *</label>
                   <select
-                    value={form.category}
+                    value={form.category || ""}
                     onChange={(e) => setForm({ ...form, category: e.target.value as ItemCategory })}
-                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary font-medium"
+                    required
                   >
+                    <option value="" disabled>
+                      Select Category *
+                    </option>
                     {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Condition</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Condition *</label>
                   <select
-                    value={form.condition}
+                    value={form.condition || ""}
                     onChange={(e) => setForm({ ...form, condition: e.target.value as ItemCondition })}
-                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary font-medium"
+                    required
                   >
+                    <option value="" disabled>
+                      Select Condition *
+                    </option>
                     {CONDITIONS.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
                 </div>

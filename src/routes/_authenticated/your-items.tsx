@@ -27,8 +27,8 @@ export const Route = createFileRoute("/_authenticated/your-items")({
 
 const EMPTY = {
   name: "",
-  category: "Electronics" as ItemCategory,
-  condition: "Good" as ItemCondition,
+  category: "" as unknown as ItemCategory,
+  condition: "" as unknown as ItemCondition,
   image_emoji: "📦",
   description: "",
   visibility: "public" as "public" | "private",
@@ -116,7 +116,13 @@ function YourItemsPage() {
 
   const saveMut = useMutation<unknown>({
     mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("Please add a name");
+      const name = form.name.trim();
+      if (!name) throw new Error("Please enter an item name");
+      if (["item", "new item", "none", "test", "n/a"].includes(name.toLowerCase())) {
+        throw new Error("Please provide a specific item name (not just 'item')");
+      }
+      if (!form.category) throw new Error("Please select a category");
+      if (!form.condition) throw new Error("Please select the item condition");
       if (form.image_urls.length === 0) throw new Error("Please add at least one photo");
       return editingId ? await upd({ data: { id: editingId, ...form } }) : await create({ data: form });
     },
@@ -315,26 +321,38 @@ function YourItemsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Category</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Category *</label>
                   <select
-                    value={form.category}
+                    value={form.category || ""}
                     onChange={(e) => setForm({ ...form, category: e.target.value as ItemCategory })}
-                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm font-medium outline-none focus:border-primary"
+                    required
                   >
+                    <option value="" disabled>
+                      Select Category *
+                    </option>
                     {CATEGORIES.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Condition</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Condition *</label>
                   <select
-                    value={form.condition}
+                    value={form.condition || ""}
                     onChange={(e) => setForm({ ...form, condition: e.target.value as ItemCondition })}
-                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm"
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm font-medium outline-none focus:border-primary"
+                    required
                   >
+                    <option value="" disabled>
+                      Select Condition *
+                    </option>
                     {CONDITIONS.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
                 </div>
