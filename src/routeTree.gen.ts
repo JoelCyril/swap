@@ -32,6 +32,7 @@ import { Route as WantedPostRouteImport } from './routes/wanted.post'
 import { Route as AuthenticatedEditListingIdRouteImport } from './routes/_authenticated/edit-listing.$id'
 import { Route as AuthenticatedOffersIndexRouteImport } from './routes/_authenticated/offers.index'
 import { Route as AuthenticatedOffersIdRouteImport } from './routes/_authenticated/offers.$id'
+import { Route as AuthenticatedOffersArchiveRouteImport } from './routes/_authenticated/offers.archive'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -150,6 +151,12 @@ const AuthenticatedOffersIdRoute = AuthenticatedOffersIdRouteImport.update({
   path: '/offers/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOffersArchiveRoute =
+  AuthenticatedOffersArchiveRouteImport.update({
+    id: '/offers/archive',
+    path: '/offers/archive',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/wanted/': typeof WantedIndexRoute
   '/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/offers/$id': typeof AuthenticatedOffersIdRoute
+  '/offers/archive': typeof AuthenticatedOffersArchiveRoute
   '/offers/': typeof AuthenticatedOffersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -197,6 +205,7 @@ export interface FileRoutesByTo {
   '/wanted': typeof WantedIndexRoute
   '/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/offers/$id': typeof AuthenticatedOffersIdRoute
+  '/offers/archive': typeof AuthenticatedOffersArchiveRoute
   '/offers': typeof AuthenticatedOffersIndexRoute
 }
 export interface FileRoutesById {
@@ -223,6 +232,7 @@ export interface FileRoutesById {
   '/wanted/': typeof WantedIndexRoute
   '/_authenticated/edit-listing/$id': typeof AuthenticatedEditListingIdRoute
   '/_authenticated/offers/$id': typeof AuthenticatedOffersIdRoute
+  '/_authenticated/offers/archive': typeof AuthenticatedOffersArchiveRoute
   '/_authenticated/offers/': typeof AuthenticatedOffersIndexRoute
 }
 export interface FileRouteTypes {
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/wanted/'
     | '/edit-listing/$id'
     | '/offers/$id'
+    | '/offers/archive'
     | '/offers/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/wanted'
     | '/edit-listing/$id'
     | '/offers/$id'
+    | '/offers/archive'
     | '/offers'
   id:
     | '__root__'
@@ -298,6 +310,7 @@ export interface FileRouteTypes {
     | '/wanted/'
     | '/_authenticated/edit-listing/$id'
     | '/_authenticated/offers/$id'
+    | '/_authenticated/offers/archive'
     | '/_authenticated/offers/'
   fileRoutesById: FileRoutesById
 }
@@ -480,6 +493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOffersIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/offers/archive': {
+      id: '/_authenticated/offers/archive'
+      path: '/offers/archive'
+      fullPath: '/offers/archive'
+      preLoaderRoute: typeof AuthenticatedOffersArchiveRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -493,6 +513,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedYourItemsRoute: typeof AuthenticatedYourItemsRoute
   AuthenticatedEditListingIdRoute: typeof AuthenticatedEditListingIdRoute
   AuthenticatedOffersIdRoute: typeof AuthenticatedOffersIdRoute
+  AuthenticatedOffersArchiveRoute: typeof AuthenticatedOffersArchiveRoute
   AuthenticatedOffersIndexRoute: typeof AuthenticatedOffersIndexRoute
 }
 
@@ -506,6 +527,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedYourItemsRoute: AuthenticatedYourItemsRoute,
   AuthenticatedEditListingIdRoute: AuthenticatedEditListingIdRoute,
   AuthenticatedOffersIdRoute: AuthenticatedOffersIdRoute,
+  AuthenticatedOffersArchiveRoute: AuthenticatedOffersArchiveRoute,
   AuthenticatedOffersIndexRoute: AuthenticatedOffersIndexRoute,
 }
 
