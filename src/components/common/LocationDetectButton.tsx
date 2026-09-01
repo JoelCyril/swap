@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { detectLocationFromCoords } from "@/lib/geo.functions";
-import { Navigation, Loader2, CheckCircle2, MapPin } from "lucide-react";
+import { Navigation, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export interface DetectedLocationResult {
@@ -25,13 +25,32 @@ export function LocationDetectButton({
   const [detecting, setDetecting] = useState(false);
   const detectFn = useServerFn(detectLocationFromCoords);
 
+  const fallbackToNetwork = async () => {
+    try {
+      const result = await detectFn({ data: {} });
+      if (result) {
+        onDetected(result);
+        toast.success(`📍 Location detected: ${result.location}, ${result.emirate}`, {
+          description: "Emirate and Area have been automatically filled in.",
+        });
+      }
+    } catch (err) {
+      console.error("Network location error:", err);
+      toast.error("Could not automatically determine location", {
+        description: "Please select your Emirate and Area from the dropdown.",
+      });
+    } finally {
+      setDetecting(false);
+    }
+  };
+
   const handleDetect = () => {
+    setDetecting(true);
+
     if (!("geolocation" in navigator)) {
-      toast.error("Geolocation is not supported by your browser");
+      fallbackToNetwork();
       return;
     }
-
-    setDetecting(true);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -46,33 +65,24 @@ export function LocationDetectButton({
             toast.success(`📍 Location detected: ${result.location}, ${result.emirate}`, {
               description: "Emirate and Area have been automatically filled in.",
             });
+          } else {
+            await fallbackToNetwork();
           }
         } catch (err) {
-          console.error("Location detection error:", err);
-          toast.error("Could not determine exact neighbourhood", {
-            description: "Please select your Emirate and Area from the dropdown.",
-          });
+          console.warn("GPS reverse geocode error, trying network fallback:", err);
+          await fallbackToNetwork();
         } finally {
           setDetecting(false);
         }
       },
-      (error) => {
-        setDetecting(false);
-        console.warn("Geolocation permission error:", error);
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error("Location permission denied", {
-            description: "Please enable location access in your browser settings or choose manually.",
-          });
-        } else if (error.code === error.TIMEOUT) {
-          toast.error("Location detection timed out. Please try again or select manually.");
-        } else {
-          toast.error("Unable to retrieve your location. Please select manually.");
-        }
+      async (error) => {
+        console.warn("Browser geolocation unavailable or blocked, falling back to network/IP:", error);
+        await fallbackToNetwork();
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
+        enableHighAccuracy: false,
+        timeout: 6000,
+        maximumAge: 60000,
       },
     );
   };
@@ -83,7 +93,7 @@ export function LocationDetectButton({
       onClick={handleDetect}
       disabled={detecting}
       className={`inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 hover:border-primary transition disabled:opacity-60 cursor-pointer active:scale-95 ${className}`}
-      title="Automatically detect your Emirate and Neighbourhood using GPS"
+      title="Automatically detect your Emirate and Neighbourhood"
     >
       {detecting ? (
         <>
