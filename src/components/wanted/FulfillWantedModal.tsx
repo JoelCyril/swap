@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,7 +28,16 @@ export function FulfillWantedModal({ request, onClose, signedIn }: FulfillWanted
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
-  if (!request) return null;
+  useEffect(() => {
+    if (!request || typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [request]);
+
+  if (!request || typeof document === "undefined") return null;
 
   async function handleSendProposal() {
     if (!signedIn) {
@@ -54,8 +64,15 @@ export function FulfillWantedModal({ request, onClose, signedIn }: FulfillWanted
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+  return createPortal(
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[150] grid place-items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-5 sm:p-6 shadow-card-hover border-2 border-primary/30">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 pb-3">
@@ -200,6 +217,7 @@ export function FulfillWantedModal({ request, onClose, signedIn }: FulfillWanted
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

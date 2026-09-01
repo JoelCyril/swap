@@ -241,6 +241,7 @@ function WantedBoardPage() {
 
       {/* Modals */}
       <CreateWantedModal
+        key={editingRequest?.id || (createModalOpen ? "create" : "idle")}
         open={createModalOpen}
         editingRequest={editingRequest}
         onClose={() => {

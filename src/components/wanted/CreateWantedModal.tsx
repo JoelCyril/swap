@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createWantedRequest, editWantedRequest } from "@/lib/wanted.functions";
@@ -18,19 +19,25 @@ export function CreateWantedModal({ open, onClose, editingRequest }: CreateWante
   const createFn = useServerFn(createWantedRequest);
   const editFn = useServerFn(editWantedRequest);
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<ItemCategory>("Electronics");
-  const [offeringDescription, setOfferingDescription] = useState("");
-  const [emirate, setEmirate] = useState("Dubai");
-  const [locationChoice, setLocationChoice] = useState<string>(NEIGHBOURHOODS[0]);
-  const [otherLocation, setOtherLocation] = useState("");
+  const [title, setTitle] = useState(() => editingRequest?.title || "");
+  const [category, setCategory] = useState<ItemCategory>(() => (editingRequest?.category as ItemCategory) || "Electronics");
+  const [offeringDescription, setOfferingDescription] = useState(() => editingRequest?.offering_description || "");
+  const [emirate, setEmirate] = useState(() => editingRequest?.emirate || "Dubai");
+  const [locationChoice, setLocationChoice] = useState<string>(() => {
+    if (!editingRequest?.location) return NEIGHBOURHOODS[0];
+    return NEIGHBOURHOODS.includes(editingRequest.location) ? editingRequest.location : OTHER_LOCATION;
+  });
+  const [otherLocation, setOtherLocation] = useState(() => {
+    if (!editingRequest?.location) return "";
+    return NEIGHBOURHOODS.includes(editingRequest.location) ? "" : editingRequest.location;
+  });
 
   const isEditing = Boolean(editingRequest);
 
   useEffect(() => {
     if (editingRequest) {
       setTitle(editingRequest.title);
-      setCategory(editingRequest.category);
+      setCategory(editingRequest.category as ItemCategory);
       setOfferingDescription(editingRequest.offering_description);
       setEmirate(editingRequest.emirate || "Dubai");
       if (NEIGHBOURHOODS.includes(editingRequest.location)) {
@@ -49,6 +56,15 @@ export function CreateWantedModal({ open, onClose, editingRequest }: CreateWante
       setOtherLocation("");
     }
   }, [editingRequest, open]);
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -99,14 +115,16 @@ export function CreateWantedModal({ open, onClose, editingRequest }: CreateWante
     },
   });
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[100] grid place-items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[150] grid place-items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
     >
       <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-5 sm:p-6 shadow-card-hover border-2 border-primary/30">
         {/* Header */}
@@ -257,6 +275,7 @@ export function CreateWantedModal({ open, onClose, editingRequest }: CreateWante
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
