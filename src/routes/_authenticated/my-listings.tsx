@@ -14,6 +14,8 @@ import {
 } from "@/lib/items.functions";
 import { deleteListing } from "@/lib/listings.functions";
 import { autoFillItemFromPhoto } from "@/lib/ai.functions";
+import { fetchBulkListingViews } from "@/lib/views.functions";
+import { uploadFileTo } from "@/lib/upload";
 import {
   CATEGORIES,
   CONDITIONS,
