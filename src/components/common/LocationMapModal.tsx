@@ -144,13 +144,11 @@ export function LocationMapModal({
         // Add Zoom Control to bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // 100% English Map Tiles (CartoDB Voyager)
+        // 100% English Map Tiles (ESRI World Street Map - No API Key, No Watermark)
         L.tileLayer(
-          "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
           {
-            attribution:
-              '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            subdomains: "abcd",
+            attribution: "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, TomTom",
             maxZoom: 19,
           },
         ).addTo(map);
