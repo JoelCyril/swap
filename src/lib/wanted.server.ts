@@ -186,6 +186,27 @@ export async function updateWantedRequest(
     location: string;
   },
 ): Promise<WantedRequestItem> {
+  // Check if announcement exists
+  const { data: existing, error: findErr } = await supabaseAdmin
+    .from("announcements")
+    .select("id, author_id, body, created_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (findErr || !existing) {
+    throw new Error("Wanted request not found");
+  }
+
+  // Check permission: author or admin
+  const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+
+  if (existing.author_id !== userId && !isAdmin) {
+    throw new Error("You do not have permission to edit this request");
+  }
+
   const payload = {
     kind: "wanted_request",
     title: data.title.trim(),
@@ -202,28 +223,19 @@ export async function updateWantedRequest(
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("author_id", userId)
-    .select(`
-      id,
-      author_id,
-      body,
-      created_at,
-      updated_at,
-      author:profiles!announcements_author_id_fkey(
-        id,
-        username,
-        display_name,
-        avatar_url,
-        avatar_color
-      )
-    `)
+    .select("id, author_id, body, created_at, updated_at")
     .single();
 
   if (error || !row) {
     throw new Error(error?.message || "Failed to update wanted request");
   }
 
-  const author = row.author as any;
+  const { data: author } = await supabaseAdmin
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, avatar_color")
+    .eq("id", existing.author_id)
+    .maybeSingle();
+
   return {
     id: row.id,
     user_id: row.author_id,
@@ -246,11 +258,27 @@ export async function updateWantedRequest(
 }
 
 export async function removeWantedRequest(id: string, userId: string): Promise<boolean> {
+  const { data: existing } = await supabaseAdmin
+    .from("announcements")
+    .select("id, author_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!existing) return false;
+
+  const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+
+  if (existing.author_id !== userId && !isAdmin) {
+    throw new Error("You do not have permission to delete this request");
+  }
+
   const { error } = await supabaseAdmin
     .from("announcements")
     .delete()
-    .eq("id", id)
-    .eq("author_id", userId);
+    .eq("id", id);
 
   return !error;
 }

@@ -30,11 +30,11 @@ export const createWantedRequest = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        title: z.string().min(3).max(120),
-        category: z.enum(CATEGORIES as unknown as [string, ...string[]]),
-        offering_description: z.string().min(5).max(1000),
-        emirate: z.string().min(2),
-        location: z.string().min(2),
+        title: z.string().min(1).max(200),
+        category: z.string().min(1),
+        offering_description: z.string().min(1).max(2000),
+        emirate: z.string().optional().default("Dubai"),
+        location: z.string().optional().default("Dubai"),
       })
       .parse(d),
   )
@@ -47,12 +47,12 @@ export const editWantedRequest = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        id: z.string(),
-        title: z.string().min(3).max(120),
-        category: z.enum(CATEGORIES as unknown as [string, ...string[]]),
-        offering_description: z.string().min(5).max(1000),
-        emirate: z.string().min(2),
-        location: z.string().min(2),
+        id: z.string().min(1),
+        title: z.string().min(1).max(200),
+        category: z.string().min(1),
+        offering_description: z.string().min(1).max(2000),
+        emirate: z.string().optional().default("Dubai"),
+        location: z.string().optional().default("Dubai"),
       })
       .parse(d),
   )

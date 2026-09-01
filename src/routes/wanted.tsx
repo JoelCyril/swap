@@ -45,6 +45,11 @@ function WantedBoardPage() {
       setUserId(data.session?.user?.id ?? null);
       setSignedIn(Boolean(data.session?.user?.id));
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+      setSignedIn(Boolean(session?.user?.id));
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   const [selectedEmirate, setSelectedEmirate] = useState<string>("All");
