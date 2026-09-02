@@ -15,6 +15,7 @@ import {
   listWithheldListings,
   reviewWithheldListing,
   getModeratorAnalytics,
+  adminSendNotification,
 } from "@/lib/admin.functions";
 import { liftBan } from "@/lib/bans.functions";
 import { getMyProfile } from "@/lib/profile.functions";
@@ -35,6 +36,8 @@ import {
   Check,
   Package,
   BarChart3,
+  Bell,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,13 +61,41 @@ function AdminPage() {
   const redeem = useServerFn(redeemAdminCode);
   const [code, setCode] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"analytics" | "flagged" | "withheld" | "banned" | "inquiries">("analytics");
+  const [tab, setTab] = useState<"analytics" | "flagged" | "withheld" | "banned" | "inquiries" | "broadcast">("analytics");
   const analyticsFn = useServerFn(getModeratorAnalytics);
   const withheldFn = useServerFn(listWithheldListings);
   const reviewFn = useServerFn(reviewWithheldListing);
   const bannedFn = useServerFn(listBannedUsers);
   const inquiriesFn = useServerFn(listInquiries);
   const liftFn = useServerFn(liftBan);
+  const sendNotifFn = useServerFn(adminSendNotification);
+
+  const [notifTarget, setNotifTarget] = useState<"all" | "user">("all");
+  const [notifUsername, setNotifUsername] = useState("");
+  const [notifTitle, setNotifTitle] = useState("");
+  const [notifBody, setNotifBody] = useState("");
+  const [notifLink, setNotifLink] = useState("");
+
+  const sendNotifMut = useMutation({
+    mutationFn: () =>
+      sendNotifFn({
+        data: {
+          target: notifTarget,
+          username: notifTarget === "user" ? notifUsername : undefined,
+          title: notifTitle,
+          body: notifBody,
+          link: notifLink || undefined,
+        },
+      }),
+    onSuccess: (res) => {
+      toast.success(res.message);
+      setNotifTitle("");
+      setNotifBody("");
+      setNotifLink("");
+      setNotifUsername("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to send notification"),
+  });
 
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => me() });
   const isAdmin = profile?.roles?.includes("admin");
@@ -175,6 +206,7 @@ function AdminPage() {
               {(
                 [
                   ["analytics", "Analytics & Members", (analytics?.users ?? []).length, BarChart3],
+                  ["broadcast", "Send Notification", "New", Bell],
                   ["flagged", "Flagged listings", (flagged ?? []).length, Flag],
                   ["withheld", "Withheld listings", (withheld ?? []).length, EyeOff],
                   ["banned", "Banned users", (banned ?? []).length, Ban],
@@ -197,6 +229,139 @@ function AdminPage() {
 
             {tab === "analytics" && (
               <AnalyticsPanel data={analytics} isLoading={isAnalyticsLoading} />
+            )}
+
+            {tab === "broadcast" && (
+              <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 sm:p-8 shadow-card space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-xl font-bold">Send Message as Notification</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Deliver official admin announcements or direct messages straight to users' notification bells.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Recipient Mode */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                      Target Audience
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNotifTarget("all")}
+                        className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                          notifTarget === "all"
+                            ? "border-primary bg-primary text-primary-foreground shadow"
+                            : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        📢 All Users (Broadcast)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotifTarget("user")}
+                        className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                          notifTarget === "user"
+                            ? "border-primary bg-primary text-primary-foreground shadow"
+                            : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        👤 Specific User (@username)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Username field if specific user */}
+                  {notifTarget === "user" && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Recipient Username
+                      </label>
+                      <div className="flex items-center rounded-2xl border-2 border-primary/20 bg-white px-3 py-2 max-w-sm">
+                        <span className="text-muted-foreground text-sm mr-1">@</span>
+                        <input
+                          type="text"
+                          value={notifUsername}
+                          onChange={(e) => setNotifUsername(e.target.value)}
+                          placeholder="e.g. aqeel, joelcyril"
+                          className="w-full bg-transparent text-sm text-foreground outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Notification Title
+                    </label>
+                    <input
+                      type="text"
+                      value={notifTitle}
+                      onChange={(e) => setNotifTitle(e.target.value)}
+                      placeholder="e.g. Notice from SWAP Moderation Team"
+                      maxLength={120}
+                      className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Message Content
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={notifBody}
+                      onChange={(e) => setNotifBody(e.target.value)}
+                      placeholder="Type the message you want the user(s) to see in their notifications…"
+                      maxLength={2000}
+                      className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {/* Optional Link */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Action Link (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notifLink}
+                      onChange={(e) => setNotifLink(e.target.value)}
+                      placeholder="e.g. /announcements or /wanted"
+                      className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => sendNotifMut.mutate()}
+                      disabled={
+                        sendNotifMut.isPending ||
+                        !notifTitle.trim() ||
+                        !notifBody.trim() ||
+                        (notifTarget === "user" && !notifUsername.trim())
+                      }
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-7 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition disabled:opacity-50 cursor-pointer active:scale-95"
+                    >
+                      <Send className="h-4 w-4" />
+                      {sendNotifMut.isPending
+                        ? "Sending Notification…"
+                        : notifTarget === "all"
+                          ? "Broadcast to All Users"
+                          : `Send to @${notifUsername.replace(/^@/, "").trim() || "user"}`}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {tab === "flagged" && (

@@ -405,3 +405,66 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
     };
   });
 
+export const adminSendNotification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        target: z.enum(["all", "user"]),
+        username: z.string().optional(),
+        title: z.string().min(1, "Title is required").max(120),
+        body: z.string().min(1, "Message body is required").max(2000),
+        link: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (data.target === "user") {
+      if (!data.username) throw new Error("Please specify a username");
+      const cleanUser = data.username.replace(/^@/, "").trim().toLowerCase();
+      const { data: userProfile, error: pErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id, username")
+        .ilike("username", cleanUser)
+        .maybeSingle();
+      if (pErr || !userProfile) throw new Error(`User @${cleanUser} not found`);
+
+      await notifyUser({
+        userId: userProfile.id,
+        type: "admin_message",
+        title: data.title,
+        body: data.body,
+        link: data.link || "/announcements",
+      });
+      return { count: 1, message: `Notification sent to @${userProfile.username}` };
+    }
+
+    // Target: all users
+    const { data: allProfiles, error: aErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id");
+    if (aErr) throw new Error(aErr.message);
+
+    const userIds = (allProfiles ?? []).map((p) => p.id);
+    const rows = userIds.map((uid) => ({
+      user_id: uid,
+      type: "admin_broadcast",
+      title: data.title,
+      body: data.body,
+      link: data.link || "/announcements",
+      read: false,
+    }));
+
+    if (rows.length > 0) {
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        await supabaseAdmin.from("notifications").insert(chunk as any);
+      }
+    }
+
+    return { count: userIds.length, message: `Broadcast notification sent to ${userIds.length} users` };
+  });
+

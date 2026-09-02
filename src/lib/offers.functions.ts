@@ -493,3 +493,71 @@ export const toggleListingItem = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/** When items were not received: cancels the offer, returns listing to main feed (active), and optionally files a complaint to admins. */
+export const reportItemsNotReceived = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        complaint: z.string().max(2000).optional().default(""),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: offer, error: gerr } = await context.supabase
+      .from("offers")
+      .select("*, listing:listings(id, title)")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (gerr || !offer) throw new Error("Offer not found");
+    const isFrom = offer.from_user === context.userId;
+    const isTo = offer.to_user === context.userId;
+    if (!isFrom && !isTo) throw new Error("Not a participant");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Mark offer as declined / cancelled
+    const { error: offErr } = await supabaseAdmin
+      .from("offers")
+      .update({ status: "declined" } as any)
+      .eq("id", data.id);
+    if (offErr) throw new Error(offErr.message);
+
+    // 2. Return the listing to the main listings page (status = 'active')
+    if (offer.listing_id) {
+      await supabaseAdmin
+        .from("listings")
+        .update({ status: "active" })
+        .eq("id", offer.listing_id);
+    }
+
+    const otherUser = isFrom ? offer.to_user : offer.from_user;
+
+    // 3. If a complaint is provided, file a report with the admin moderation team
+    if (data.complaint && data.complaint.trim().length > 0) {
+      try {
+        await supabaseAdmin.from("inquiries").insert({
+          user_id: context.userId,
+          name: "Trade Member Report",
+          email: "support@swapuae.com",
+          subject: `Malpractice Report on Swap #${data.id.slice(0, 8)}`,
+          message: `Reporter ID: ${context.userId}\nReported User ID: ${otherUser}\nOffer ID: ${data.id}\nListing ID: ${offer.listing_id}\n\nComplaint:\n${data.complaint.trim()}`,
+        } as any);
+      } catch (e) {
+        console.warn("Failed to record inquiry report:", e);
+      }
+    }
+
+    // 4. Notify other party
+    await notifyUser({
+      userId: otherUser,
+      type: "trade_cancelled",
+      title: "Trade cancelled: Items not received",
+      body: "The swap deal was marked as items not received. The listing has been returned to the public feed.",
+      link: `/offers/${data.id}`,
+    });
+
+    return { ok: true, message: "Trade cancelled and listing returned to public browse feed." };
+  });

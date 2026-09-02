@@ -12,6 +12,7 @@ import {
   confirmTradeCompletion,
   confirmItemsReceived,
   toggleListingItem,
+  reportItemsNotReceived,
 } from "@/lib/offers.functions";
 
 
@@ -42,6 +43,7 @@ import {
   ShieldCheck,
   Plus,
   Paperclip,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,6 +78,10 @@ function OfferDetail() {
   const confirmComplete = useServerFn(confirmTradeCompletion);
   const confirmReceived = useServerFn(confirmItemsReceived);
   const toggleListed = useServerFn(toggleListingItem);
+  const reportNotReceived = useServerFn(reportItemsNotReceived);
+
+  const [notReceivedOpen, setNotReceivedOpen] = useState(false);
+  const [complaintText, setComplaintText] = useState("");
 
 
 
@@ -225,6 +231,17 @@ function OfferDetail() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const notReceivedMut = useMutation({
+    mutationFn: () => reportNotReceived({ data: { id, complaint: complaintText.trim() || undefined } }),
+    onSuccess: (res: any) => {
+      invalidateAll();
+      setNotReceivedOpen(false);
+      setComplaintText("");
+      toast.success(res?.message || "Trade cancelled. Listing returned to browse feed.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to cancel trade"),
+  });
+
 
 
   const safetyMut = useMutation({
@@ -291,7 +308,7 @@ function OfferDetail() {
   const other = isTo ? offer.from_profile : offer.to_profile;
   const canAct = offer.status === "pending";
   const accepted = offer.status === "accepted";
-  const chatOpen = accepted || offer.status === "completed";
+  const chatOpen = offer.status !== "declined" && offer.status !== "withdrawn";
 
   const items = (offer.items ?? []) as any[];
   const removedItems = ((offer as any).removed_items ?? []) as any[];
@@ -747,25 +764,32 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
                 {iConfirmedComplete ? "Completion confirmed" : "Mark trade completed"}
               </button>
               <button
-                onClick={() => {
-                  if (confirm(isTo ? "Reject this swap? The listing goes back to active." : "Withdraw from this swap?"))
-                    respondMut.mutate(isTo ? "decline" : "withdraw");
-                }}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10"
+                type="button"
+                onClick={() => setNotReceivedOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
               >
-                <X className="h-4 w-4" /> {isTo ? "Reject offer" : "Withdraw"}
+                <AlertTriangle className="h-4 w-4" /> Items not received
               </button>
             </>
           )}
           {offer.status === "completed" && !bothReceived && (
-            <button
-              onClick={() => receivedMut.mutate()}
-              disabled={iConfirmedReceived || receivedMut.isPending}
-              className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground disabled:opacity-50"
-            >
-              <Check className="h-4 w-4" />
-              {iConfirmedReceived ? "Receipt confirmed" : "I received the items"}
-            </button>
+            <>
+              <button
+                onClick={() => receivedMut.mutate()}
+                disabled={iConfirmedReceived || receivedMut.isPending}
+                className="flex-1 flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+                {iConfirmedReceived ? "Receipt confirmed" : "I received the items"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotReceivedOpen(true)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
+              >
+                <AlertTriangle className="h-4 w-4" /> Items not received
+              </button>
+            </>
           )}
         </div>
 
@@ -801,6 +825,17 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
           pending={reviseMut.isPending}
           onClose={() => setAddOpen(false)}
           onSave={(ids) => reviseMut.mutate(ids)}
+        />
+      )}
+
+      {notReceivedOpen && (
+        <ItemsNotReceivedModal
+          isOpen={notReceivedOpen}
+          onClose={() => setNotReceivedOpen(false)}
+          onSubmit={() => notReceivedMut.mutate()}
+          isPending={notReceivedMut.isPending}
+          complaintText={complaintText}
+          setComplaintText={setComplaintText}
         />
       )}
 
@@ -1295,5 +1330,94 @@ function AddItemsModal({
         </button>
       </div>
     </Modal>
+  );
+}
+
+function ItemsNotReceivedModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  isPending,
+  complaintText,
+  setComplaintText,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  isPending: boolean;
+  complaintText: string;
+  setComplaintText: (t: string) => void;
+}) {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-lg rounded-3xl border-2 border-destructive/30 bg-card p-6 shadow-2xl space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 text-destructive">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-destructive/10">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-black text-foreground">Items Not Received</h3>
+              <p className="text-xs text-muted-foreground">Cancel trade & restore listing</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted-foreground hover:bg-muted">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-3.5 text-xs space-y-1.5 text-amber-900 dark:text-amber-200">
+          <p className="font-bold flex items-center gap-1.5 text-sm text-amber-950 dark:text-amber-100">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+            Important Notice on Complaints:
+          </p>
+          <p className="text-[12px] leading-relaxed">
+            Please <strong>ONLY send a complaint to the admins if there was actual malpractice</strong> from the other person (e.g. fraudulent items, no-show after agreement without contact, or bad faith).
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Normal peaceful cancellations do not require an admin complaint.
+          </p>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Confirming this will cancel the trade and <strong>immediately return the listing to the main listings page</strong> as active.
+        </p>
+
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Optional Report / Complaint to Admins:
+          </label>
+          <textarea
+            rows={3}
+            value={complaintText}
+            onChange={(e) => setComplaintText(e.target.value)}
+            placeholder="Describe any malpractice or violation (leave blank if mutually cancelled)…"
+            maxLength={2000}
+            className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-xs text-foreground outline-none focus:border-primary"
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:flex-1 rounded-full border border-border py-2.5 text-xs font-bold text-muted-foreground hover:bg-muted"
+          >
+            Go Back
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={isPending}
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-destructive py-2.5 text-xs font-black uppercase tracking-wider text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
+          >
+            {isPending ? "Cancelling…" : "Cancel Swap & Return Listing"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

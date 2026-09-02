@@ -165,6 +165,24 @@ function ListingsPage() {
             .some((v) => String(v).toLowerCase().includes(term)),
     )
     .sort((a, b) => {
+      // Guest User Feed: Sort by category in exact requested order
+      if (!signedIn && active === "All" && sort === "shuffle") {
+        const priority: Record<string, number> = {
+          Electronics: 1,
+          Accessories: 2,
+          Books: 3,
+          Sports: 4,
+          Clothing: 5,
+          Outdoors: 6,
+          "Household Items": 7,
+          Toys: 8,
+        };
+        const rankA = priority[a.category] ?? 99;
+        const rankB = priority[b.category] ?? 99;
+        if (rankA !== rankB) return rankA - rankB;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+
       if (active === "All" && effectiveInterests.length > 0) {
         const diff = Number(effectiveInterests.includes(b.category)) - Number(effectiveInterests.includes(a.category));
         if (diff !== 0) return diff;
