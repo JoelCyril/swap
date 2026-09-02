@@ -68,6 +68,7 @@ const EMPTY_ITEM = {
   description: "",
   visibility: "public" as "public" | "private",
   image_urls: [] as string[],
+  looking_for: "",
 };
 
 type FilterTab = "all" | "listed" | "unlisted" | "in_trade";
@@ -89,6 +90,7 @@ function MyInventoryPage() {
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState<boolean>(() => Boolean(add));
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingItemListed, setEditingItemListed] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [queue, setQueue] = useState<File[]>([]);
@@ -236,12 +238,14 @@ function MyInventoryPage() {
 
   function openNewModal() {
     setEditingId(null);
+    setEditingItemListed(false);
     setForm({ ...EMPTY_ITEM });
     setOpenModal(true);
   }
 
   function openEditModal(item: any) {
     setEditingId(item.id);
+    setEditingItemListed(Boolean(item.is_listed));
     setForm({
       name: item.name,
       category: item.category,
@@ -250,6 +254,7 @@ function MyInventoryPage() {
       description: item.description ?? "",
       visibility: item.visibility ?? "public",
       image_urls: item.image_urls ?? [],
+      looking_for: item.listing?.looking_for ?? "",
     });
     setOpenModal(true);
   }
@@ -1018,12 +1023,27 @@ function MyInventoryPage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-3.5 w-3.5" /> ✨ AI Auto-Fill Details from Photo
+                        <Sparkles className="h-3.5 w-3.5" /> Auto-fill from photo
                       </>
                     )}
                   </button>
                 )}
               </div>
+
+              {editingItemListed && (
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">
+                    Looking For (What you want in return)
+                  </label>
+                  <input
+                    value={form.looking_for}
+                    onChange={(e) => setForm({ ...form, looking_for: e.target.value })}
+                    placeholder="e.g. Mechanical keyboard, iPad mini, open to offers..."
+                    maxLength={500}
+                    className="mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold uppercase text-muted-foreground">Visibility</label>

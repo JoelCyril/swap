@@ -148,10 +148,16 @@ export const createItem = createServerFn({ method: "POST" })
 export const updateItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.string().uuid() }).merge(itemSchema.partial()).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        looking_for: z.string().max(500).optional(),
+      })
+      .merge(itemSchema.partial())
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { id, ...rest } = data;
+    const { id, looking_for, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("items")
       .update(rest)
@@ -160,6 +166,25 @@ export const updateItem = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Sync changes to active/live listing if item is listed
+    const listingUpdate: Record<string, any> = {};
+    if (rest.name) listingUpdate.title = rest.name;
+    if (rest.category) listingUpdate.category = rest.category;
+    if (rest.condition) listingUpdate.condition = rest.condition;
+    if (rest.description !== undefined) listingUpdate.description = rest.description;
+    if (rest.image_urls) listingUpdate.image_urls = rest.image_urls;
+    if (looking_for !== undefined) listingUpdate.looking_for = looking_for;
+
+    if (Object.keys(listingUpdate).length > 0) {
+      await context.supabase
+        .from("listings")
+        .update(listingUpdate)
+        .eq("item_id", id)
+        .eq("owner_id", context.userId)
+        .neq("status", "removed");
+    }
+
     return row;
   });
 
