@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
+import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 
 
 function publicClient() {
@@ -41,11 +42,17 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .select("full_name, birthday")
       .eq("id", context.userId)
       .maybeSingle();
+    const repairedProfile = profile
+      ? {
+          ...profile,
+          avatar_url: await repairImageUrl(profile.avatar_url, "avatars"),
+          banner_url: await repairImageUrl(profile.banner_url, "avatars"),
+          interests: Array.isArray((profile as any)?.interests) ? (profile as any).interests : [],
+        }
+      : profile;
+
     return {
-      profile: {
-        ...profile,
-        interests: Array.isArray((profile as any)?.interests) ? (profile as any).interests : [],
-      },
+      profile: repairedProfile,
       private: privateInfo ?? { full_name: null, birthday: null },
       roles: (roles ?? []).map((r) => r.role),
     };
@@ -181,7 +188,22 @@ export const getPublicProfile = createServerFn({ method: "GET" })
       .eq("visibility", "public")
       .order("created_at", { ascending: false })
       .limit(24);
-    return { profile, isAdmin: !!adminRow, items: items ?? [] };
+    const repairedProfile = profile
+      ? {
+          ...profile,
+          avatar_url: await repairImageUrl(profile.avatar_url, "avatars"),
+          banner_url: await repairImageUrl(profile.banner_url, "avatars"),
+        }
+      : null;
+
+    const repairedItems = await Promise.all(
+      (items ?? []).map(async (it) => ({
+        ...it,
+        image_urls: await repairImageUrls(it.image_urls),
+      })),
+    );
+
+    return { profile: repairedProfile, isAdmin: !!adminRow, items: repairedItems };
   });
 
 /** Permanently delete the signed-in user's account and their content. */
