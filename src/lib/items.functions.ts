@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
+import { repairImageUrls } from "./image-url-repair.server";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
@@ -326,18 +327,30 @@ export const listMyInventoryWithListings = createServerFn({ method: "GET" })
       }
     }
 
-    const inventoryItems = (items ?? []).map((item) => {
-      const listing = listingByItemId.get(item.id);
-      return {
-        ...item,
-        listing: listing ?? null,
-        is_listed: !!listing,
-        listing_status: (listing?.status ?? "not_listed") as "active" | "reserved" | "completed" | "withheld" | "not_listed",
-      };
-    });
+    const inventoryItems = await Promise.all(
+      (items ?? []).map(async (item) => {
+        const listing = listingByItemId.get(item.id);
+        const itemImages = await repairImageUrls(item.image_urls);
+        const listingImages = listing ? await repairImageUrls(listing.image_urls) : [];
+        return {
+          ...item,
+          image_urls: itemImages,
+          listing: listing ? { ...listing, image_urls: listingImages } : null,
+          is_listed: !!listing,
+          listing_status: (listing?.status ?? "not_listed") as "active" | "reserved" | "completed" | "withheld" | "not_listed",
+        };
+      }),
+    );
+
+    const repairedStandalone = await Promise.all(
+      standaloneListings.map(async (l) => ({
+        ...l,
+        image_urls: await repairImageUrls(l.image_urls),
+      })),
+    );
 
     return {
       items: inventoryItems,
-      standaloneListings,
+      standaloneListings: repairedStandalone,
     };
   });

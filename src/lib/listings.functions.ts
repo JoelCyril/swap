@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
+import { repairImageUrls } from "./image-url-repair.server";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
@@ -58,7 +59,15 @@ export const listListings = createServerFn({ method: "GET" })
     if (data.category) q = q.eq("category", data.category as never);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    if (!rows) return [];
+
+    const repaired = await Promise.all(
+      rows.map(async (row) => ({
+        ...row,
+        image_urls: await repairImageUrls(row.image_urls),
+      })),
+    );
+    return repaired;
   });
 
 export const getListing = createServerFn({ method: "GET" })
@@ -94,7 +103,12 @@ export const getListing = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return row;
+    if (!row) return null;
+
+    return {
+      ...row,
+      image_urls: await repairImageUrls(row.image_urls),
+    };
   });
 
 export const listListingsByUsername = createServerFn({ method: "GET" })
@@ -113,7 +127,15 @@ export const listListingsByUsername = createServerFn({ method: "GET" })
       .eq("owner_id", profile.id)
       .in("status", ["active", "reserved"])
       .order("created_at", { ascending: false });
-    return { profile, listings: listings ?? [] };
+    if (!listings) return { profile, listings: [] };
+
+    const repaired = await Promise.all(
+      listings.map(async (l) => ({
+        ...l,
+        image_urls: await repairImageUrls(l.image_urls),
+      })),
+    );
+    return { profile, listings: repaired };
   });
 
 const createSchema = z.object({
