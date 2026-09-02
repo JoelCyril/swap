@@ -104,11 +104,11 @@ export function ImageCropper({
     ctx.restore();
 
     const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9),
+      canvas.toBlob((b) => resolve(b), "image/webp", 0.82),
     );
     if (!blob) return;
-    const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-    onDone(new File([blob], name, { type: "image/jpeg" }));
+    const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
+    onDone(new File([blob], name, { type: "image/webp" }));
   }
 
   if (typeof document === "undefined") return null;
