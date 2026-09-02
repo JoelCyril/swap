@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
+
 export const listFavourites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -11,9 +13,22 @@ export const listFavourites = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? [])
-      .map((r) => r.listing as { id: string; status: string } | null)
+    const valid = (data ?? [])
+      .map((r) => r.listing as any)
       .filter((l): l is NonNullable<typeof l> => !!l && l.status !== "removed");
+
+    return await Promise.all(
+      valid.map(async (l) => ({
+        ...l,
+        image_urls: await repairImageUrls(l.image_urls),
+        owner: l.owner
+          ? {
+              ...l.owner,
+              avatar_url: await repairImageUrl(l.owner.avatar_url, "avatars"),
+            }
+          : l.owner,
+      })),
+    );
   });
 
 export const toggleFavourite = createServerFn({ method: "POST" })

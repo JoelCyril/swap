@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI, estimateItemTradePoints } from "./ai.server";
+import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 
 export const autoFillItemFromPhoto = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -90,27 +91,33 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .eq("status", "active");
 
-    const allMyItems = [
-      ...(myItems ?? []).map((it) => ({
-        id: it.id,
-        name: it.name,
-        category: it.category || "Electronics",
-        condition: it.condition || "Good",
-        image_url: it.image_urls?.[0],
-      })),
-      ...(myListings ?? []).map((l) => ({
-        id: l.id,
-        name: l.title,
-        category: l.category || "Electronics",
-        condition: l.condition || "Good",
-        image_url: l.image_urls?.[0],
-      })),
-    ];
+    const allMyItems = await Promise.all([
+      ...(myItems ?? []).map(async (it) => {
+        const repaired = await repairImageUrls(it.image_urls);
+        return {
+          id: it.id,
+          name: it.name,
+          category: it.category || "Electronics",
+          condition: it.condition || "Good",
+          image_url: repaired?.[0],
+        };
+      }),
+      ...(myListings ?? []).map(async (l) => {
+        const repaired = await repairImageUrls(l.image_urls);
+        return {
+          id: l.id,
+          name: l.title,
+          category: l.category || "Electronics",
+          condition: l.condition || "Good",
+          image_url: repaired?.[0],
+        };
+      }),
+    ]);
 
     if (allMyItems.length === 0) return [];
 
     // 2. Fetch active marketplace listings from other users
-    const { data: otherListings } = await context.supabase
+    const { data: rawOtherListings } = await context.supabase
       .from("listings")
       .select(`
         id,
@@ -135,7 +142,14 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (!otherListings || otherListings.length === 0) return [];
+    if (!rawOtherListings || rawOtherListings.length === 0) return [];
+
+    const otherListings = await Promise.all(
+      rawOtherListings.map(async (l) => ({
+        ...l,
+        image_urls: await repairImageUrls(l.image_urls),
+      })),
+    );
 
     const matches: SmartMatch[] = [];
 

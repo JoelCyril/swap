@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyUser } from "./notifications.server";
+import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 
 export const createOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -103,7 +104,36 @@ export const listMyOffers = createServerFn({ method: "GET" })
       .or(`from_user.eq.${context.userId},to_user.eq.${context.userId}`)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return { viewer_id: context.userId, offers: data ?? [] };
+    const repairedOffers = await Promise.all(
+      (data ?? []).map(async (off: any) => ({
+        ...off,
+        listing: off.listing
+          ? {
+              ...off.listing,
+              image_urls: await repairImageUrls(off.listing.image_urls),
+              owner: off.listing.owner
+                ? {
+                    ...off.listing.owner,
+                    avatar_url: await repairImageUrl(off.listing.owner.avatar_url, "avatars"),
+                  }
+                : off.listing.owner,
+            }
+          : off.listing,
+        from_profile: off.from_profile
+          ? {
+              ...off.from_profile,
+              avatar_url: await repairImageUrl(off.from_profile.avatar_url, "avatars"),
+            }
+          : off.from_profile,
+        to_profile: off.to_profile
+          ? {
+              ...off.to_profile,
+              avatar_url: await repairImageUrl(off.to_profile.avatar_url, "avatars"),
+            }
+          : off.to_profile,
+      })),
+    );
+    return { viewer_id: context.userId, offers: repairedOffers };
   });
 
 export const listMyPendingIncomingOffers = createServerFn({ method: "GET" })
@@ -140,7 +170,24 @@ export const listMyPendingIncomingOffers = createServerFn({ method: "GET" })
       console.error("Failed to list pending incoming offers", error);
       return [];
     }
-    return (data ?? []) as any[];
+    const repaired = await Promise.all(
+      (data ?? []).map(async (row: any) => ({
+        ...row,
+        listing: row.listing
+          ? {
+              ...row.listing,
+              image_urls: await repairImageUrls(row.listing.image_urls),
+            }
+          : row.listing,
+        from_profile: row.from_profile
+          ? {
+              ...row.from_profile,
+              avatar_url: await repairImageUrl(row.from_profile.avatar_url, "avatars"),
+            }
+          : row.from_profile,
+      })),
+    );
+    return repaired as any[];
   });
 
 export const getOffer = createServerFn({ method: "GET" })
@@ -164,17 +211,22 @@ export const getOffer = createServerFn({ method: "GET" })
         .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
         .in("id", ids);
       if (error) throw new Error(error.message);
-      if ((rows ?? []).length === ids.length) return rows as any[];
+      let list = rows ?? [];
+      if (list.length !== ids.length) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: adminRows } = await supabaseAdmin
+          .from("items")
+          .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
+          .in("id", ids);
+        if (adminRows) list = adminRows;
+      }
 
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: adminRows, error: adminError } = await supabaseAdmin
-        .from("items")
-        .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
-        .in("id", ids);
-      if (adminError) throw new Error(adminError.message);
-      if (adminRows) return adminRows as any[];
-
-      return (rows ?? []) as any[];
+      return await Promise.all(
+        list.map(async (it) => ({
+          ...it,
+          image_urls: await repairImageUrls(it.image_urls),
+        })),
+      );
     };
 
     const o = offer as unknown as Record<string, unknown>;
@@ -184,8 +236,39 @@ export const getOffer = createServerFn({ method: "GET" })
       fetchItems((o["recipient_item_ids"] ?? []) as string[]),
       fetchItems((o["removed_recipient_item_ids"] ?? []) as string[]),
     ]);
+
+    const repairedListing = (offer as any).listing
+      ? {
+          ...(offer as any).listing,
+          image_urls: await repairImageUrls((offer as any).listing.image_urls),
+          owner: (offer as any).listing.owner
+            ? {
+                ...(offer as any).listing.owner,
+                avatar_url: await repairImageUrl((offer as any).listing.owner.avatar_url, "avatars"),
+              }
+            : (offer as any).listing.owner,
+        }
+      : (offer as any).listing;
+
+    const repairedFromProfile = (offer as any).from_profile
+      ? {
+          ...(offer as any).from_profile,
+          avatar_url: await repairImageUrl((offer as any).from_profile.avatar_url, "avatars"),
+        }
+      : (offer as any).from_profile;
+
+    const repairedToProfile = (offer as any).to_profile
+      ? {
+          ...(offer as any).to_profile,
+          avatar_url: await repairImageUrl((offer as any).to_profile.avatar_url, "avatars"),
+        }
+      : (offer as any).to_profile;
+
     return {
       ...offer,
+      listing: repairedListing,
+      from_profile: repairedFromProfile,
+      to_profile: repairedToProfile,
       items,
       removed_items: removedItems,
       recipient_items: recipientItems,

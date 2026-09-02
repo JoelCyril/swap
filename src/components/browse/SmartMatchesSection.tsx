@@ -103,7 +103,14 @@ export function SmartMatchesSection() {
                     <p className="text-[9px] uppercase font-black tracking-wider text-muted-foreground">You Trade</p>
                     <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-primary/10 grid place-items-center">
                       {m.my_item.image_url ? (
-                        <img src={m.my_item.image_url} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={m.my_item.image_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
                       ) : (
                         <Package className="h-5 w-5 text-primary/60" />
                       )}
@@ -123,7 +130,14 @@ export function SmartMatchesSection() {
                     <p className="text-[9px] uppercase font-black tracking-wider text-emerald-800 dark:text-emerald-300">You Get</p>
                     <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-emerald-500/15 grid place-items-center">
                       {m.matched_listing.image_url ? (
-                        <img src={m.matched_listing.image_url} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={m.matched_listing.image_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
                       ) : (
                         <Package className="h-5 w-5 text-emerald-600" />
                       )}
