@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,35 +17,54 @@ export function WantedSidebarWidget({ signedIn }: { signedIn?: boolean }) {
     refetchInterval: 30_000,
   });
 
+  // Unique requests only (no duplicate repetitions)
+  const uniqueRequests = Array.from(new Map(requests.map((r) => [r.id, r])).values());
+
   // Smooth continuous auto-scroll effect
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || requests.length === 0) return;
+    if (!el || uniqueRequests.length === 0) return;
 
     let animId: number;
     let lastTime = performance.now();
+    let pauseTimer: any = null;
+    let isResetting = false;
 
     const scrollStep = (now: number) => {
       const delta = now - lastTime;
       lastTime = now;
 
-      if (!isPaused && el) {
-        // Slow gentle scroll: ~18 pixels per second
-        el.scrollTop += delta * 0.018;
+      if (!isPaused && !isResetting && el) {
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll > 0) {
+          // Slow gentle scroll: ~16 pixels per second
+          el.scrollTop += delta * 0.016;
 
-        // Seamless loop when reaching half of the duplicated list
-        if (el.scrollTop >= el.scrollHeight / 2) {
-          el.scrollTop = 0;
+          // When reached bottom, pause 2.5s and smoothly scroll back to top
+          if (el.scrollTop >= maxScroll - 1) {
+            isResetting = true;
+            pauseTimer = setTimeout(() => {
+              if (el) {
+                el.scrollTo({ top: 0, behavior: "smooth" });
+                setTimeout(() => {
+                  isResetting = false;
+                }, 1200);
+              }
+            }, 2500);
+          }
         }
       }
       animId = requestAnimationFrame(scrollStep);
     };
 
     animId = requestAnimationFrame(scrollStep);
-    return () => cancelAnimationFrame(animId);
-  }, [requests.length, isPaused]);
+    return () => {
+      cancelAnimationFrame(animId);
+      if (pauseTimer) clearTimeout(pauseTimer);
+    };
+  }, [uniqueRequests.length, isPaused]);
 
-  if (isLoading && requests.length === 0) {
+  if (isLoading && uniqueRequests.length === 0) {
     return (
       <div className="mt-4 rounded-3xl border-2 border-primary/20 bg-card p-4 shadow-card">
         <div className="flex items-center gap-2 border-b border-border pb-2.5">
@@ -57,12 +76,9 @@ export function WantedSidebarWidget({ signedIn }: { signedIn?: boolean }) {
     );
   }
 
-  if (requests.length === 0) {
+  if (uniqueRequests.length === 0) {
     return null;
   }
-
-  // Duplicate items for infinite seamless scroll
-  const displayItems = requests.length > 2 ? [...requests, ...requests] : requests;
 
   return (
     <div className="mt-4 rounded-3xl border-2 border-primary/20 bg-card p-4 shadow-card">
@@ -99,9 +115,9 @@ export function WantedSidebarWidget({ signedIn }: { signedIn?: boolean }) {
         className="mt-3 max-h-[300px] overflow-y-auto space-y-2.5 pr-1 scrollbar-thin select-none"
         style={{ scrollBehavior: "auto" }}
       >
-        {displayItems.map((req, idx) => (
+        {uniqueRequests.map((req) => (
           <Link
-            key={`${req.id}-${idx}`}
+            key={req.id}
             to="/wanted"
             className="group block rounded-2xl border border-primary/15 bg-background/70 p-3 hover:border-primary hover:bg-background hover:shadow-sm transition"
           >
