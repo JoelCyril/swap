@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -52,7 +52,7 @@ export function WantedSidebarWidget({ signedIn }: { signedIn?: boolean }) {
           <Megaphone className="h-4 w-4 text-primary animate-pulse" />
           <h3 className="font-display text-sm font-bold">Wanted (ISO)</h3>
         </div>
-        <div className="py-6 text-center text-xs text-muted-foreground">Loading wanted posts�</div>
+        <div className="py-6 text-center text-xs text-muted-foreground">Loading wanted posts…</div>
       </div>
     );
   }
