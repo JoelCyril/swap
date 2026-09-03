@@ -61,7 +61,15 @@ type AnalyticsData = {
 type MemberFilter = "all" | "with_listings" | "no_listings" | "with_trades" | "with_inventory";
 type SortField = "newest" | "listings" | "trades" | "inventory";
 
-export function AnalyticsPanel({ data, isLoading }: { data: AnalyticsData | undefined; isLoading: boolean }) {
+export function AnalyticsPanel({
+  data,
+  isLoading,
+  onEmailNoListings,
+}: {
+  data: AnalyticsData | undefined;
+  isLoading: boolean;
+  onEmailNoListings?: () => void;
+}) {
   const [filter, setFilter] = useState<MemberFilter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortField>("newest");
@@ -156,6 +164,15 @@ export function AnalyticsPanel({ data, isLoading }: { data: AnalyticsData | unde
             {summary.users_without_listings}
           </p>
           <p className="text-[11px] font-bold text-amber-600/90 mt-0.5">Accounts with 0 items</p>
+          {onEmailNoListings && summary.users_without_listings > 0 && (
+            <button
+              type="button"
+              onClick={onEmailNoListings}
+              className="mt-2.5 w-full rounded-xl border border-amber-500/30 bg-amber-500/15 py-1 text-[10px] font-black uppercase tracking-wider text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 transition cursor-pointer"
+            >
+              ✉️ Email Campaign
+            </button>
+          )}
         </div>
 
         {/* Completed Trades */}

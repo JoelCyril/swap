@@ -16,6 +16,7 @@ import {
   reviewWithheldListing,
   getModeratorAnalytics,
   adminSendNotification,
+  adminEmailUsersWithoutListings,
 } from "@/lib/admin.functions";
 import { liftBan } from "@/lib/bans.functions";
 import { getMyProfile } from "@/lib/profile.functions";
@@ -69,12 +70,23 @@ function AdminPage() {
   const inquiriesFn = useServerFn(listInquiries);
   const liftFn = useServerFn(liftBan);
   const sendNotifFn = useServerFn(adminSendNotification);
+  const emailCampaignFn = useServerFn(adminEmailUsersWithoutListings);
 
-  const [notifTarget, setNotifTarget] = useState<"all" | "user">("all");
+  const [channelMode, setChannelMode] = useState<"notification" | "email">("notification");
+  const [notifTarget, setNotifTarget] = useState<"all" | "no_listings" | "user">("all");
   const [notifUsername, setNotifUsername] = useState("");
   const [notifTitle, setNotifTitle] = useState("");
   const [notifBody, setNotifBody] = useState("");
   const [notifLink, setNotifLink] = useState("");
+
+  // Email Campaign States (for users without listings)
+  const [emailSubject, setEmailSubject] = useState("List your first item on SWAP — Trade easily across UAE 📦");
+  const [emailHeading, setEmailHeading] = useState("Turn your unused items into something you love");
+  const [emailMessage, setEmailMessage] = useState(
+    "You joined SWAP, but haven't listed any items yet!\n\nListing takes less than 30 seconds with our instant camera auto-fill. Start swapping electronics, accessories, books, and more with UAE neighbours without spending money.",
+  );
+  const [emailButtonText, setEmailButtonText] = useState("List an Item Now");
+  const [emailButtonLink, setEmailButtonLink] = useState("/my-listings?add=true");
 
   const sendNotifMut = useMutation({
     mutationFn: () =>
@@ -95,6 +107,25 @@ function AdminPage() {
       setNotifUsername("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to send notification"),
+  });
+
+  const sendEmailMut = useMutation({
+    mutationFn: () =>
+      emailCampaignFn({
+        data: {
+          subject: emailSubject.trim(),
+          heading: emailHeading.trim(),
+          message: emailMessage.trim(),
+          buttonText: emailButtonText.trim(),
+          buttonLink: emailButtonLink.trim(),
+        },
+      }),
+    onSuccess: (res) => {
+      toast.success(res.message, {
+        description: res.failed > 0 ? `Delivered: ${res.count}, Failed: ${res.failed}` : undefined,
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to send email campaign"),
   });
 
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => me() });
@@ -228,139 +259,340 @@ function AdminPage() {
             </div>
 
             {tab === "analytics" && (
-              <AnalyticsPanel data={analytics} isLoading={isAnalyticsLoading} />
+              <AnalyticsPanel
+                data={analytics}
+                isLoading={isAnalyticsLoading}
+                onEmailNoListings={() => {
+                  setTab("broadcast");
+                  setChannelMode("email");
+                }}
+              />
             )}
 
             {tab === "broadcast" && (
               <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 sm:p-8 shadow-card space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <Bell className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="font-display text-xl font-bold">Send Message as Notification</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Deliver official admin announcements or direct messages straight to users' notification bells.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Recipient Mode */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                      Target Audience
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setNotifTarget("all")}
-                        className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
-                          notifTarget === "all"
-                            ? "border-primary bg-primary text-primary-foreground shadow"
-                            : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        📢 All Users (Broadcast)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNotifTarget("user")}
-                        className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
-                          notifTarget === "user"
-                            ? "border-primary bg-primary text-primary-foreground shadow"
-                            : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        👤 Specific User (@username)
-                      </button>
+                {/* Header with Mode Switcher */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                      {channelMode === "email" ? <Mail className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
                     </div>
-                  </div>
-
-                  {/* Username field if specific user */}
-                  {notifTarget === "user" && (
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                        Recipient Username
-                      </label>
-                      <div className="flex items-center rounded-2xl border-2 border-primary/20 bg-white px-3 py-2 max-w-sm">
-                        <span className="text-muted-foreground text-sm mr-1">@</span>
-                        <input
-                          type="text"
-                          value={notifUsername}
-                          onChange={(e) => setNotifUsername(e.target.value)}
-                          placeholder="e.g. aqeel, joelcyril"
-                          className="w-full bg-transparent text-sm text-foreground outline-none"
-                        />
-                      </div>
+                      <h2 className="font-display text-xl font-bold">
+                        {channelMode === "email" ? "Email Campaign: Users Without Listings" : "Send In-App Notification"}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {channelMode === "email"
+                          ? "Send branded direct emails encouraging registered users who have 0 listings to list their items."
+                          : "Deliver official announcements directly to users' notification bells."}
+                      </p>
                     </div>
-                  )}
-
-                  {/* Title */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      Notification Title
-                    </label>
-                    <input
-                      type="text"
-                      value={notifTitle}
-                      onChange={(e) => setNotifTitle(e.target.value)}
-                      placeholder="e.g. Notice from SWAP Moderation Team"
-                      maxLength={120}
-                      className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
-                    />
                   </div>
 
-                  {/* Body */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      Message Content
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={notifBody}
-                      onChange={(e) => setNotifBody(e.target.value)}
-                      placeholder="Type the message you want the user(s) to see in their notifications…"
-                      maxLength={2000}
-                      className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  {/* Optional Link */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      Action Link (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={notifLink}
-                      onChange={(e) => setNotifLink(e.target.value)}
-                      placeholder="e.g. /announcements or /wanted"
-                      className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  <div className="pt-2">
+                  {/* Channel Switcher */}
+                  <div className="flex rounded-full border-2 border-primary/20 bg-muted/30 p-1">
                     <button
                       type="button"
-                      onClick={() => sendNotifMut.mutate()}
-                      disabled={
-                        sendNotifMut.isPending ||
-                        !notifTitle.trim() ||
-                        !notifBody.trim() ||
-                        (notifTarget === "user" && !notifUsername.trim())
-                      }
-                      className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-7 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition disabled:opacity-50 cursor-pointer active:scale-95"
+                      onClick={() => setChannelMode("notification")}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+                        channelMode === "notification"
+                          ? "bg-gradient-primary text-primary-foreground shadow"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <Send className="h-4 w-4" />
-                      {sendNotifMut.isPending
-                        ? "Sending Notification…"
-                        : notifTarget === "all"
-                          ? "Broadcast to All Users"
-                          : `Send to @${notifUsername.replace(/^@/, "").trim() || "user"}`}
+                      <Bell className="h-3.5 w-3.5" /> In-App Bell
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChannelMode("email")}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+                        channelMode === "email"
+                          ? "bg-gradient-primary text-primary-foreground shadow"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Mail className="h-3.5 w-3.5" /> Direct Email
                     </button>
                   </div>
                 </div>
+
+                {/* 1. IN-APP NOTIFICATION MODE */}
+                {channelMode === "notification" && (
+                  <div className="space-y-4">
+                    {/* Recipient Mode */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                        Target Audience
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNotifTarget("all")}
+                          className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                            notifTarget === "all"
+                              ? "border-primary bg-primary text-primary-foreground shadow"
+                              : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          📢 All Users (Broadcast)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotifTarget("no_listings")}
+                          className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                            notifTarget === "no_listings"
+                              ? "border-primary bg-primary text-primary-foreground shadow"
+                              : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          📦 Users Without Listings ({analytics?.summary?.users_without_listings ?? 0})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotifTarget("user")}
+                          className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                            notifTarget === "user"
+                              ? "border-primary bg-primary text-primary-foreground shadow"
+                              : "border-primary/20 bg-muted/40 text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          👤 Specific User (@username)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Username field if specific user */}
+                    {notifTarget === "user" && (
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          Recipient Username
+                        </label>
+                        <div className="flex items-center rounded-2xl border-2 border-primary/20 bg-white px-3 py-2 max-w-sm">
+                          <span className="text-muted-foreground text-sm mr-1">@</span>
+                          <input
+                            type="text"
+                            value={notifUsername}
+                            onChange={(e) => setNotifUsername(e.target.value)}
+                            placeholder="e.g. aqeel, joelcyril"
+                            className="w-full bg-transparent text-sm text-foreground outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Title */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Notification Title
+                      </label>
+                      <input
+                        type="text"
+                        value={notifTitle}
+                        onChange={(e) => setNotifTitle(e.target.value)}
+                        placeholder="e.g. Notice from SWAP Moderation Team"
+                        maxLength={120}
+                        className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Body */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Message Content
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={notifBody}
+                        onChange={(e) => setNotifBody(e.target.value)}
+                        placeholder="Type the message you want the user(s) to see in their notifications…"
+                        maxLength={2000}
+                        className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Optional Link */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Action Link (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={notifLink}
+                        onChange={(e) => setNotifLink(e.target.value)}
+                        placeholder="e.g. /announcements or /my-listings?add=true"
+                        className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => sendNotifMut.mutate()}
+                        disabled={
+                          sendNotifMut.isPending ||
+                          !notifTitle.trim() ||
+                          !notifBody.trim() ||
+                          (notifTarget === "user" && !notifUsername.trim())
+                        }
+                        className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-7 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition disabled:opacity-50 cursor-pointer active:scale-95"
+                      >
+                        <Send className="h-4 w-4" />
+                        {sendNotifMut.isPending
+                          ? "Sending Notification…"
+                          : notifTarget === "all"
+                            ? "Broadcast to All Users"
+                            : notifTarget === "no_listings"
+                              ? `Send to ${analytics?.summary?.users_without_listings ?? 0} Users Without Listings`
+                              : `Send to @${notifUsername.replace(/^@/, "").trim() || "user"}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. DIRECT EMAIL CAMPAIGN MODE */}
+                {channelMode === "email" && (
+                  <div className="space-y-5">
+                    {/* Audience info banner */}
+                    <div className="flex items-center justify-between rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">📦</span>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                            Target: Users without active listings
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Emails will be sent via Resend to the {analytics?.summary?.users_without_listings ?? 0} registered members with 0 items.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-900 dark:text-amber-100">
+                        {analytics?.summary?.users_without_listings ?? 0} Recipients
+                      </span>
+                    </div>
+
+                    {/* Email Subject */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Email Subject Line *
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="e.g. List your first item on SWAP — Trade easily across UAE 📦"
+                        maxLength={120}
+                        className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Heading inside email */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Email Header Title *
+                      </label>
+                      <input
+                        type="text"
+                        value={emailHeading}
+                        onChange={(e) => setEmailHeading(e.target.value)}
+                        placeholder="e.g. Turn your unused items into something you love"
+                        maxLength={120}
+                        className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Email Message */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Email Body Text *
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={emailMessage}
+                        onChange={(e) => setEmailMessage(e.target.value)}
+                        placeholder="Write your email body..."
+                        maxLength={3000}
+                        className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-white px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={emailButtonText}
+                          onChange={(e) => setEmailButtonText(e.target.value)}
+                          placeholder="e.g. List an Item Now"
+                          className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          Button Target URL
+                        </label>
+                        <input
+                          type="text"
+                          value={emailButtonLink}
+                          onChange={(e) => setEmailButtonLink(e.target.value)}
+                          placeholder="e.g. /my-listings?add=true"
+                          className="w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm text-foreground outline-none focus:border-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Preview Box */}
+                    <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-primary">Live Email Preview</p>
+                      <div className="rounded-2xl border border-border bg-white p-5 text-left text-neutral-900 shadow-sm max-w-md mx-auto">
+                        <div className="text-center mb-3">
+                          <span className="text-2xl">📦</span>
+                          <h3 className="font-display text-lg font-black text-foreground mt-1">
+                            {emailHeading || "Email Heading"}
+                          </h3>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">Hi <strong>@username</strong>,</p>
+                        <p className="text-xs whitespace-pre-wrap leading-relaxed text-foreground/80 mb-4">
+                          {emailMessage}
+                        </p>
+                        <div className="text-center">
+                          <span className="inline-block rounded-full bg-[#ff8845] px-6 py-2.5 text-xs font-bold text-white shadow-md uppercase tracking-wider">
+                            {emailButtonText || "List an Item Now"} →
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Send this email campaign to ${analytics?.summary?.users_without_listings ?? 0} members without listings?`,
+                            )
+                          ) {
+                            sendEmailMut.mutate();
+                          }
+                        }}
+                        disabled={
+                          sendEmailMut.isPending ||
+                          !emailSubject.trim() ||
+                          !emailHeading.trim() ||
+                          !emailMessage.trim() ||
+                          (analytics?.summary?.users_without_listings ?? 0) === 0
+                        }
+                        className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-8 py-3.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 transition disabled:opacity-50 cursor-pointer active:scale-95"
+                      >
+                        <Mail className="h-4 w-4" />
+                        {sendEmailMut.isPending
+                          ? "Sending Email Campaign…"
+                          : `Send Email to ${analytics?.summary?.users_without_listings ?? 0} Members`}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

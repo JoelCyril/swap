@@ -442,6 +442,40 @@ export const adminSendNotification = createServerFn({ method: "POST" })
       return { count: 1, message: `Notification sent to @${userProfile.username}` };
     }
 
+    if (data.target === "no_listings") {
+      const { data: listings } = await supabaseAdmin
+        .from("listings")
+        .select("owner_id")
+        .neq("status", "removed");
+      const usersWithListings = new Set((listings ?? []).map((l) => l.owner_id));
+
+      const { data: allProfiles, error: aErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id");
+      if (aErr) throw new Error(aErr.message);
+
+      const targetIds = (allProfiles ?? [])
+        .map((p) => p.id)
+        .filter((uid) => !usersWithListings.has(uid));
+
+      const rows = targetIds.map((uid) => ({
+        user_id: uid,
+        type: "admin_broadcast",
+        title: data.title,
+        body: data.body,
+        link: data.link || "/my-listings?add=true",
+        read: false,
+      }));
+
+      if (rows.length > 0) {
+        for (let i = 0; i < rows.length; i += 200) {
+          await supabaseAdmin.from("notifications").insert(rows.slice(i, i + 200) as any);
+        }
+      }
+
+      return { count: targetIds.length, message: `Notification sent to ${targetIds.length} users without listings` };
+    }
+
     // Target: all users
     const { data: allProfiles, error: aErr } = await supabaseAdmin
       .from("profiles")
@@ -466,5 +500,166 @@ export const adminSendNotification = createServerFn({ method: "POST" })
     }
 
     return { count: userIds.length, message: `Broadcast notification sent to ${userIds.length} users` };
+  });
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+export const adminEmailUsersWithoutListings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        subject: z.string().min(1, "Subject is required").max(120),
+        heading: z.string().min(1, "Heading is required").max(120),
+        message: z.string().min(1, "Message is required").max(3000),
+        buttonText: z.string().min(1).max(60).default("List an Item Now"),
+        buttonLink: z.string().default("/my-listings?add=true"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sendEmail, absoluteUrl } = await import("./email.server");
+
+    // 1. Fetch all user IDs that currently have listings
+    const { data: listings, error: listErr } = await supabaseAdmin
+      .from("listings")
+      .select("owner_id")
+      .neq("status", "removed");
+    if (listErr) throw new Error(listErr.message);
+
+    const usersWithListings = new Set((listings ?? []).map((l) => l.owner_id));
+
+    // 2. Fetch all registered users from auth
+    const { data: authUsers, error: authErr } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (authErr) throw new Error(authErr.message);
+
+    // 3. Filter users without listings
+    const targetUsers = (authUsers?.users ?? []).filter(
+      (u) => !usersWithListings.has(u.id) && u.email && u.email.includes("@"),
+    );
+
+    if (targetUsers.length === 0) {
+      return { count: 0, message: "All registered users already have active listings!" };
+    }
+
+    const actionUrl = data.buttonLink.startsWith("http")
+      ? data.buttonLink
+      : absoluteUrl(data.buttonLink);
+    const unsubscribeUrl = absoluteUrl("/settings");
+    const privacyUrl = absoluteUrl("/terms");
+
+    let sentCount = 0;
+    let failCount = 0;
+
+    // Send emails
+    for (const u of targetUsers) {
+      const email = u.email!;
+      const username = u.user_metadata?.username || u.email?.split("@")[0] || "Trader";
+
+      const html = `
+<!doctype html>
+<html>
+  <body style="margin:0; padding:0; background:#ffffff; font-family: 'Asap Sharp', 'Asap', Arial, Helvetica, sans-serif; color:#111111;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#ffffff;">
+      <tr>
+        <td align="center" style="padding:0 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; border-collapse:collapse; margin-top:20px;">
+            <tr>
+              <td style="background:#fff8ef; padding:32px; border-radius:24px; border:2px solid #fed7aa;">
+                <div style="text-align:center; margin-bottom:20px;">
+                  <span style="font-size:32px;">📦</span>
+                  <h1 style="margin:8px 0 0 0; font-size:24px; line-height:1.2; font-weight:900; color:#111111;">
+                    ${escapeHtml(data.heading)}
+                  </h1>
+                </div>
+
+                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.5; color:#374151;">
+                  Hi <strong>@${escapeHtml(username)}</strong>,
+                </p>
+
+                <div style="font-size:15px; line-height:1.6; color:#374151; white-space:pre-wrap; margin-bottom:24px;">${escapeHtml(data.message)}</div>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td align="center" style="padding:10px 0 20px 0;">
+                      <a href="${actionUrl}"
+                         style="display:inline-block; background:#ff8845; color:#ffffff; text-decoration:none; font-size:14px; font-weight:800; letter-spacing:0.5px; padding:14px 28px; border-radius:999px; box-shadow:0 4px 12px rgba(255,136,69,0.35); text-transform:uppercase;">
+                        ${escapeHtml(data.buttonText)} →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0; text-align:center; font-size:12px; line-height:1.4; color:#9ca3af;">
+                  SWAP UAE — Trade items without spending cash.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:16px 0 0 0; font-size:12px; line-height:1.4; color:#6b7280;">
+                <a href="${unsubscribeUrl}" style="color:#6b7280; text-decoration:underline;">Notification Settings</a>
+                <span> · </span>
+                <a href="${privacyUrl}" style="color:#6b7280; text-decoration:underline;">Privacy & Terms</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`;
+
+      const text = `Hi @${username},\n\n${data.heading}\n\n${data.message}\n\nList your item now: ${actionUrl}\n\nSWAP UAE`;
+
+      try {
+        await sendEmail({
+          to: email,
+          subject: data.subject,
+          html,
+          text,
+        });
+        sentCount++;
+      } catch (err) {
+        console.warn(`[Admin Campaign] Failed to send email to ${email}:`, err);
+        failCount++;
+      }
+    }
+
+    // In-app notification
+    const notifRows = targetUsers.map((u) => ({
+      user_id: u.id,
+      type: "admin_broadcast",
+      title: data.heading,
+      body: data.message.length > 150 ? `${data.message.slice(0, 147)}...` : data.message,
+      link: data.buttonLink || "/my-listings?add=true",
+      read: false,
+    }));
+
+    if (notifRows.length > 0) {
+      for (let i = 0; i < notifRows.length; i += 200) {
+        await supabaseAdmin.from("notifications").insert(notifRows.slice(i, i + 200) as any);
+      }
+    }
+
+    return {
+      count: sentCount,
+      failed: failCount,
+      total: targetUsers.length,
+      message: `Successfully emailed ${sentCount} user${sentCount === 1 ? "" : "s"} without listings!`,
+    };
   });
 
