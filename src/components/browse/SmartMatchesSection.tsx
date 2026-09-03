@@ -4,11 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSmartTradeMatches, type SmartMatch } from "@/lib/ai.functions";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
-import { Sparkles, ArrowRightLeft, MapPin, ChevronRight, Package, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRightLeft, MapPin, ChevronRight, Package, ArrowRight, EyeOff, Eye, X } from "lucide-react";
 
 export function SmartMatchesSection() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(() => getStoredSessionSync()?.user?.id ?? null);
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("swap_hide_smart_matches") === "true";
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
@@ -24,6 +28,39 @@ export function SmartMatchesSection() {
   });
 
   if (!userId) return null;
+
+  // Collapsed / Hidden State
+  if (isDismissed) {
+    return (
+      <div className="mb-6 flex items-center justify-between rounded-2xl border border-primary/20 bg-card/80 px-4 py-2.5 text-xs shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          <span className="font-bold text-foreground">AI Smart Matches</span>
+          {matches.length > 0 && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
+              {matches.length} found
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <Link to="/smart-matches" className="font-bold text-primary hover:underline inline-flex items-center gap-1">
+            View page <ArrowRight className="h-3 w-3" />
+          </Link>
+          <span className="text-muted-foreground/50">•</span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsDismissed(false);
+              localStorage.removeItem("swap_hide_smart_matches");
+            }}
+            className="inline-flex items-center gap-1 font-bold text-muted-foreground hover:text-primary transition cursor-pointer"
+          >
+            <Eye className="h-3.5 w-3.5" /> Show
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="mb-6 sm:mb-8 overflow-hidden rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-6 shadow-card">
@@ -42,7 +79,7 @@ export function SmartMatchesSection() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-auto shrink-0 flex-wrap">
           {matches.length > 0 && (
             <Link
               to="/smart-matches"
@@ -57,6 +94,17 @@ export function SmartMatchesSection() {
           >
             Inventory <ChevronRight className="h-3.5 w-3.5" />
           </Link>
+          <button
+            type="button"
+            title="Hide Smart Matches section"
+            onClick={() => {
+              setIsDismissed(true);
+              localStorage.setItem("swap_hide_smart_matches", "true");
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition cursor-pointer"
+          >
+            <EyeOff className="h-3 w-3" /> Hide
+          </button>
         </div>
       </div>
 
