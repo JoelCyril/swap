@@ -242,7 +242,7 @@ function ListingsPage() {
                 {q
                   ? `Results for “${q}”`
                   : active === "Collectors"
-                    ? "🏆 Collector's Items"
+                    ? "Collector's Items"
                     : active === "All"
                       ? signedIn
                         ? "For You"

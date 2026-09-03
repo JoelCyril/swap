@@ -22,20 +22,17 @@ export function CategoryBar({ active = "All", onChange }: Props) {
           All
         </button>
 
-        {/* 🏆 COLLECTORS - First Category with Cool Gold Glow */}
+        {/* COLLECTORS - First Category with Cool Gold Glow */}
         <button
           type="button"
           onClick={() => onChange?.("Collectors")}
-          className={`group relative shrink-0 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+          className={`group relative shrink-0 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center cursor-pointer ${
             active === "Collectors"
               ? "bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 text-amber-950 scale-105 ring-2 ring-white shadow-[0_0_22px_rgba(251,191,36,0.95)]"
               : "bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-amber-950 shadow-[0_0_15px_rgba(245,158,11,0.7)] border border-amber-200/60 hover:brightness-110 hover:scale-105"
           }`}
         >
-          <span className="relative flex items-center gap-1.5 drop-shadow-xs">
-            <span className="text-sm leading-none animate-bounce">🏆</span>
-            <span className="font-black tracking-wide">Collectors</span>
-          </span>
+          <span className="font-black tracking-wide drop-shadow-xs">Collectors</span>
         </button>
 
         {/* Regular Categories */}

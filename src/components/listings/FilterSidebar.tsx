@@ -135,10 +135,7 @@ function FilterPanel({
               : "border-border/60 bg-background/50 text-foreground/80 hover:border-amber-500/40 hover:bg-background"
           }`}
         >
-          <span className="flex items-center gap-1.5">
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px]">
-              🏆
-            </span>
+          <span className="font-bold">
             Collector's Items Only
           </span>
           <span

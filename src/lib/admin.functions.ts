@@ -135,7 +135,7 @@ export const adminToggleCollectorBadge = createServerFn({ method: "POST" })
       await notifyUser({
         userId: listing.owner_id,
         type: "system_announcement",
-        title: "🏆 Collector's Badge Awarded!",
+        title: "Collector's Badge Awarded",
         body: `Your listing "${listing.title}" has been awarded the Collector's Item badge by the moderators!`,
         link: `/listings/${listing.id}`,
       });

@@ -255,8 +255,8 @@ function ListingDetailPage() {
 
             <div className="mt-6 min-w-0">
               {listing.moderation_note?.includes("COLLECTOR") && (
-                <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/25 to-amber-600/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 shadow-2xs">
-                  <span>🏆</span> Verified Collector's Item
+                <div className="mb-2.5 inline-flex items-center rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/25 to-amber-600/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 shadow-2xs">
+                  Verified Collector's Item
                 </div>
               )}
 
@@ -271,14 +271,14 @@ function ListingDetailPage() {
               {/* Moderator Controls Box */}
               {isAdmin && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-3.5 shadow-2xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🛡️</span>
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
                         Moderator Controls
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        Status: <strong className="text-foreground">{listing.moderation_note?.includes("COLLECTOR") ? "🏆 Collector's Item Awarded" : "Standard Listing"}</strong>
+                        Status: <strong className="text-foreground">{listing.moderation_note?.includes("COLLECTOR") ? "Collector's Item Awarded" : "Standard Listing"}</strong>
                       </p>
                     </div>
                   </div>
@@ -286,13 +286,13 @@ function ListingDetailPage() {
                     type="button"
                     onClick={() => toggleCollectorMut.mutate()}
                     disabled={toggleCollectorMut.isPending}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95 cursor-pointer ${
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95 cursor-pointer ${
                       listing.moderation_note?.includes("COLLECTOR")
                         ? "bg-rose-600 hover:bg-rose-700"
                         : "bg-amber-600 hover:bg-amber-700 shadow-glow"
                     }`}
                   >
-                    🏆 {listing.moderation_note?.includes("COLLECTOR") ? "Remove Collector's Badge" : "Award Collector's Badge"}
+                    {listing.moderation_note?.includes("COLLECTOR") ? "Remove Collector's Badge" : "Award Collector's Badge"}
                   </button>
                 </div>
               )}

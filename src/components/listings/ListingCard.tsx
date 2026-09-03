@@ -90,13 +90,19 @@ export function ListingCard({
     openListing();
   }
 
+  const isCollector = Boolean(listing.moderation_note?.includes("COLLECTOR"));
+
   return (
     <article
       role="link"
       tabIndex={0}
       onClick={openListing}
       onKeyDown={handleCardKeyDown}
-      className="group relative flex min-w-0 flex-col rounded-md border-2 border-primary/25 bg-card p-3 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-card-hover"
+      className={`group relative flex min-w-0 flex-col rounded-md border-2 bg-card p-3 transition-all duration-300 hover:-translate-y-1 ${
+        isCollector
+          ? "border-amber-400 bg-gradient-to-b from-amber-500/[0.04] to-transparent shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-300 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/50"
+          : "border-primary/25 shadow-card hover:border-primary hover:shadow-card-hover"
+      }`}
     >
       <div className={`relative aspect-[4/3] overflow-hidden rounded-sm bg-gradient-to-br ${gradientForId(listing.id)}`}>
         {!isOwner && (
@@ -122,12 +128,12 @@ export function ListingCard({
           <Flag className={`h-4 w-4 transition ${reported ? "fill-destructive text-destructive" : "text-primary/70"}`} />
         </button>
 
-        {listing.moderation_note?.includes("COLLECTOR") && (
+        {isCollector && (
           <div
             title="Verified Collector's Item awarded by SWAP moderators"
-            className={`absolute top-2 ${!isOwner ? "left-12" : "left-2"} z-10 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md shadow-amber-500/30 ring-1 ring-amber-300/70 select-none`}
+            className={`absolute top-2 ${!isOwner ? "left-12" : "left-2"} z-10 flex items-center rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.6)] ring-1 ring-amber-200/80 select-none`}
           >
-            <span>🏆</span> Collector's
+            Collector's
           </div>
         )}
         {listing.image_urls && listing.image_urls.length > 0 ? (
