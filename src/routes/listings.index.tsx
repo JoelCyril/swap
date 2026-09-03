@@ -39,7 +39,7 @@ export const Route = createFileRoute("/listings/")({
 function ListingsPage() {
   const { q } = Route.useSearch();
   const qc = useQueryClient();
-  const [active, setActive] = useState<ItemCategory | "All">("All");
+  const [active, setActive] = useState<ItemCategory | "All" | "Collectors">("All");
   const [userId, setUserId] = useState<string | null>(() => getStoredSessionSync()?.user?.id ?? null);
   const [hidden, setHidden] = useState<string[]>([]);
   const [conditions, setConditions] = useState<ItemCondition[]>([]);
@@ -101,7 +101,7 @@ function ListingsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["listings", active],
-    queryFn: () => fn({ data: { category: active === "All" ? null : active } }),
+    queryFn: () => fn({ data: { category: active === "All" || active === "Collectors" ? null : active } }),
   });
   const { data: savedIds } = useQuery({
     queryKey: ["my-fav-ids", userId],
@@ -159,6 +159,7 @@ function ListingsPage() {
     .filter((l) => conditions.length === 0 || conditions.includes(l.condition))
     .filter((l) => !emirate || l.emirate === emirate || (!l.emirate && emirateOf(l.location) === emirate))
     .filter((l) => !collectorsOnly || isCollectorListing(l))
+    .filter((l) => active !== "Collectors" || isCollectorListing(l))
     .filter((l) =>
       !term
         ? true
@@ -240,11 +241,13 @@ function ListingsPage() {
               <h1 className="font-display text-2xl font-black sm:text-3xl">
                 {q
                   ? `Results for “${q}”`
-                  : active === "All"
-                    ? signedIn
-                      ? "For You"
-                      : "All listings"
-                    : active}
+                  : active === "Collectors"
+                    ? "🏆 Collector's Items"
+                    : active === "All"
+                      ? signedIn
+                        ? "For You"
+                        : "All listings"
+                      : active}
               </h1>
             </div>
             <div className="flex items-center gap-2">
