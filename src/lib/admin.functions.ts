@@ -94,6 +94,61 @@ export const adminRemoveListing = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const adminToggleCollectorBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: listing, error: fetchErr } = await context.supabase
+      .from("listings")
+      .select("id, owner_id, title, moderation_note")
+      .eq("id", data.id)
+      .single();
+
+    if (fetchErr || !listing) throw new Error("Listing not found");
+
+    const isCollector = Boolean(listing.moderation_note?.includes("COLLECTOR"));
+    let nextNote: string | null = null;
+
+    if (isCollector) {
+      // Remove badge
+      nextNote = (listing.moderation_note || "")
+        .replace(/\[?COLLECTOR(?:_ITEM)?\]?/gi, "")
+        .trim();
+      if (!nextNote) nextNote = null;
+    } else {
+      // Add badge
+      nextNote = listing.moderation_note
+        ? `${listing.moderation_note} [COLLECTOR_ITEM]`.trim()
+        : "[COLLECTOR_ITEM]";
+    }
+
+    const { error } = await context.supabase
+      .from("listings")
+      .update({ moderation_note: nextNote })
+      .eq("id", data.id);
+
+    if (error) throw new Error(error.message);
+
+    // If newly awarded, notify owner
+    if (!isCollector) {
+      await notifyUser({
+        userId: listing.owner_id,
+        type: "system_announcement",
+        title: "🏆 Collector's Badge Awarded!",
+        body: `Your listing "${listing.title}" has been awarded the Collector's Item badge by the moderators!`,
+        link: `/listings/${listing.id}`,
+      });
+    }
+
+    return {
+      isCollector: !isCollector,
+      message: !isCollector
+        ? "Awarded Collector's Item badge"
+        : "Removed Collector's Item badge",
+    };
+  });
+
 export const redeemAdminCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { code: string }) => z.object({ code: z.string().min(4) }).parse(d))

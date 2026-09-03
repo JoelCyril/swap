@@ -14,6 +14,8 @@ interface Props {
   signedIn: boolean;
   sort: SortKey;
   onSort: (s: SortKey) => void;
+  collectorsOnly?: boolean;
+  onToggleCollectorsOnly?: () => void;
   onReset: () => void;
 }
 
@@ -40,7 +42,11 @@ export function FilterSidebar(props: Props) {
 
 export function MobileFilters(props: Props) {
   const [open, setOpen] = useState(false);
-  const activeFiltersCount = props.conditions.length + (props.emirate ? 1 : 0) + (props.sort !== "shuffle" ? 1 : 0);
+  const activeFiltersCount =
+    props.conditions.length +
+    (props.emirate ? 1 : 0) +
+    (props.sort !== "shuffle" ? 1 : 0) +
+    (props.collectorsOnly ? 1 : 0);
 
   return (
     <div className="lg:hidden">
@@ -87,9 +93,11 @@ function FilterPanel({
   onEmirate,
   sort,
   onSort,
+  collectorsOnly,
+  onToggleCollectorsOnly,
   onReset,
 }: Props) {
-  const isFiltered = conditions.length > 0 || !!emirate || sort !== "shuffle";
+  const isFiltered = conditions.length > 0 || !!emirate || sort !== "shuffle" || !!collectorsOnly;
 
   return (
     <div className="space-y-4">
@@ -106,11 +114,41 @@ function FilterPanel({
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline transition"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline transition cursor-pointer"
           >
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
         )}
+      </div>
+
+      {/* Collector's Item Special Filter */}
+      <div>
+        <h4 className="mb-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+          Curated Badges
+        </h4>
+        <button
+          type="button"
+          onClick={onToggleCollectorsOnly}
+          className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold transition cursor-pointer select-none ${
+            collectorsOnly
+              ? "border-amber-500 bg-amber-500/15 text-amber-900 dark:text-amber-300 font-black shadow-2xs"
+              : "border-border/60 bg-background/50 text-foreground/80 hover:border-amber-500/40 hover:bg-background"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="grid h-4 w-4 place-items-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px]">
+              🏆
+            </span>
+            Collector's Items Only
+          </span>
+          <span
+            className={`grid h-3.5 w-3.5 place-items-center rounded-full border transition ${
+              collectorsOnly ? "border-amber-500 bg-amber-500 text-white" : "border-muted-foreground/40 bg-transparent"
+            }`}
+          >
+            {collectorsOnly && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+          </span>
+        </button>
       </div>
 
       {/* Condition (Interactive Pills Grid) */}

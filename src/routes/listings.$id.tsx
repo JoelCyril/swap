@@ -10,7 +10,8 @@ import { listMyItems } from "@/lib/items.functions";
 import { createOffer } from "@/lib/offers.functions";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
-import { getPublicProfile } from "@/lib/profile.functions";
+import { getPublicProfile, getMyProfile } from "@/lib/profile.functions";
+import { adminToggleCollectorBadge } from "@/lib/admin.functions";
 import { trackListingView } from "@/lib/views.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
@@ -121,6 +122,24 @@ function ListingDetailPage() {
   });
 
   const blockedIds = useBlockedIds();
+  const meFn = useServerFn(getMyProfile);
+  const { data: myProfile } = useQuery({
+    queryKey: ["me-profile-role"],
+    queryFn: () => meFn(),
+    enabled: !!signedIn,
+  });
+  const isAdmin = Boolean(myProfile?.roles?.includes("admin"));
+
+  const toggleCollectorFn = useServerFn(adminToggleCollectorBadge);
+  const toggleCollectorMut = useMutation({
+    mutationFn: () => toggleCollectorFn({ data: { id } }),
+    onSuccess: (res) => {
+      toast.success(res.message);
+      qc.invalidateQueries({ queryKey: ["listing", id] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to toggle badge"),
+  });
 
   const deleteMut = useMutation({
     mutationFn: () => removeListing({ data: { id } }),
@@ -235,6 +254,12 @@ function ListingDetailPage() {
 
 
             <div className="mt-6 min-w-0">
+              {listing.moderation_note?.includes("COLLECTOR") && (
+                <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/25 to-amber-600/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 shadow-2xs">
+                  <span>🏆</span> Verified Collector's Item
+                </div>
+              )}
+
               <h1 className="font-display text-2xl font-black break-words sm:text-3xl lg:text-4xl">{listing.title}</h1>
 
               <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
@@ -242,6 +267,36 @@ function ListingDetailPage() {
                 <span>· {listing.category}</span>
                 <span>· {timeAgo(listing.created_at)}</span>
               </div>
+
+              {/* Moderator Controls Box */}
+              {isAdmin && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🛡️</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                        Moderator Controls
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Status: <strong className="text-foreground">{listing.moderation_note?.includes("COLLECTOR") ? "🏆 Collector's Item Awarded" : "Standard Listing"}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleCollectorMut.mutate()}
+                    disabled={toggleCollectorMut.isPending}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95 cursor-pointer ${
+                      listing.moderation_note?.includes("COLLECTOR")
+                        ? "bg-rose-600 hover:bg-rose-700"
+                        : "bg-amber-600 hover:bg-amber-700 shadow-glow"
+                    }`}
+                  >
+                    🏆 {listing.moderation_note?.includes("COLLECTOR") ? "Remove Collector's Badge" : "Award Collector's Badge"}
+                  </button>
+                </div>
+              )}
+
               {listing.description && (
                 <p className="mt-4 text-foreground/80 whitespace-pre-wrap">{listing.description}</p>
               )}

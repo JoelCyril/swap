@@ -44,6 +44,7 @@ export const listListings = createServerFn({ method: "GET" })
   image_urls,
   image_emoji,
   status,
+  moderation_note,
   created_at,
   owner:profiles!listings_owner_profile_fkey(
     id,
@@ -70,6 +71,11 @@ export const listListings = createServerFn({ method: "GET" })
     return repaired;
   });
 
+export function isCollectorListing(listing: { moderation_note?: string | null } | null | undefined): boolean {
+  if (!listing || !listing.moderation_note) return false;
+  return listing.moderation_note.includes("COLLECTOR");
+}
+
 export const getListing = createServerFn({ method: "GET" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
@@ -89,6 +95,7 @@ export const getListing = createServerFn({ method: "GET" })
   image_urls,
   image_emoji,
   status,
+  moderation_note,
   created_at,
   updated_at,
   item_id,

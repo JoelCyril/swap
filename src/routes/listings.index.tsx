@@ -11,7 +11,7 @@ import { InterestPicker } from "@/components/InterestPicker";
 import { FilterSidebar, MobileFilters, type SortKey } from "@/components/listings/FilterSidebar";
 import { ListingCard } from "@/components/listings/ListingCard";
 import { SmartMatchesSection } from "@/components/browse/SmartMatchesSection";
-import { listListings } from "@/lib/listings.functions";
+import { listListings, isCollectorListing } from "@/lib/listings.functions";
 import { listMyFavouriteIds } from "@/lib/favourites.functions";
 import { listMyFlaggedListingIds } from "@/lib/flags.functions";
 import { searchProfiles, getMyProfile } from "@/lib/profile.functions";
@@ -45,6 +45,7 @@ function ListingsPage() {
   const [conditions, setConditions] = useState<ItemCondition[]>([]);
   const [emirate, setEmirate] = useState("");
   const [sort, setSort] = useState<SortKey>("shuffle");
+  const [collectorsOnly, setCollectorsOnly] = useState(false);
   const [interestPromptDismissed, setInterestPromptDismissed] = useState(false);
   const [interestPromptSkipped, setInterestPromptSkipped] = useState(false);
   const [localInterests, setLocalInterests] = useState<ItemCategory[]>([]);
@@ -157,6 +158,7 @@ function ListingsPage() {
 
     .filter((l) => conditions.length === 0 || conditions.includes(l.condition))
     .filter((l) => !emirate || l.emirate === emirate || (!l.emirate && emirateOf(l.location) === emirate))
+    .filter((l) => !collectorsOnly || isCollectorListing(l))
     .filter((l) =>
       !term
         ? true
@@ -222,10 +224,13 @@ function ListingsPage() {
           signedIn={signedIn}
           sort={sort}
           onSort={setSort}
+          collectorsOnly={collectorsOnly}
+          onToggleCollectorsOnly={() => setCollectorsOnly((prev) => !prev)}
           onReset={() => {
             setConditions([]);
             setEmirate("");
             setSort("shuffle");
+            setCollectorsOnly(false);
           }}
         />
 
@@ -270,10 +275,13 @@ function ListingsPage() {
               signedIn={signedIn}
               sort={sort}
               onSort={setSort}
+              collectorsOnly={collectorsOnly}
+              onToggleCollectorsOnly={() => setCollectorsOnly((prev) => !prev)}
               onReset={() => {
                 setConditions([]);
                 setEmirate("");
                 setSort("shuffle");
+                setCollectorsOnly(false);
               }}
             />
           </div>

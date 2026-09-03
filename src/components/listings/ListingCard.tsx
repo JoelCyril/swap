@@ -121,6 +121,15 @@ export function ListingCard({
         >
           <Flag className={`h-4 w-4 transition ${reported ? "fill-destructive text-destructive" : "text-primary/70"}`} />
         </button>
+
+        {listing.moderation_note?.includes("COLLECTOR") && (
+          <div
+            title="Verified Collector's Item awarded by SWAP moderators"
+            className={`absolute top-2 ${!isOwner ? "left-12" : "left-2"} z-10 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md shadow-amber-500/30 ring-1 ring-amber-300/70 select-none`}
+          >
+            <span>🏆</span> Collector's
+          </div>
+        )}
         {listing.image_urls && listing.image_urls.length > 0 ? (
           <img
             src={listing.image_urls[0]}
