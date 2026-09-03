@@ -244,6 +244,20 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       .select("id, from_user, to_user, listing_id, status, created_at, updated_at");
     if (oErr) throw new Error(oErr.message);
 
+    // 5. Fetch email notification logs to compute 7-day cooldowns
+    const { data: emailNotifs } = await supabaseAdmin
+      .from("notifications")
+      .select("user_id, created_at")
+      .in("type", ["admin_nudge_email", "admin_broadcast_email"])
+      .order("created_at", { ascending: false });
+
+    const lastEmailByUser = new Map<string, string>();
+    for (const n of emailNotifs ?? []) {
+      if (!lastEmailByUser.has(n.user_id)) {
+        lastEmailByUser.set(n.user_id, n.created_at);
+      }
+    }
+
     const allProfiles = profiles ?? [];
     const allListings = listings ?? [];
     const allItems = items ?? [];
@@ -361,6 +375,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         has_completed_trade: tradeStats.completedTrades > 0,
         last_listing_at: listingStats.lastListingAt,
         last_trade_at: tradeStats.lastTradeAt,
+        last_email_sent_at: lastEmailByUser.get(p.id) || null,
       };
     });
 
@@ -639,10 +654,10 @@ export const adminEmailUsersWithoutListings = createServerFn({ method: "POST" })
       }
     }
 
-    // In-app notification
+    // In-app notification & cooldown log
     const notifRows = targetUsers.map((u) => ({
       user_id: u.id,
-      type: "admin_broadcast",
+      type: "admin_nudge_email",
       title: data.heading,
       body: data.message.length > 150 ? `${data.message.slice(0, 147)}...` : data.message,
       link: data.buttonLink || "/my-listings?add=true",
@@ -660,6 +675,151 @@ export const adminEmailUsersWithoutListings = createServerFn({ method: "POST" })
       failed: failCount,
       total: targetUsers.length,
       message: `Successfully emailed ${sentCount} user${sentCount === 1 ? "" : "s"} without listings!`,
+    };
+  });
+
+export const adminEmailIndividualUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        subject: z.string().optional(),
+        heading: z.string().optional(),
+        message: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sendEmail, absoluteUrl } = await import("./email.server");
+
+    // 1. Check last email sent within 7 days
+    const { data: recentNotif } = await supabaseAdmin
+      .from("notifications")
+      .select("created_at")
+      .eq("user_id", data.userId)
+      .in("type", ["admin_nudge_email", "admin_broadcast_email"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recentNotif) {
+      const diffMs = Date.now() - new Date(recentNotif.created_at).getTime();
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      if (diffMs < sevenDaysMs) {
+        const remainingDays = Math.ceil((sevenDaysMs - diffMs) / (24 * 60 * 60 * 1000));
+        throw new Error(
+          `This user was already emailed recently. 7-day cooldown active: please wait ${remainingDays} more day(s).`,
+        );
+      }
+    }
+
+    // 2. Fetch auth user for email address
+    const { data: authUser, error: uErr } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+    if (uErr || !authUser?.user?.email) {
+      throw new Error("Could not retrieve user email address");
+    }
+
+    // 3. Fetch profile
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("username, display_name")
+      .eq("id", data.userId)
+      .maybeSingle();
+
+    const username = profile?.display_name || profile?.username || authUser.user.user_metadata?.username || "Trader";
+    const email = authUser.user.email;
+
+    const subject = data.subject || "List your first item on SWAP — Trade easily across UAE 📦";
+    const heading = data.heading || "Turn your unused items into something you love";
+    const message =
+      data.message ||
+      "You joined SWAP, but haven't listed any items yet!\n\nListing takes less than 30 seconds with our instant camera auto-fill. Start swapping electronics, accessories, books, and more with UAE members without spending money.";
+
+    const actionUrl = absoluteUrl("/my-listings?add=true");
+    const unsubscribeUrl = absoluteUrl("/settings");
+    const privacyUrl = absoluteUrl("/terms");
+
+    const html = `
+<!doctype html>
+<html>
+  <body style="margin:0; padding:0; background:#ffffff; font-family: 'Asap Sharp', 'Asap', Arial, Helvetica, sans-serif; color:#111111;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#ffffff;">
+      <tr>
+        <td align="center" style="padding:0 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; border-collapse:collapse; margin-top:20px;">
+            <tr>
+              <td style="background:#fff8ef; padding:32px; border-radius:24px; border:2px solid #fed7aa;">
+                <div style="text-align:center; margin-bottom:20px;">
+                  <span style="font-size:32px;">📦</span>
+                  <h1 style="margin:8px 0 0 0; font-size:24px; line-height:1.2; font-weight:900; color:#111111;">
+                    ${escapeHtml(heading)}
+                  </h1>
+                </div>
+
+                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.5; color:#374151;">
+                  Hi <strong>@${escapeHtml(username)}</strong>,
+                </p>
+
+                <div style="font-size:15px; line-height:1.6; color:#374151; white-space:pre-wrap; margin-bottom:24px;">${escapeHtml(message)}</div>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td align="center" style="padding:10px 0 20px 0;">
+                      <a href="${actionUrl}"
+                         style="display:inline-block; background:#ff8845; color:#ffffff; text-decoration:none; font-size:14px; font-weight:800; letter-spacing:0.5px; padding:14px 28px; border-radius:999px; box-shadow:0 4px 12px rgba(255,136,69,0.35); text-transform:uppercase;">
+                        List an Item Now →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0; text-align:center; font-size:12px; line-height:1.4; color:#9ca3af;">
+                  SWAP UAE — Trade items without spending cash.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:16px 0 0 0; font-size:12px; line-height:1.4; color:#6b7280;">
+                <a href="${unsubscribeUrl}" style="color:#6b7280; text-decoration:underline;">Notification Settings</a>
+                <span> · </span>
+                <a href="${privacyUrl}" style="color:#6b7280; text-decoration:underline;">Privacy & Terms</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`;
+
+    const text = `Hi @${username},\n\n${heading}\n\n${message}\n\nList your item now: ${actionUrl}\n\nSWAP UAE`;
+
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+
+    // Save in notifications as admin_nudge_email to start 7-day cooldown
+    await supabaseAdmin.from("notifications").insert({
+      user_id: data.userId,
+      type: "admin_nudge_email",
+      title: heading,
+      body: message.length > 150 ? `${message.slice(0, 147)}...` : message,
+      link: "/my-listings?add=true",
+      read: false,
+    });
+
+    return {
+      ok: true,
+      sent_at: new Date().toISOString(),
+      message: `Reminder email successfully sent to @${username}!`,
     };
   });
 

@@ -17,6 +17,7 @@ import {
   getModeratorAnalytics,
   adminSendNotification,
   adminEmailUsersWithoutListings,
+  adminEmailIndividualUser,
 } from "@/lib/admin.functions";
 import { liftBan } from "@/lib/bans.functions";
 import { getMyProfile } from "@/lib/profile.functions";
@@ -71,6 +72,7 @@ function AdminPage() {
   const liftFn = useServerFn(liftBan);
   const sendNotifFn = useServerFn(adminSendNotification);
   const emailCampaignFn = useServerFn(adminEmailUsersWithoutListings);
+  const emailSingleUserFn = useServerFn(adminEmailIndividualUser);
 
   const [channelMode, setChannelMode] = useState<"notification" | "email">("notification");
   const [notifTarget, setNotifTarget] = useState<"all" | "no_listings" | "user">("all");
@@ -78,6 +80,7 @@ function AdminPage() {
   const [notifTitle, setNotifTitle] = useState("");
   const [notifBody, setNotifBody] = useState("");
   const [notifLink, setNotifLink] = useState("");
+  const [sendingSingleUserId, setSendingSingleUserId] = useState<string | null>(null);
 
   // Email Campaign States (for users without listings)
   const [emailSubject, setEmailSubject] = useState("List your first item on SWAP — Trade easily across UAE 📦");
@@ -124,8 +127,22 @@ function AdminPage() {
       toast.success(res.message, {
         description: res.failed > 0 ? `Delivered: ${res.count}, Failed: ${res.failed}` : undefined,
       });
+      qc.invalidateQueries({ queryKey: ["admin-analytics"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to send email campaign"),
+  });
+
+  const sendSingleEmailMut = useMutation({
+    mutationFn: (user: any) => {
+      setSendingSingleUserId(user.id);
+      return emailSingleUserFn({ data: { userId: user.id } });
+    },
+    onSuccess: (res) => {
+      toast.success(res.message);
+      qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to send email"),
+    onSettled: () => setSendingSingleUserId(null),
   });
 
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => me() });
@@ -262,6 +279,12 @@ function AdminPage() {
               <AnalyticsPanel
                 data={analytics}
                 isLoading={isAnalyticsLoading}
+                sendingUserId={sendingSingleUserId}
+                onSendUserEmail={(user) => {
+                  if (confirm(`Send reminder email to @${user.username} to list their items?`)) {
+                    sendSingleEmailMut.mutate(user);
+                  }
+                }}
                 onEmailNoListings={() => {
                   setTab("broadcast");
                   setChannelMode("email");

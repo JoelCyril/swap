@@ -15,6 +15,7 @@ import {
   Clock,
   CheckCircle2,
   Calendar,
+  Mail,
 } from "lucide-react";
 import { timeAgo, gradientForId, handle } from "@/lib/db-types";
 
@@ -37,6 +38,7 @@ type UserRow = {
   has_completed_trade: boolean;
   last_listing_at: string | null;
   last_trade_at: string | null;
+  last_email_sent_at: string | null;
 };
 
 type AnalyticsData = {
@@ -65,10 +67,14 @@ export function AnalyticsPanel({
   data,
   isLoading,
   onEmailNoListings,
+  onSendUserEmail,
+  sendingUserId,
 }: {
   data: AnalyticsData | undefined;
   isLoading: boolean;
   onEmailNoListings?: () => void;
+  onSendUserEmail?: (user: UserRow) => void;
+  sendingUserId?: string | null;
 }) {
   const [filter, setFilter] = useState<MemberFilter>("all");
   const [search, setSearch] = useState("");
@@ -381,6 +387,48 @@ export function AnalyticsPanel({
                   <span className="text-xs text-muted-foreground font-medium hidden md:inline">
                     {user.inventory_items} item{user.inventory_items === 1 ? "" : "s"} in inventory
                   </span>
+
+                  {/* 7-Day Cooldown Nudge Email Button */}
+                  {(() => {
+                    const lastSent = user.last_email_sent_at ? new Date(user.last_email_sent_at).getTime() : 0;
+                    const diffMs = Date.now() - lastSent;
+                    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+                    const inCooldown = lastSent > 0 && diffMs < sevenDaysMs;
+                    const daysLeft = Math.ceil((sevenDaysMs - diffMs) / (24 * 60 * 60 * 1000));
+
+                    if (inCooldown) {
+                      return (
+                        <button
+                          type="button"
+                          disabled
+                          title={`Email sent ${timeAgo(user.last_email_sent_at!)}. Cooldown active for ${daysLeft} more day(s).`}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/70 px-3 py-1 text-xs font-bold text-muted-foreground cursor-not-allowed opacity-70"
+                        >
+                          <Mail className="h-3 w-3" /> Emailed ({daysLeft}d left)
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        type="button"
+                        disabled={sendingUserId === user.id}
+                        onClick={() => onSendUserEmail?.(user)}
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 transition cursor-pointer active:scale-95 shadow-sm"
+                      >
+                        {sendingUserId === user.id ? (
+                          <>
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+                            Sending…
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="h-3 w-3" /> Nudge Email
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
 
                   {/* Profile Link */}
                   <Link
