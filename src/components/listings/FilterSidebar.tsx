@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 import { EMIRATES, CONDITIONS, type ItemCondition } from "@/lib/db-types";
 import { InquiryUpdates } from "@/components/support/InquiryUpdates";
+import { WantedSidebarWidget } from "@/components/wanted/WantedSidebarWidget";
 
 export type SortKey = "shuffle" | "newest" | "oldest" | "nearest";
 
@@ -27,10 +28,13 @@ const SORTS: { key: SortKey; label: string }[] = [
 export function FilterSidebar(props: Props) {
   return (
     <aside className="hidden lg:block w-64 shrink-0">
-      <div className="sticky top-40 flex flex-col gap-4 rounded-3xl border-2 border-primary/20 bg-card p-5 shadow-card">
-        <FilterPanel {...props} />
+      <div className="sticky top-24 flex flex-col gap-2">
+        <div className="rounded-3xl border-2 border-primary/20 bg-card p-5 shadow-card">
+          <FilterPanel {...props} />
+        </div>
+        <WantedSidebarWidget signedIn={props.signedIn} />
+        <InquiryUpdates signedIn={props.signedIn} placement="sidebar" />
       </div>
-      <InquiryUpdates signedIn={props.signedIn} placement="sidebar" />
     </aside>
   );
 }
@@ -54,6 +58,7 @@ export function MobileFilters(props: Props) {
           >
             <div className="flex flex-col gap-4">
               <FilterPanel {...props} />
+              <WantedSidebarWidget signedIn={props.signedIn} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
