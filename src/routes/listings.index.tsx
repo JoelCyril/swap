@@ -191,11 +191,6 @@ function ListingsPage() {
         const hash = (id: string) => Math.abs(Math.sin([...id].reduce((s, c) => s + c.charCodeAt(0), 0) * (seed + 1)));
         return hash(a.id) - hash(b.id);
       }
-      if (sort === "nearest" && myLocation) {
-        const rank = (l: typeof a) => (l.location === myLocation ? 0 : 1);
-        const diff = rank(a) - rank(b);
-        if (diff !== 0) return diff;
-      }
       const at = new Date(a.created_at).getTime();
       const bt = new Date(b.created_at).getTime();
       return sort === "oldest" ? at - bt : bt - at;

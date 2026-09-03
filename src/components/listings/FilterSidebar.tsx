@@ -4,7 +4,7 @@ import { EMIRATES, CONDITIONS, type ItemCondition } from "@/lib/db-types";
 import { InquiryUpdates } from "@/components/support/InquiryUpdates";
 import { WantedSidebarWidget } from "@/components/wanted/WantedSidebarWidget";
 
-export type SortKey = "shuffle" | "newest" | "oldest" | "nearest";
+export type SortKey = "shuffle" | "newest" | "oldest";
 
 interface Props {
   conditions: ItemCondition[];
@@ -21,7 +21,6 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "shuffle", label: "Shuffled" },
   { key: "newest", label: "Newest first" },
   { key: "oldest", label: "Oldest first" },
-  { key: "nearest", label: "Nearest to me" },
 ];
 
 
