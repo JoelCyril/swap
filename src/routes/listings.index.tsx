@@ -45,7 +45,6 @@ function ListingsPage() {
   const [conditions, setConditions] = useState<ItemCondition[]>([]);
   const [emirate, setEmirate] = useState("");
   const [sort, setSort] = useState<SortKey>("shuffle");
-  const [collectorsOnly, setCollectorsOnly] = useState(false);
   const [interestPromptDismissed, setInterestPromptDismissed] = useState(false);
   const [interestPromptSkipped, setInterestPromptSkipped] = useState(false);
   const [localInterests, setLocalInterests] = useState<ItemCategory[]>([]);
@@ -158,7 +157,6 @@ function ListingsPage() {
 
     .filter((l) => conditions.length === 0 || conditions.includes(l.condition))
     .filter((l) => !emirate || l.emirate === emirate || (!l.emirate && emirateOf(l.location) === emirate))
-    .filter((l) => !collectorsOnly || isCollectorListing(l))
     .filter((l) => active !== "Collectors" || isCollectorListing(l))
     .filter((l) =>
       !term
@@ -225,13 +223,10 @@ function ListingsPage() {
           signedIn={signedIn}
           sort={sort}
           onSort={setSort}
-          collectorsOnly={collectorsOnly}
-          onToggleCollectorsOnly={() => setCollectorsOnly((prev) => !prev)}
           onReset={() => {
             setConditions([]);
             setEmirate("");
             setSort("shuffle");
-            setCollectorsOnly(false);
           }}
         />
 
@@ -278,13 +273,10 @@ function ListingsPage() {
               signedIn={signedIn}
               sort={sort}
               onSort={setSort}
-              collectorsOnly={collectorsOnly}
-              onToggleCollectorsOnly={() => setCollectorsOnly((prev) => !prev)}
               onReset={() => {
                 setConditions([]);
                 setEmirate("");
                 setSort("shuffle");
-                setCollectorsOnly(false);
               }}
             />
           </div>

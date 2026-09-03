@@ -98,13 +98,13 @@ export function ListingCard({
       tabIndex={0}
       onClick={openListing}
       onKeyDown={handleCardKeyDown}
-      className={`group relative flex min-w-0 flex-col rounded-md border-2 bg-card p-3 transition-all duration-300 hover:-translate-y-1 ${
+      className={`group relative flex min-w-0 flex-col rounded-md border-2 bg-card p-3 transition-all duration-300 hover:-translate-y-1.5 ${
         isCollector
-          ? "border-amber-400 bg-gradient-to-b from-amber-500/[0.04] to-transparent shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-300 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/50"
+          ? "border-amber-400/90 bg-gradient-to-b from-amber-400/[0.08] via-card to-card shadow-[0_0_24px_rgba(245,158,11,0.42),0_0_50px_rgba(251,191,36,0.22)] ring-1 ring-amber-400/60 hover:border-amber-300 hover:ring-2 hover:ring-amber-300/80 hover:shadow-[0_0_35px_rgba(245,158,11,0.7),0_0_65px_rgba(251,191,36,0.38)]"
           : "border-primary/25 shadow-card hover:border-primary hover:shadow-card-hover"
       }`}
     >
-      <div className={`relative aspect-[4/3] overflow-hidden rounded-sm bg-gradient-to-br ${gradientForId(listing.id)}`}>
+      <div className={`relative aspect-[4/3] overflow-hidden rounded-sm bg-gradient-to-br ${gradientForId(listing.id)} ${isCollector ? "ring-1 ring-amber-400/60" : ""}`}>
         {!isOwner && (
         <button
           type="button"
@@ -131,7 +131,7 @@ export function ListingCard({
         {isCollector && (
           <div
             title="Verified Collector's Item awarded by SWAP moderators"
-            className={`absolute top-2 ${!isOwner ? "left-12" : "left-2"} z-10 flex items-center rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.6)] ring-1 ring-amber-200/80 select-none`}
+            className={`absolute top-2 ${!isOwner ? "left-12" : "left-2"} z-10 flex items-center rounded-full bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-950 shadow-[0_0_15px_rgba(251,191,36,0.9)] border border-yellow-100/90 select-none`}
           >
             Collector's
           </div>
