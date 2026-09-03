@@ -42,12 +42,22 @@ export function SmartMatchesSection() {
           </div>
         </div>
 
-        <Link
-          to="/my-listings"
-          className="self-start sm:self-auto text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 shrink-0"
-        >
-          My Inventory <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+          {matches.length > 0 && (
+            <Link
+              to="/smart-matches"
+              className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition shadow-2xs inline-flex items-center gap-1"
+            >
+              View all ({matches.length}) <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+          <Link
+            to="/my-listings"
+            className="text-xs font-bold text-muted-foreground hover:text-primary transition inline-flex items-center gap-1"
+          >
+            Inventory <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
 
       {/* Content */}
@@ -73,91 +83,109 @@ export function SmartMatchesSection() {
           </Link>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {matches.map((m: SmartMatch, idx: number) => (
-            <div
-              key={idx}
-              className="group relative flex flex-col justify-between rounded-2xl border-2 border-primary/20 bg-card p-3 sm:p-3.5 shadow-sm transition hover:border-primary hover:shadow-card-hover"
-            >
-              <div>
-                {/* Score & Location */}
-                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs">
-                  <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                    <Sparkles className="h-3 w-3" /> {m.match_score}% Match
-                  </span>
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
-                    <MapPin className="h-3 w-3 shrink-0" /> {m.matched_listing.emirate}
-                  </span>
-                </div>
-
-                {/* Side-by-Side Exchange Preview */}
-                <div className="mt-2.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  {/* Your Item */}
-                  <div className="min-w-0 rounded-xl bg-muted/60 p-2 text-center">
-                    <p className="text-[9px] uppercase font-black tracking-wider text-muted-foreground">You Trade</p>
-                    <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-primary/10 grid place-items-center">
-                      {m.my_item.image_url ? (
-                        <img
-                          src={m.my_item.image_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <Package className="h-5 w-5 text-primary/60" />
-                      )}
-                    </div>
-                    <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.my_item.name}>
-                      {m.my_item.name}
-                    </p>
-                  </div>
-
-                  {/* Swap Arrow */}
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
-                    <ArrowRightLeft className="h-3.5 w-3.5" />
-                  </div>
-
-                  {/* Their Item */}
-                  <div className="min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-2 text-center">
-                    <p className="text-[9px] uppercase font-black tracking-wider text-emerald-800 dark:text-emerald-300">You Get</p>
-                    <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-emerald-500/15 grid place-items-center">
-                      {m.matched_listing.image_url ? (
-                        <img
-                          src={m.matched_listing.image_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <Package className="h-5 w-5 text-emerald-600" />
-                      )}
-                    </div>
-                    <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.matched_listing.title}>
-                      {m.matched_listing.title}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Match reason */}
-                <p className="mt-2 text-[10px] sm:text-[11px] text-muted-foreground line-clamp-1 italic px-0.5">
-                  "{m.match_reason}"
-                </p>
-              </div>
-
-              {/* Action Button */}
-              <button
-                type="button"
-                onClick={() => navigate({ to: `/listings/${m.matched_listing.id}` })}
-                className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
+        <div>
+          {/* 1 Row Grid (Top 3 Matches) */}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {matches.slice(0, 3).map((m: SmartMatch, idx: number) => (
+              <div
+                key={idx}
+                className="group relative flex flex-col justify-between rounded-2xl border-2 border-primary/20 bg-card p-3 sm:p-3.5 shadow-sm transition hover:border-primary hover:shadow-card-hover"
               >
-                <ArrowRight className="h-3.5 w-3.5" /> Propose Swap
-              </button>
+                <div>
+                  {/* Score & Location */}
+                  <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs">
+                    <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                      <Sparkles className="h-3 w-3" /> {m.match_score}% Match
+                    </span>
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                      <MapPin className="h-3 w-3 shrink-0" /> {m.matched_listing.emirate}
+                    </span>
+                  </div>
+
+                  {/* Side-by-Side Exchange Preview */}
+                  <div className="mt-2.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    {/* Your Item */}
+                    <div className="min-w-0 rounded-xl bg-muted/60 p-2 text-center">
+                      <p className="text-[9px] uppercase font-black tracking-wider text-muted-foreground">You Trade</p>
+                      <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-primary/10 grid place-items-center">
+                        {m.my_item.image_url ? (
+                          <img
+                            src={m.my_item.image_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <Package className="h-5 w-5 text-primary/60" />
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.my_item.name}>
+                        {m.my_item.name}
+                      </p>
+                    </div>
+
+                    {/* Swap Arrow */}
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                    </div>
+
+                    {/* Their Item */}
+                    <div className="min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-2 text-center">
+                      <p className="text-[9px] uppercase font-black tracking-wider text-emerald-800 dark:text-emerald-300">You Get</p>
+                      <div className="mt-1 aspect-square w-11 h-11 mx-auto overflow-hidden rounded-lg bg-emerald-500/15 grid place-items-center">
+                        {m.matched_listing.image_url ? (
+                          <img
+                            src={m.matched_listing.image_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <Package className="h-5 w-5 text-emerald-600" />
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.matched_listing.title}>
+                        {m.matched_listing.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Match reason */}
+                  <p className="mt-2 text-[10px] sm:text-[11px] text-muted-foreground line-clamp-1 italic px-0.5">
+                    "{m.match_reason}"
+                  </p>
+                </div>
+
+                {/* Action Button */}
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: `/listings/${m.matched_listing.id}` })}
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <ArrowRight className="h-3.5 w-3.5" /> Propose Swap
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Option to Check More on New Page */}
+          {matches.length > 3 && (
+            <div className="mt-3.5 flex items-center justify-between rounded-2xl bg-card/70 border border-primary/20 px-4 py-2.5">
+              <span className="text-xs font-bold text-muted-foreground">
+                Showing top 3 of <strong className="text-foreground font-black">{matches.length}</strong> compatible trades found
+              </span>
+              <Link
+                to="/smart-matches"
+                className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-primary hover:underline"
+              >
+                View all {matches.length} matches <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-          ))}
+          )}
         </div>
       )}
     </section>

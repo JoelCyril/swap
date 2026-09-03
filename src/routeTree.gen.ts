@@ -22,6 +22,7 @@ import { Route as AuthenticatedMyListingsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedNewListingRouteImport } from './routes/_authenticated/new-listing'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSmartMatchesRouteImport } from './routes/_authenticated/smart-matches'
 import { Route as AuthenticatedYourItemsRouteImport } from './routes/_authenticated/your-items'
 import { Route as ItemsIdRouteImport } from './routes/items.$id'
 import { Route as ListingsIndexRouteImport } from './routes/listings.index'
@@ -99,6 +100,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSmartMatchesRoute =
+  AuthenticatedSmartMatchesRouteImport.update({
+    id: '/smart-matches',
+    path: '/smart-matches',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedYourItemsRoute = AuthenticatedYourItemsRouteImport.update({
   id: '/your-items',
   path: '/your-items',
@@ -171,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/new-listing': typeof AuthenticatedNewListingRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/smart-matches': typeof AuthenticatedSmartMatchesRoute
   '/your-items': typeof AuthenticatedYourItemsRoute
   '/items/$id': typeof ItemsIdRoute
   '/listings/$id': typeof ListingsIdRoute
@@ -196,6 +204,7 @@ export interface FileRoutesByTo {
   '/new-listing': typeof AuthenticatedNewListingRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/smart-matches': typeof AuthenticatedSmartMatchesRoute
   '/your-items': typeof AuthenticatedYourItemsRoute
   '/items/$id': typeof ItemsIdRoute
   '/listings/$id': typeof ListingsIdRoute
@@ -223,6 +232,7 @@ export interface FileRoutesById {
   '/_authenticated/new-listing': typeof AuthenticatedNewListingRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/smart-matches': typeof AuthenticatedSmartMatchesRoute
   '/_authenticated/your-items': typeof AuthenticatedYourItemsRoute
   '/items/$id': typeof ItemsIdRoute
   '/listings/$id': typeof ListingsIdRoute
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/new-listing'
     | '/notifications'
     | '/settings'
+    | '/smart-matches'
     | '/your-items'
     | '/items/$id'
     | '/listings/$id'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/new-listing'
     | '/notifications'
     | '/settings'
+    | '/smart-matches'
     | '/your-items'
     | '/items/$id'
     | '/listings/$id'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new-listing'
     | '/_authenticated/notifications'
     | '/_authenticated/settings'
+    | '/_authenticated/smart-matches'
     | '/_authenticated/your-items'
     | '/items/$id'
     | '/listings/$id'
@@ -423,6 +436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/smart-matches': {
+      id: '/_authenticated/smart-matches'
+      path: '/smart-matches'
+      fullPath: '/smart-matches'
+      preLoaderRoute: typeof AuthenticatedSmartMatchesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/your-items': {
       id: '/_authenticated/your-items'
       path: '/your-items'
@@ -510,6 +530,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNewListingRoute: typeof AuthenticatedNewListingRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSmartMatchesRoute: typeof AuthenticatedSmartMatchesRoute
   AuthenticatedYourItemsRoute: typeof AuthenticatedYourItemsRoute
   AuthenticatedEditListingIdRoute: typeof AuthenticatedEditListingIdRoute
   AuthenticatedOffersIdRoute: typeof AuthenticatedOffersIdRoute
@@ -524,6 +545,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNewListingRoute: AuthenticatedNewListingRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSmartMatchesRoute: AuthenticatedSmartMatchesRoute,
   AuthenticatedYourItemsRoute: AuthenticatedYourItemsRoute,
   AuthenticatedEditListingIdRoute: AuthenticatedEditListingIdRoute,
   AuthenticatedOffersIdRoute: AuthenticatedOffersIdRoute,
