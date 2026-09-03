@@ -93,7 +93,7 @@ function WantedBoardPage() {
                 <Megaphone className="h-5 w-5" />
               </span>
               <h1 className="font-display text-2xl sm:text-3xl font-black text-foreground">
-                Wanted Board (ISO)
+                Wanted Board
               </h1>
             </div>
             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">

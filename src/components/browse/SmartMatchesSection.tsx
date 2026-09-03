@@ -30,17 +30,11 @@ export function SmartMatchesSection() {
       {/* Header */}
       <div className="flex flex-col gap-2.5 border-b border-border/60 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-          <div className="grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
-            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-display text-base font-black tracking-tight text-foreground sm:text-xl">
                 AI Smart Trade Matches
               </h2>
-              <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase text-primary-foreground">
-                2-Way Fit
-              </span>
             </div>
             <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 sm:line-clamp-none">
               Suggested trades matching your items with active UAE listings

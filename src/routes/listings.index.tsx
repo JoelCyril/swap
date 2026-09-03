@@ -247,7 +247,7 @@ function ListingsPage() {
                 to="/wanted"
                 className="inline-flex items-center gap-1.5 rounded-full border-2 border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition sm:text-sm"
               >
-                <Megaphone className="h-4 w-4" /> Wanted (ISO)
+                <Megaphone className="h-4 w-4" /> Wanted
               </Link>
               <Link
                 to={signedIn ? "/my-listings" : "/auth"}
