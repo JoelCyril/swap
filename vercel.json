@@ -12,5 +12,26 @@
       "destination": "https://swapuae.com/:path*",
       "permanent": true
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/media/:bucket/:path*",
+      "destination": "https://aacorcmqfjnfpmwauxwx.supabase.co/storage/v1/object/public/:bucket/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/media/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
   ]
 }

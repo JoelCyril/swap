@@ -1,44 +1,42 @@
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
-
-const LONG_LIVED_SECONDS = 60 * 60 * 24 * 365 * 20; // 20 years
-
-function adminClient() {
-  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY)!;
-  return createClient<Database>(url, key, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-}
-
-export async function repairImageUrl(
+export function toCachedImageUrl(
   url: string | null | undefined,
   bucket: "listing-images" | "avatars" = "listing-images",
-): Promise<string | null | undefined> {
+): string | null | undefined {
   if (!url || typeof url !== "string") return url;
 
-  const marker = `/storage/v1/object/public/${bucket}/`;
-  if (url.includes(marker)) {
-    const rawPath = url.split(marker)[1]?.split("?")[0];
-    if (rawPath) {
-      try {
-        const supabase = adminClient();
-        const { data } = await supabase.storage.from(bucket).createSignedUrl(decodeURIComponent(rawPath), LONG_LIVED_SECONDS);
-        if (data?.signedUrl) return data.signedUrl;
-      } catch (e) {
-        console.warn("Could not sign URL for path:", rawPath, e);
-      }
-    }
+  // If already routed through /media/ edge cache
+  if (url.includes(`/media/${bucket}/`)) return url;
+
+  // If it's a Supabase storage URL (either signed or public)
+  const signMarker = `/storage/v1/object/sign/${bucket}/`;
+  const publicMarker = `/storage/v1/object/public/${bucket}/`;
+
+  let rawPath: string | null = null;
+  if (url.includes(signMarker)) {
+    rawPath = url.split(signMarker)[1]?.split("?")[0];
+  } else if (url.includes(publicMarker)) {
+    rawPath = url.split(publicMarker)[1]?.split("?")[0];
+  }
+
+  if (rawPath) {
+    // Route through Vercel's global edge cache with 1-year immutable caching
+    return `https://swapuae.com/media/${bucket}/${decodeURIComponent(rawPath)}`;
   }
 
   return url;
 }
 
-export async function repairImageUrls(
+export function repairImageUrl(
+  url: string | null | undefined,
+  bucket: "listing-images" | "avatars" = "listing-images",
+): string | null | undefined {
+  return toCachedImageUrl(url, bucket);
+}
+
+export function repairImageUrls(
   urls: string[] | null | undefined,
   bucket: "listing-images" | "avatars" = "listing-images",
-): Promise<string[]> {
+): string[] {
   if (!urls || !Array.isArray(urls)) return [];
-  const results = await Promise.all(urls.map((u) => repairImageUrl(u, bucket)));
-  return results.filter(Boolean) as string[];
+  return urls.map((u) => toCachedImageUrl(u, bucket)).filter(Boolean) as string[];
 }

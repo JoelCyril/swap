@@ -81,14 +81,6 @@ export async function uploadFileTo(bucket: "avatars" | "listing-images", file: F
 
   if (up.error) throw up.error;
 
-  // 3. Create signed URL (compatible with both public and private Supabase buckets)
-  const signed = await supabase.storage.from(bucket).createSignedUrl(path, LONG_LIVED_SECONDS);
-  if (signed.error || !signed.data?.signedUrl) {
-    // If bucket is strictly public without signing, fallback to publicUrl
-    const { data: pubData } = supabase.storage.from(bucket).getPublicUrl(path);
-    if (pubData?.publicUrl) return pubData.publicUrl;
-    throw signed.error ?? new Error("Failed to generate image URL");
-  }
-
-  return signed.data.signedUrl;
+  // 3. Return the Vercel edge-cached URL (cached globally for 1 year, 0 egress on repeat views)
+  return `https://swapuae.com/media/${bucket}/${path}`;
 }
