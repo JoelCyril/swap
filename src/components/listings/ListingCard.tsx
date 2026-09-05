@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bookmark, Flag, ArrowRightLeft, Package } from "lucide-react";
-import { gradientForId, timeAgo, handle, type ListingWithOwner } from "@/lib/db-types";
+import { Bookmark, Flag, ArrowRightLeft, MapPin, Package } from "lucide-react";
+import { emirateOf, gradientForId, timeAgo, handle, type ListingWithOwner } from "@/lib/db-types";
 import { useServerFn } from "@tanstack/react-start";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
@@ -93,6 +93,8 @@ export function ListingCard({
   }
 
   const isCollector = Boolean(listing.moderation_note?.includes("COLLECTOR"));
+  // Older listings may predate the emirate column, so retain a location-based fallback.
+  const listingEmirate = listing.emirate ?? emirateOf(listing.location);
 
   return (
     <article
@@ -166,8 +168,16 @@ export function ListingCard({
             )}
           </Link>
         )}
-        <div className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary shadow">
-          {listing.condition}
+        <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+          <span className="rounded-full bg-white/95 px-2.5 py-1 shadow">
+            {listing.condition}
+          </span>
+          {listingEmirate && (
+            <span className="flex min-w-0 items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 shadow" title={`Located in ${listingEmirate}`}>
+              <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{listingEmirate}</span>
+            </span>
+          )}
         </div>
       </div>
 
