@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
@@ -9,7 +9,9 @@ import { ListingCard } from "@/components/listings/ListingCard";
 import { BanUserPanel } from "@/components/admin/BanUserPanel";
 import { listListingsByUsername } from "@/lib/listings.functions";
 import { getPublicProfile, getMyProfile } from "@/lib/profile.functions";
-import { MapPin, ShieldCheck, Package } from "lucide-react";
+import { followUser, listMyFollowedIds, unfollowUser } from "@/lib/follows.functions";
+import { MapPin, ShieldCheck, Package, UserCheck, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { handle } from "@/lib/db-types";
 import { useBlockedIds } from "@/lib/use-blocks";
 
@@ -28,6 +30,7 @@ export const Route = createFileRoute("/profile/$username")({
 
 function ProfilePage() {
   const { username } = Route.useParams();
+  const queryClient = useQueryClient();
   const fn = useServerFn(listListingsByUsername);
   const { data, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -52,6 +55,15 @@ function ProfilePage() {
     enabled: !!viewerId,
   });
   const viewerIsAdmin = !!me?.roles?.includes("admin");
+  const followedIdsFn = useServerFn(listMyFollowedIds);
+  const followFn = useServerFn(followUser);
+  const unfollowFn = useServerFn(unfollowUser);
+  const { data: followedIds } = useQuery({
+    queryKey: ["followed-ids", viewerId],
+    queryFn: () => followedIdsFn(),
+    enabled: !!viewerId,
+  });
+  const [followPending, setFollowPending] = useState(false);
   const blockedIds = useBlockedIds();
 
 
@@ -77,6 +89,30 @@ function ProfilePage() {
 
   const owner = data.profile;
   const listings = data.listings;
+  const isOwnProfile = viewerId === owner.id;
+  const isFollowing = (followedIds ?? []).includes(owner.id);
+
+  async function toggleFollow() {
+    if (!viewerId) {
+      window.location.assign("/auth");
+      return;
+    }
+    setFollowPending(true);
+    try {
+      if (isFollowing) {
+        await unfollowFn({ data: { user_id: owner.id } });
+        toast.success(`Unfollowed ${handle(owner)}`);
+      } else {
+        await followFn({ data: { user_id: owner.id } });
+        toast.success(`Following ${handle(owner)}`);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["followed-ids"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update follow status");
+    } finally {
+      setFollowPending(false);
+    }
+  }
 
   if (blockedIds.has(owner.id)) {
     return (
@@ -129,6 +165,17 @@ function ProfilePage() {
               </span>
             )}
             {owner.bio && <p className="mt-3 max-w-2xl text-sm text-white/90">{owner.bio}</p>}
+            {!isOwnProfile && (
+              <button
+                type="button"
+                onClick={toggleFollow}
+                disabled={followPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wider text-primary shadow-md transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                {followPending ? "Saving…" : isFollowing ? "Following" : "Follow"}
+              </button>
+            )}
           </div>
         </div>
       </section>

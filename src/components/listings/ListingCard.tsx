@@ -13,6 +13,7 @@ interface Props {
   listing: ListingWithOwner;
   initiallyFavourited?: boolean;
   initiallyReported?: boolean;
+  isFollowed?: boolean;
   onReported?: (listingId: string) => void;
 }
 
@@ -20,6 +21,7 @@ export function ListingCard({
   listing,
   initiallyFavourited = false,
   initiallyReported = false,
+  isFollowed = false,
   onReported,
 }: Props) {
   const { savedIds, isLoading: savedLoading, userId } = useSavedIds();
@@ -180,14 +182,17 @@ export function ListingCard({
         )}
         <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
           {owner && (
-            <Link
-              to="/profile/$username"
-              params={{ username: owner.username }}
-              onClick={(e) => e.stopPropagation()}
-              className="truncate font-medium hover:text-primary hover:underline"
-            >
-              {handle(owner)}
-            </Link>
+            <div className="min-w-0">
+              <Link
+                to="/profile/$username"
+                params={{ username: owner.username }}
+                onClick={(e) => e.stopPropagation()}
+                className="block truncate font-medium hover:text-primary hover:underline"
+              >
+                {handle(owner)}
+              </Link>
+              {isFollowed && <span className="block text-[10px] font-semibold text-primary">You follow this person</span>}
+            </div>
           )}
 
           <span className="shrink-0">{timeAgo(listing.created_at)}</span>

@@ -15,6 +15,7 @@ import { listListings, isCollectorListing } from "@/lib/listings.functions";
 import { listMyFavouriteIds } from "@/lib/favourites.functions";
 import { listMyFlaggedListingIds } from "@/lib/flags.functions";
 import { searchProfiles, getMyProfile } from "@/lib/profile.functions";
+import { listMyFollowedIds } from "@/lib/follows.functions";
 import { CATEGORIES, emirateOf, type ItemCategory, type ItemCondition } from "@/lib/db-types";
 import { Plus, Megaphone } from "lucide-react";
 
@@ -97,6 +98,7 @@ function ListingsPage() {
   const flaggedFn = useServerFn(listMyFlaggedListingIds);
   const peopleFn = useServerFn(searchProfiles);
   const meFn = useServerFn(getMyProfile);
+  const followedIdsFn = useServerFn(listMyFollowedIds);
 
   const { data, isLoading } = useQuery({
     queryKey: ["listings", active],
@@ -115,6 +117,11 @@ function ListingsPage() {
   const { data: me } = useQuery({
     queryKey: ["me", userId],
     queryFn: () => meFn(),
+    enabled: signedIn,
+  });
+  const { data: followedIds } = useQuery({
+    queryKey: ["followed-ids", userId],
+    queryFn: () => followedIdsFn(),
     enabled: signedIn,
   });
   const { data: people } = useQuery({
@@ -166,6 +173,9 @@ function ListingsPage() {
             .some((v) => String(v).toLowerCase().includes(term)),
     )
     .sort((a, b) => {
+      // Listings from people this viewer follows always lead their personal feed.
+      const followDiff = Number((followedIds ?? []).includes(b.owner_id)) - Number((followedIds ?? []).includes(a.owner_id));
+      if (signedIn && followDiff !== 0) return followDiff;
       // Guest User Feed: Sort by category in exact requested order
       if (!signedIn && active === "All" && sort === "shuffle") {
         const priority: Record<string, number> = {
@@ -327,6 +337,7 @@ function ListingsPage() {
                 <ListingCard
                   key={l.id}
                   listing={l}
+                  isFollowed={(followedIds ?? []).includes(l.owner_id)}
                   initiallyFavourited={(savedIds ?? []).includes(l.id)}
                   onReported={(id) => setHidden((h) => [...h, id])}
                 />

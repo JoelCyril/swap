@@ -1,6 +1,6 @@
 import { handle } from "@/lib/db-types";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Search, User, LogOut, ShieldCheck, Bell, Settings, Menu, X } from "lucide-react";
+import { Search, User, LogOut, ShieldCheck, Bell, Settings, Menu, X, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
@@ -291,6 +291,13 @@ export function Navbar() {
                     View profile
                   </Link>
                 )}
+                <Link
+                  to="/following"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-primary-soft"
+                >
+                  <Users className="h-4 w-4" /> Following
+                </Link>
                 <Link
                   to="/settings"
                   onClick={() => setMenuOpen(false)}
