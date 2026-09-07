@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlockedIds } from "@/lib/use-blocks";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { CategoryBar } from "@/components/layout/CategoryBar";
@@ -17,7 +18,7 @@ import { listMyFlaggedListingIds } from "@/lib/flags.functions";
 import { searchProfiles, getMyProfile } from "@/lib/profile.functions";
 import { listMyFollowedIds } from "@/lib/follows.functions";
 import { CATEGORIES, emirateOf, type ItemCategory, type ItemCondition } from "@/lib/db-types";
-import { Plus, Megaphone } from "lucide-react";
+import { Plus, Megaphone, Package, X } from "lucide-react";
 
 export const Route = createFileRoute("/listings/")({
   validateSearch: (search: Record<string, unknown>): { q?: string } => ({
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/listings/")({
 
 function ListingsPage() {
   const { q } = Route.useSearch();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [active, setActive] = useState<ItemCategory | "All" | "Collectors">("All");
   const [userId, setUserId] = useState<string | null>(() => getStoredSessionSync()?.user?.id ?? null);
@@ -48,6 +50,7 @@ function ListingsPage() {
   const [sort, setSort] = useState<SortKey>("shuffle");
   const [interestPromptDismissed, setInterestPromptDismissed] = useState(false);
   const [interestPromptSkipped, setInterestPromptSkipped] = useState(false);
+  const [showListingChoice, setShowListingChoice] = useState(false);
   const [localInterests, setLocalInterests] = useState<ItemCategory[]>([]);
   // Stable per-visit shuffle seed so cards don't jump around while browsing.
   const [seed] = useState(() => Math.random());
@@ -262,13 +265,16 @@ function ListingsPage() {
               >
                 <Megaphone className="h-4 w-4" /> Wanted
               </Link>
-              <Link
-                to={signedIn ? "/my-listings" : "/auth"}
-                search={signedIn ? { add: true } : undefined}
+              <button
+                type="button"
+                onClick={() => {
+                  if (signedIn) setShowListingChoice(true);
+                  else navigate({ to: "/auth" });
+                }}
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 sm:px-6 sm:text-sm"
               >
                 <Plus className="h-4 w-4" /> List an item
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -346,6 +352,52 @@ function ListingsPage() {
           )}
         </main>
       </div>
+      {showListingChoice && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="listing-choice-title"
+          onMouseDown={() => setShowListingChoice(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border-2 border-primary/20 bg-card p-6 shadow-card-hover"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowListingChoice(false)}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="pr-10">
+              <h2 id="listing-choice-title" className="font-display text-2xl font-black">How would you like to list it?</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Save it to your inventory first, or create a marketplace-only listing.</p>
+            </div>
+            <div className="mt-5 grid gap-3">
+              <Link
+                to="/my-listings"
+                search={{ add: true }}
+                onClick={() => setShowListingChoice(false)}
+                className="rounded-2xl border-2 border-primary/25 bg-primary/5 p-4 transition hover:border-primary hover:bg-primary/10"
+              >
+                <span className="flex items-center gap-2 font-bold"><Package className="h-5 w-5 text-primary" /> Add to inventory first</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Keep it in your personal collection and list it whenever you like.</span>
+              </Link>
+              <Link
+                to="/new-listing"
+                onClick={() => setShowListingChoice(false)}
+                className="rounded-2xl border-2 border-primary bg-gradient-primary p-4 text-primary-foreground shadow-glow transition hover:scale-[1.01]"
+              >
+                <span className="flex items-center gap-2 font-bold"><Plus className="h-5 w-5" /> List directly</span>
+                <span className="mt-1 block text-xs text-primary-foreground/85">Publish it to the marketplace without adding it to inventory.</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
