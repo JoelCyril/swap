@@ -781,13 +781,13 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
               </button>
             </>
           )}
-          {canAct && !isTo && (
+          {(canAct || accepted) && !isTo && (
             <button
               onClick={() => respondMut.mutate("withdraw")}
               disabled={respondMut.isPending}
               className="flex items-center justify-center gap-2 rounded-full border-2 border-muted-foreground/30 py-2.5 text-sm font-black uppercase text-muted-foreground hover:bg-muted"
             >
-              Withdraw offer
+              Withdraw
             </button>
           )}
           {offer.status === "waitlisted" && isTo && (

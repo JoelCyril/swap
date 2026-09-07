@@ -22,17 +22,39 @@ function isAllowedAttachmentUrl(value: string) {
   }
 }
 
+/**
+ * PostgREST cannot always resolve an embedded self-reference while its schema
+ * cache is refreshing. Load reply previews separately so chat remains usable
+ * even in that state.
+ */
+async function attachReplyPreviews(context: { supabase: any }, rows: any[]) {
+  const replyIds = [...new Set(rows.map((row) => row.reply_to_id).filter(Boolean))];
+  if (replyIds.length === 0) return rows;
+
+  const { data: replies, error } = await context.supabase
+    .from("messages")
+    .select("id, body, attachment_urls, sender_id")
+    .in("id", replyIds);
+  if (error) throw new Error(error.message);
+
+  const repliesById = new Map((replies ?? []).map((reply: any) => [reply.id, reply]));
+  return rows.map((row) => ({
+    ...row,
+    reply_to: row.reply_to_id ? repliesById.get(row.reply_to_id) ?? null : null,
+  }));
+}
+
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { offer_id: string }) => z.object({ offer_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("messages")
-      .select("*, sender:profiles!messages_sender_profile_fkey(*), reply_to:messages!messages_reply_to_id_fkey(id, body, attachment_urls, sender_id)")
+      .select("*, sender:profiles!messages_sender_profile_fkey(*)")
       .eq("offer_id", data.offer_id)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    return attachReplyPreviews(context, rows ?? []);
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
@@ -81,7 +103,7 @@ export const sendMessage = createServerFn({ method: "POST" })
         attachment_urls: data.attachment_urls,
         reply_to_id: data.reply_to_id ?? null,
       } as never)
-      .select("*, reply_to:messages!messages_reply_to_id_fkey(id, body, attachment_urls, sender_id)")
+      .select("*")
       .single();
     if (error) throw new Error(error.message);
 
@@ -105,7 +127,7 @@ export const sendMessage = createServerFn({ method: "POST" })
       });
     }
 
-    return row;
+    return (await attachReplyPreviews(context, [row]))[0];
   });
 
 export const markMessagesRead = createServerFn({ method: "POST" })

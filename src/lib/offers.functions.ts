@@ -542,6 +542,9 @@ export const respondToOffer = createServerFn({ method: "POST" })
       nextStatus = "waitlisted" as typeof nextStatus;
     } else if (data.action === "withdraw") {
       if (!isFrom) throw new Error("Only the sender can withdraw");
+      if (offer.status !== "pending" && offer.status !== "accepted" && offer.status !== "waitlisted") {
+        throw new Error("This offer can no longer be withdrawn");
+      }
       nextStatus = "withdrawn";
     } else if (data.action === "complete") {
       if (!isFrom && !isTo) throw new Error("Not a participant");
