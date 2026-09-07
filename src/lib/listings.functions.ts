@@ -55,8 +55,7 @@ export const listListings = createServerFn({ method: "GET" })
   )
 `)
       .in("status", ["active", "reserved"])
-      .order("created_at", { ascending: false })
-      .limit(60);
+      .order("created_at", { ascending: false });
     if (data.category) q = q.eq("category", data.category as never);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
