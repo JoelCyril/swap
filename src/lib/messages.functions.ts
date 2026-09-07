@@ -142,3 +142,138 @@ export const markMessagesRead = createServerFn({ method: "POST" })
       .is("read_at", null);
     return { ok: true };
   });
+
+export const editMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        message_id: z.string().uuid(),
+        body: z.string().min(1, "Message cannot be empty").max(2000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: msg, error: fetchErr } = await context.supabase
+      .from("messages")
+      .select("id, sender_id, offer_id, body")
+      .eq("id", data.message_id)
+      .single();
+
+    if (fetchErr || !msg) throw new Error("Message not found");
+    if (msg.sender_id !== context.userId) {
+      throw new Error("You can only edit your own messages");
+    }
+
+    const trimmed = data.body.trim();
+    if (!trimmed) throw new Error("Message cannot be empty");
+
+    const verdict = moderate(trimmed, "chat");
+    if (verdict.flagged) {
+      throw new Error(
+        `Message blocked: ${verdict.reason} Prohibited: ${verdict.terms.join(", ")}`,
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    // Try updating with edited_at
+    const { data: updated, error: updateErr } = await context.supabase
+      .from("messages")
+      .update({
+        body: trimmed,
+        edited_at: now,
+      } as any)
+      .eq("id", data.message_id)
+      .select("*, sender:profiles!messages_sender_profile_fkey(*)")
+      .single();
+
+    if (!updateErr && updated) {
+      return updated;
+    }
+
+    // Fallback if edited_at column is not present in DB
+    const { data: fallbackUpdated, error: fallbackErr } = await context.supabase
+      .from("messages")
+      .update({
+        body: trimmed,
+      } as any)
+      .eq("id", data.message_id)
+      .select("*, sender:profiles!messages_sender_profile_fkey(*)")
+      .single();
+
+    if (fallbackErr) throw new Error(fallbackErr.message);
+    return { ...fallbackUpdated, edited_at: now };
+  });
+
+export const reactToMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        message_id: z.string().uuid(),
+        emoji: z.string().min(1).max(10),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    // 1. Fetch message
+    const { data: msg, error: fetchErr } = await context.supabase
+      .from("messages")
+      .select("id, offer_id, reactions")
+      .eq("id", data.message_id)
+      .single();
+
+    if (fetchErr || !msg) throw new Error("Message not found");
+
+    // 2. Verify participant in offer
+    const { data: offer, error: offerErr } = await context.supabase
+      .from("offers")
+      .select("from_user, to_user")
+      .eq("id", msg.offer_id)
+      .single();
+
+    if (offerErr || !offer) throw new Error("Offer not found");
+    if (offer.from_user !== context.userId && offer.to_user !== context.userId) {
+      throw new Error("You are not a participant in this conversation");
+    }
+
+    // 3. Compute new reactions mapping: Record<string, string[]>
+    const currentReactions: Record<string, string[]> =
+      typeof msg.reactions === "object" && msg.reactions !== null ? { ...msg.reactions } : {};
+
+    const userId = context.userId;
+    const emoji = data.emoji.trim();
+    const alreadyReactedWithThis = currentReactions[emoji]?.includes(userId);
+
+    // Remove user from all emojis on this message (WhatsApp style: 1 active reaction per user)
+    for (const key of Object.keys(currentReactions)) {
+      currentReactions[key] = (currentReactions[key] || []).filter((id) => id !== userId);
+      if (currentReactions[key].length === 0) {
+        delete currentReactions[key];
+      }
+    }
+
+    // If they hadn't reacted with this emoji yet, add it
+    if (!alreadyReactedWithThis) {
+      if (!currentReactions[emoji]) {
+        currentReactions[emoji] = [];
+      }
+      currentReactions[emoji].push(userId);
+    }
+
+    // 4. Update in database
+    const { error: updateErr } = await context.supabase
+      .from("messages")
+      .update({ reactions: currentReactions } as any)
+      .eq("id", data.message_id);
+
+    if (updateErr) {
+      console.warn("Could not save reactions to messages column:", updateErr.message);
+    }
+
+    return {
+      message_id: data.message_id,
+      reactions: currentReactions,
+    };
+  });

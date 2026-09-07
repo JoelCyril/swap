@@ -332,6 +332,8 @@ export type Database = {
           read_at: string | null
           reply_to_id: string | null
           sender_id: string
+          edited_at?: string | null
+          reactions?: Record<string, string[]> | null
         }
         Insert: {
           attachment_urls?: string[]
@@ -342,6 +344,8 @@ export type Database = {
           read_at?: string | null
           reply_to_id?: string | null
           sender_id: string
+          edited_at?: string | null
+          reactions?: Record<string, string[]> | null
         }
         Update: {
           attachment_urls?: string[]
@@ -352,6 +356,8 @@ export type Database = {
           read_at?: string | null
           reply_to_id?: string | null
           sender_id?: string
+          edited_at?: string | null
+          reactions?: Record<string, string[]> | null
         }
         Relationships: [
           {

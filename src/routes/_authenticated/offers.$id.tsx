@@ -19,7 +19,13 @@ import {
 
 import { FairTradeMeter } from "@/components/offers/FairTradeMeter";
 import { listOwnerInventory } from "@/lib/items.functions";
-import { listMessages, sendMessage, markMessagesRead } from "@/lib/messages.functions";
+import {
+  listMessages,
+  sendMessage,
+  markMessagesRead,
+  editMessage,
+  reactToMessage,
+} from "@/lib/messages.functions";
 import {
   listMeetupProposals,
   proposeMeetup,
@@ -27,8 +33,11 @@ import {
   confirmMeetupSafety,
 } from "@/lib/meetups.functions";
 import { getTermsStatus } from "@/lib/terms.functions";
+<<<<<<< HEAD
 import { uploadFileTo } from "@/lib/upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+=======
+>>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, handle } from "@/lib/db-types";
 import {
@@ -43,12 +52,16 @@ import {
   Package,
   ShieldCheck,
   Plus,
-  Paperclip,
+  Smile,
+  Pencil,
   AlertTriangle,
   ChevronDown,
   Reply,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+const EXTRA_EMOJIS = ["🔥", "👏", "🎉", "💯", "🤝", "😍", "🥳", "👀"];
 
 export const Route = createFileRoute("/_authenticated/offers/$id")({
   head: () => ({
@@ -95,15 +108,23 @@ function OfferDetail() {
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSentTyping = useRef(0);
   const send = useServerFn(sendMessage);
+  const editMsg = useServerFn(editMessage);
+  const reactMsg = useServerFn(reactToMessage);
   const listProposals = useServerFn(listMeetupProposals);
   const propose = useServerFn(proposeMeetup);
   const respondProp = useServerFn(respondMeetup);
   const confirmSafety = useServerFn(confirmMeetupSafety);
 
   const [text, setText] = useState("");
+<<<<<<< HEAD
   const [replyTo, setReplyTo] = useState<any | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+=======
+  const [editingMessage, setEditingMessage] = useState<{ id: string; body: string } | null>(null);
+  const [activeReactionMenuMsgId, setActiveReactionMenuMsgId] = useState<string | null>(null);
+  const [showExtraEmojisMsgId, setShowExtraEmojisMsgId] = useState<string | null>(null);
+>>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const [guardianAsk, setGuardianAsk] = useState(false);
@@ -142,13 +163,39 @@ function OfferDetail() {
         if (typingTimer.current) clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(() => setOtherTyping(false), 3000);
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `offer_id=eq.${id}` }, (payload) => {
-        // Realtime already contains the inserted row. Adding it directly avoids
-        // making the recipient wait for a second HTTP request after every message.
+      .on("broadcast", { event: "message_reaction" }, ({ payload }) => {
+        if (!payload) return;
         qc.setQueryData(["messages", id], (current: any) => {
           const messages = Array.isArray(current) ? current : [];
-          const message = payload.new as { id: string };
-          return messages.some((item: any) => item.id === message.id) ? messages : [...messages, message];
+          return messages.map((m: any) =>
+            m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m
+          );
+        });
+      })
+      .on("broadcast", { event: "message_edited" }, ({ payload }) => {
+        if (!payload) return;
+        qc.setQueryData(["messages", id], (current: any) => {
+          const messages = Array.isArray(current) ? current : [];
+          return messages.map((m: any) =>
+            m.id === payload.messageId ? { ...m, body: payload.body, edited_at: payload.edited_at } : m
+          );
+        });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `offer_id=eq.${id}` }, (payload) => {
+        qc.setQueryData(["messages", id], (current: any) => {
+          const messages = Array.isArray(current) ? current : [];
+          if (payload.eventType === "INSERT") {
+            const message = payload.new as { id: string };
+            return messages.some((item: any) => item.id === message.id) ? messages : [...messages, message];
+          }
+          if (payload.eventType === "UPDATE") {
+            const updated = payload.new as { id: string };
+            return messages.map((item: any) => (item.id === updated.id ? { ...item, ...updated } : item));
+          }
+          if (payload.eventType === "DELETE") {
+            return messages.filter((item: any) => item.id !== (payload.old as any)?.id);
+          }
+          return messages;
         });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "meetup_proposals", filter: `offer_id=eq.${id}` }, () => {
@@ -261,6 +308,7 @@ function OfferDetail() {
 
   const sendMut = useMutation({
     mutationFn: async () => {
+<<<<<<< HEAD
       let urls: string[] = [];
       if (files.length) {
         setUploading(true);
@@ -276,6 +324,12 @@ function OfferDetail() {
       setText("");
       setFiles([]);
       setReplyTo(null);
+=======
+      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: [] } });
+    },
+    onSuccess: (message: any) => {
+      setText("");
+>>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
       // The server response is the newly-created message, so show it immediately
       // instead of waiting for the next poll or Realtime round trip.
       qc.setQueryData(["messages", id], (current: any) => {
@@ -284,6 +338,49 @@ function OfferDetail() {
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Message not sent"),
+  });
+
+  const editMut = useMutation({
+    mutationFn: ({ message_id, body }: { message_id: string; body: string }) =>
+      editMsg({ data: { message_id, body } }),
+    onSuccess: (updated: any) => {
+      setEditingMessage(null);
+      setText("");
+      qc.setQueryData(["messages", id], (current: any) => {
+        const messages = Array.isArray(current) ? current : [];
+        return messages.map((m: any) =>
+          m.id === updated.id ? { ...m, body: updated.body, edited_at: updated.edited_at } : m,
+        );
+      });
+      typingChan.current?.send({
+        type: "broadcast",
+        event: "message_edited",
+        payload: { messageId: updated.id, body: updated.body, edited_at: updated.edited_at },
+      });
+      toast.success("Message edited");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to edit message"),
+  });
+
+  const reactMut = useMutation({
+    mutationFn: ({ message_id, emoji }: { message_id: string; emoji: string }) =>
+      reactMsg({ data: { message_id, emoji } }),
+    onSuccess: (res: any) => {
+      setActiveReactionMenuMsgId(null);
+      setShowExtraEmojisMsgId(null);
+      qc.setQueryData(["messages", id], (current: any) => {
+        const messages = Array.isArray(current) ? current : [];
+        return messages.map((m: any) =>
+          m.id === res.message_id ? { ...m, reactions: res.reactions } : m,
+        );
+      });
+      typingChan.current?.send({
+        type: "broadcast",
+        event: "message_reaction",
+        payload: { messageId: res.message_id, reactions: res.reactions },
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to react"),
   });
 
   if (offerPending) {
@@ -530,12 +627,80 @@ function OfferDetail() {
               {timeline.map((entry) =>
                 entry.kind === "msg" ? (
                   (() => {
-                    const m = entry.data;
+                    const m = entry.data as any;
                     const mine = m.sender_id === myId;
+<<<<<<< HEAD
                     const referenced = m.reply_to as { body?: string; attachment_urls?: string[] } | null | undefined;
+=======
+                    const reactions = (m.reactions ?? {}) as Record<string, string[]>;
+                    const hasReactions = Object.values(reactions).some((arr) => arr && arr.length > 0);
+                    const isReactionMenuOpen = activeReactionMenuMsgId === m.id;
+                    const showExtra = showExtraEmojisMsgId === m.id;
+
+>>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
                     return (
-                      <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div
+                        key={m.id}
+                        className={`group/msg relative flex flex-col mb-1 ${mine ? "items-end" : "items-start"}`}
+                      >
+                        {/* WhatsApp-style Floating Reaction Bar */}
+                        {isReactionMenuOpen && (
+                          <div
+                            className={`absolute -top-11 ${
+                              mine ? "right-2" : "left-2"
+                            } z-30 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md px-2.5 py-1 border-2 border-primary/25 shadow-xl animate-in fade-in zoom-in-95 duration-150`}
+                          >
+                            {QUICK_EMOJIS.map((emoji) => {
+                              const isSelected = (reactions[emoji] ?? []).includes(myId as string);
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => reactMut.mutate({ message_id: m.id, emoji })}
+                                  className={`grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer ${
+                                    isSelected ? "bg-primary-soft scale-115" : "hover:bg-muted"
+                                  }`}
+                                >
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowExtraEmojisMsgId((prev) => (prev === m.id ? null : m.id))
+                              }
+                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs font-bold transition cursor-pointer"
+                              title="More emojis"
+                            >
+                              {showExtra ? "✕" : "+"}
+                            </button>
+
+                            {/* Extra Emojis popover */}
+                            {showExtra && (
+                              <div
+                                className={`absolute top-11 ${
+                                  mine ? "right-0" : "left-0"
+                                } z-40 flex flex-wrap gap-1 rounded-2xl bg-card/95 backdrop-blur-md p-2 border-2 border-primary/20 shadow-2xl max-w-[200px] animate-in fade-in`}
+                              >
+                                {EXTRA_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => reactMut.mutate({ message_id: m.id, emoji })}
+                                    className="grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 cursor-pointer hover:bg-muted"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Bubble Row with hover actions */}
                         <div
+<<<<<<< HEAD
                           className={`group relative max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                             mine ? "bg-gradient-primary text-primary-foreground" : "bg-muted"
                           }`}
@@ -582,12 +747,114 @@ function OfferDetail() {
                               )}
                             </div>
                           )}
+=======
+                          className={`flex items-center gap-1.5 max-w-[85%] sm:max-w-[75%] ${
+                            mine ? "flex-row-reverse" : "flex-row"
+                          }`}
+                        >
+                          {/* The Message Bubble */}
+                          <div
+                            className={`relative rounded-2xl px-4 py-2 text-sm shadow-2xs transition ${
+                              mine
+                                ? "bg-gradient-primary text-primary-foreground rounded-tr-xs"
+                                : "bg-muted text-foreground rounded-tl-xs"
+                            }`}
+                          >
+                            {m.body && <p className="break-words whitespace-pre-wrap">{m.body}</p>}
+>>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
 
-                          <p className={`mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                            {timeAgo(m.created_at)}
-                            {mine && <span className="ml-1">· {m.read_at ? "Seen" : "Delivered"}</span>}
-                          </p>
+                            {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
+                              <div className="mt-1 grid gap-1.5">
+                                {((m as { attachment_urls?: string[] }).attachment_urls ?? []).map((u) =>
+                                  /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? (
+                                    <video key={u} src={u} controls className="max-h-56 w-full rounded-xl bg-black" />
+                                  ) : (
+                                    <a key={u} href={u} target="_blank" rel="noreferrer">
+                                      <img src={u} alt="attachment" className="max-h-56 w-full rounded-xl object-cover" />
+                                    </a>
+                                  ),
+                                )}
+                              </div>
+                            )}
+
+                            {/* Timestamp, Edited indicator, and Seen status */}
+                            <div
+                              className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${
+                                mine ? "text-primary-foreground/75" : "text-muted-foreground"
+                              }`}
+                            >
+                              <span>{timeAgo(m.created_at)}</span>
+                              {m.edited_at && (
+                                <span className="italic font-medium opacity-90">(edited)</span>
+                              )}
+                              {mine && <span>· {m.read_at ? "Seen" : "Delivered"}</span>}
+                            </div>
+                          </div>
+
+                          {/* Quick Action Buttons (shown on hover or active menu) */}
+                          <div
+                            className={`flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity ${
+                              isReactionMenuOpen ? "opacity-100" : ""
+                            }`}
+                          >
+                            {/* React with emoji button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id))
+                              }
+                              title="React to message"
+                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                            >
+                              <Smile className="h-4 w-4" />
+                            </button>
+
+                            {/* Edit message button (only for sender) */}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMessage({ id: m.id, body: m.body });
+                                  setText(m.body);
+                                }}
+                                title="Edit message"
+                                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Reaction Badges / Pills under the bubble */}
+                        {hasReactions && (
+                          <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "justify-end" : "justify-start"}`}>
+                            {Object.entries(reactions).map(([emoji, userIds]) => {
+                              if (!userIds || userIds.length === 0) return null;
+                              const iReacted = userIds.includes(myId as string);
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => reactMut.mutate({ message_id: m.id, emoji })}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold shadow-xs transition active:scale-95 cursor-pointer ${
+                                    iReacted
+                                      ? "bg-primary-soft border border-primary/50 text-primary scale-105 font-bold"
+                                      : "bg-card border border-border text-foreground hover:bg-muted"
+                                  }`}
+                                  title={
+                                    iReacted
+                                      ? `You reacted with ${emoji} (click to remove)`
+                                      : `Click to react with ${emoji}`
+                                  }
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="text-[10px] text-muted-foreground">{userIds.length}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })()
@@ -621,102 +888,90 @@ function OfferDetail() {
             </div>
 
             <div className="border-t border-border p-3">
+              {/* Reply Banner */}
               {replyTo && (
                 <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-primary bg-primary-soft px-3 py-2 text-xs">
                   <Reply className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <p className="min-w-0 flex-1 truncate">Replying to: {replyTo.body || (replyTo.attachment_urls?.length ? "Attachment" : "Message")}</p>
-                  <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="rounded p-0.5 hover:bg-background/70">
+                  <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="rounded p-0.5 hover:bg-background/70 cursor-pointer">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               )}
-              {files.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {files.map((f, i) => (
-                    <span
-                      key={f.name + i}
-                      className="inline-flex max-w-[160px] items-center gap-1 rounded-full bg-muted px-3 py-1 text-[11px]"
-                    >
-                      <span className="truncate">{f.name}</span>
-                      <button type="button" onClick={() => setFiles((prev) => prev.filter((_, x) => x !== i))} aria-label="Remove">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
+
+              {/* Editing Banner */}
+              {editingMessage && (
+                <div className="mb-2 flex items-center justify-between rounded-2xl bg-primary/10 border border-primary/20 px-3.5 py-1.5 text-xs animate-in fade-in">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Pencil className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-bold text-primary">Editing message</span>
+                      <p className="truncate text-muted-foreground text-[11px] max-w-[280px] sm:max-w-[420px]">
+                        {editingMessage.body}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingMessage(null);
+                      setText("");
+                    }}
+                    className="rounded-full p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground transition cursor-pointer"
+                    title="Cancel editing (Esc)"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (text.trim() || files.length) sendMut.mutate();
+                  if (!text.trim()) return;
+                  if (editingMessage) {
+                    editMut.mutate({ message_id: editingMessage.id, body: text.trim() });
+                  } else {
+                    sendMut.mutate();
+                  }
                 }}
                 className="flex gap-2"
               >
-                <label
-                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-primary/20 text-primary ${
-                    chatOpen ? "cursor-pointer hover:bg-primary-soft" : "opacity-50"
-                  }`}
-                  title="Attach photos or videos"
-                >
-                  <Paperclip className="h-4 w-4" />
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    disabled={!chatOpen}
-                    className="hidden"
-                    onChange={(e) => {
-                      const picked = Array.from(e.target.files ?? [])
-  .slice(0, 4)
-  .filter((file) => {
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-
-    if (!isImage && !isVideo) {
-      toast.error(`${file.name} is not a supported image or video`);
-      return false;
-    }
-
-    if (isImage && file.size > 10 * 1024 * 1024) {
-      toast.error(`${file.name} is over 10 MB`);
-      return false;
-    }
-
-    if (isVideo && file.size > 25 * 1024 * 1024) {
-      toast.error(`${file.name} is over 25 MB`);
-      return false;
-    }
-
-    return true;
-  });
-
-setFiles((prev) => [...prev, ...picked].slice(0, 4));
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
                 <input
                   ref={messageInputRef}
                   value={text}
                   onChange={(e) => {
                     setText(e.target.value);
                     const now = Date.now();
-                    if (chatOpen && now - lastSentTyping.current > 1500) {
+                    if (chatOpen && !editingMessage && now - lastSentTyping.current > 1500) {
                       lastSentTyping.current = now;
                       typingChan.current?.send({ type: "broadcast", event: "typing", payload: { userId: viewerId } });
                     }
                   }}
-                  placeholder={chatOpen ? "Type a message…" : "Chat locked until the offer is accepted"}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && editingMessage) {
+                      setEditingMessage(null);
+                      setText("");
+                    }
+                  }}
+                  placeholder={
+                    editingMessage
+                      ? "Edit your message… (press Esc to cancel)"
+                      : chatOpen
+                      ? "Type a message…"
+                      : "Chat locked until the offer is accepted"
+                  }
                   maxLength={2000}
                   disabled={!chatOpen}
                   className="min-w-0 flex-1 rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={!chatOpen || (!text.trim() && !files.length) || sendMut.isPending || uploading}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-primary text-primary-foreground disabled:opacity-50"
+                  disabled={!chatOpen || !text.trim() || sendMut.isPending || editMut.isPending}
+                  title={editingMessage ? "Save edit" : "Send message"}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-primary text-primary-foreground disabled:opacity-50 transition hover:opacity-90 active:scale-95 cursor-pointer shadow-sm"
                 >
-                  <Send className="h-4 w-4" />
+                  {editingMessage ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>
             </div>
