@@ -29,7 +29,6 @@ import {
   X,
 } from "lucide-react";
 import { ImageCropper } from "@/components/ImageCropper";
-import { LocationPickerControls } from "@/components/common/LocationPickerControls";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -365,19 +364,8 @@ function ProfileTab() {
           />
         </div>
         <div className="space-y-3 pt-1">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
             <span className="text-xs font-bold uppercase text-muted-foreground">Location</span>
-            <LocationPickerControls
-              onLocationSelected={({ emirate, location }) => {
-                setForm((f) => ({
-                  ...f,
-                  emirate,
-                  location,
-                }));
-              }}
-              currentEmirate={form.emirate || "Dubai"}
-              currentLocation={form.location || ""}
-            />
           </div>
 
           <div>

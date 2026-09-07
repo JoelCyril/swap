@@ -7,7 +7,6 @@ import { Footer } from "@/components/layout/Footer";
 import { getWantedRequest, createWantedRequest, editWantedRequest } from "@/lib/wanted.functions";
 import { CATEGORIES, EMIRATES, NEIGHBOURHOODS, OTHER_LOCATION, type ItemCategory } from "@/lib/db-types";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
-import { LocationPickerControls } from "@/components/common/LocationPickerControls";
 import { ArrowLeft, Megaphone, Pencil, Sparkles, MapPin, ArrowRightLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -246,25 +245,9 @@ function WantedPostPage() {
 
               {/* Neighbourhood & Location Header */}
               <div>
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Area / Neighbourhood *
-                  </label>
-                  <LocationPickerControls
-                    onLocationSelected={({ emirate: detEmirate, location: detLocation, isKnownNeighbourhood }) => {
-                      setEmirate(detEmirate);
-                      if (isKnownNeighbourhood) {
-                        setLocationChoice(detLocation);
-                        setOtherLocation("");
-                      } else {
-                        setLocationChoice(OTHER_LOCATION);
-                        setOtherLocation(detLocation);
-                      }
-                    }}
-                    currentEmirate={emirate || "Dubai"}
-                    currentLocation={locationChoice || ""}
-                  />
-                </div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Area / Neighbourhood *
+                </label>
                 <select
                   required
                   value={locationChoice}

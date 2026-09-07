@@ -16,7 +16,6 @@ import {
   type ItemCategory,
   type ItemCondition,
 } from "@/lib/db-types";
-import { LocationPickerControls } from "@/components/common/LocationPickerControls";
 import { toast } from "sonner";
 import { X, Upload } from "lucide-react";
 
@@ -239,22 +238,8 @@ function EditListingPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+              <div className="mb-1.5">
                 <span className="text-xs font-bold uppercase text-muted-foreground">Location *</span>
-                <LocationPickerControls
-                  onLocationSelected={({ emirate, location, isKnownNeighbourhood }) => {
-                    setForm((f) => ({ ...f, emirate }));
-                    if (isKnownNeighbourhood) {
-                      setLocationChoice(location);
-                      setOtherLocation("");
-                    } else {
-                      setLocationChoice(OTHER_LOCATION);
-                      setOtherLocation(location);
-                    }
-                  }}
-                  currentEmirate={form.emirate || "Dubai"}
-                  currentLocation={locationChoice || ""}
-                />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

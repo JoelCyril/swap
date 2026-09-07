@@ -25,7 +25,6 @@ import {
   type ItemCondition,
 } from "@/lib/db-types";
 import { ImageCropper } from "@/components/ImageCropper";
-import { LocationPickerControls } from "@/components/common/LocationPickerControls";
 import {
   Plus,
   ArrowRightLeft,
@@ -693,22 +692,8 @@ function MyInventoryPage() {
 
             {/* Emirate & Area Location (Mandatory) */}
             <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
                 <span className="text-xs font-bold uppercase text-muted-foreground">Location Details *</span>
-                <LocationPickerControls
-                  onLocationSelected={({ emirate, location, isKnownNeighbourhood }) => {
-                    setQuickListEmirate(emirate);
-                    if (isKnownNeighbourhood) {
-                      setQuickListLocationChoice(location);
-                      setQuickListOtherLocation("");
-                    } else {
-                      setQuickListLocationChoice(OTHER_LOCATION);
-                      setQuickListOtherLocation(location);
-                    }
-                  }}
-                  currentEmirate={quickListEmirate || "Dubai"}
-                  currentLocation={quickListLocationChoice || ""}
-                />
               </div>
 
               <div>
