@@ -28,6 +28,7 @@ import {
 } from "@/lib/meetups.functions";
 import { getTermsStatus } from "@/lib/terms.functions";
 import { uploadFileTo } from "@/lib/upload";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, handle } from "@/lib/db-types";
 import {
@@ -44,6 +45,8 @@ import {
   Plus,
   Paperclip,
   AlertTriangle,
+  ChevronDown,
+  Reply,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -98,9 +101,11 @@ function OfferDetail() {
   const confirmSafety = useServerFn(confirmMeetupSafety);
 
   const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<any | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
   const [guardianAsk, setGuardianAsk] = useState(false);
   const [guardianOk, setGuardianOk] = useState(false);
   const [inventoryOf, setInventoryOf] = useState<{ id: string; label: string } | null>(null);
@@ -265,11 +270,12 @@ function OfferDetail() {
           setUploading(false);
         }
       }
-      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: urls } });
+      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: urls, reply_to_id: replyTo?.id ?? null } });
     },
     onSuccess: (message: any) => {
       setText("");
       setFiles([]);
+      setReplyTo(null);
       // The server response is the newly-created message, so show it immediately
       // instead of waiting for the next poll or Realtime round trip.
       qc.setQueryData(["messages", id], (current: any) => {
@@ -526,13 +532,42 @@ function OfferDetail() {
                   (() => {
                     const m = entry.data;
                     const mine = m.sender_id === myId;
+                    const referenced = m.reply_to as { body?: string; attachment_urls?: string[] } | null | undefined;
                     return (
                       <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                         <div
-                          className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
+                          className={`group relative max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                             mine ? "bg-gradient-primary text-primary-foreground" : "bg-muted"
                           }`}
                         >
+                          {!mine && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="Message actions"
+                                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full text-muted-foreground opacity-0 transition hover:bg-background/70 hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    setReplyTo(m);
+                                    requestAnimationFrame(() => messageInputRef.current?.focus());
+                                  }}
+                                >
+                                  <Reply className="h-3.5 w-3.5" /> Reply
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                          {referenced && (
+                            <div className={`mb-1.5 border-l-2 px-2 py-1 text-xs ${mine ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/80" : "border-primary/60 bg-background/50 text-muted-foreground"}`}>
+                              <p className="truncate">{referenced.body || (referenced.attachment_urls?.length ? "Attachment" : "Message unavailable")}</p>
+                            </div>
+                          )}
                           {m.body && <p className="break-words">{m.body}</p>}
                           {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
                             <div className="mt-1 grid gap-1.5">
@@ -586,6 +621,15 @@ function OfferDetail() {
             </div>
 
             <div className="border-t border-border p-3">
+              {replyTo && (
+                <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-primary bg-primary-soft px-3 py-2 text-xs">
+                  <Reply className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <p className="min-w-0 flex-1 truncate">Replying to: {replyTo.body || (replyTo.attachment_urls?.length ? "Attachment" : "Message")}</p>
+                  <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="rounded p-0.5 hover:bg-background/70">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {files.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {files.map((f, i) => (
@@ -652,6 +696,7 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
                   />
                 </label>
                 <input
+                  ref={messageInputRef}
                   value={text}
                   onChange={(e) => {
                     setText(e.target.value);

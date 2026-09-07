@@ -28,7 +28,7 @@ export const listMessages = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("messages")
-      .select("*, sender:profiles!messages_sender_profile_fkey(*)")
+      .select("*, sender:profiles!messages_sender_profile_fkey(*), reply_to:messages!messages_reply_to_id_fkey(id, body, attachment_urls, sender_id)")
       .eq("offer_id", data.offer_id)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
@@ -43,6 +43,7 @@ export const sendMessage = createServerFn({ method: "POST" })
         offer_id: z.string().uuid(),
         body: z.string().max(2000).default(""),
         attachment_urls: z.array(z.string().url().max(2048)).max(4).default([]),
+        reply_to_id: z.string().uuid().nullable().optional(),
       })
       .refine((v) => v.body.trim().length > 0 || v.attachment_urls.length > 0, {
         message: "Write a message or attach a file.",
@@ -61,6 +62,16 @@ export const sendMessage = createServerFn({ method: "POST" })
         `Message blocked: ${verdict.reason} Prohibited: ${verdict.terms.join(", ")}`,
       );
     }
+    if (data.reply_to_id) {
+      const { data: repliedTo, error: replyError } = await context.supabase
+        .from("messages")
+        .select("id")
+        .eq("id", data.reply_to_id)
+        .eq("offer_id", data.offer_id)
+        .maybeSingle();
+      if (replyError) throw new Error(replyError.message);
+      if (!repliedTo) throw new Error("The message you are replying to is unavailable.");
+    }
     const { data: row, error } = await context.supabase
       .from("messages")
       .insert({
@@ -68,8 +79,9 @@ export const sendMessage = createServerFn({ method: "POST" })
         sender_id: context.userId,
         body: data.body,
         attachment_urls: data.attachment_urls,
+        reply_to_id: data.reply_to_id ?? null,
       } as never)
-      .select()
+      .select("*, reply_to:messages!messages_reply_to_id_fkey(id, body, attachment_urls, sender_id)")
       .single();
     if (error) throw new Error(error.message);
 
