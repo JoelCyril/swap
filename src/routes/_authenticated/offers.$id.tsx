@@ -13,6 +13,7 @@ import {
   confirmItemsReceived,
   toggleListingItem,
   reportItemsNotReceived,
+  updateOfferCash,
 } from "@/lib/offers.functions";
 
 
@@ -242,7 +243,19 @@ function OfferDetail() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to cancel trade"),
   });
 
+  const updateCash = useServerFn(updateOfferCash);
+  const [cashModalOpen, setCashModalOpen] = useState(false);
 
+  const updateCashMut = useMutation({
+    mutationFn: (amount: number | null) => updateCash({ data: { id, cash_amount: amount } }),
+    onSuccess: (_res, amount) => {
+      invalidateAll();
+      qc.invalidateQueries({ queryKey: ["messages", id] });
+      setCashModalOpen(false);
+      toast.success(amount != null && amount > 0 ? `Cash offer updated to ${amount} AED` : "Cash offer removed");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update cash offer"),
+  });
 
   const safetyMut = useMutation({
     mutationFn: (pid: string) => confirmSafety({ data: { id: pid } }),
@@ -405,6 +418,9 @@ function OfferDetail() {
     ...(proposals ?? []).map((p: any) => ({ kind: "meetup" as const, at: p.created_at, data: p })),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
+  const myGiveCash = !isTo ? (offer as any).cash_amount : null;
+  const myGetCash = isTo ? (offer as any).cash_amount : null;
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -439,6 +455,48 @@ function OfferDetail() {
           </span>
         </div>
 
+        {/* Cash offer banner */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 p-3.5 sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-xl font-bold">
+              💰
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                  Cash Offer
+                </span>
+                {(offer as any).cash_amount != null && (offer as any).cash_amount > 0 ? (
+                  <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-black text-white">
+                    {(offer as any).cash_amount} AED
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    0 AED (Pure swap)
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {(offer as any).cash_amount != null && (offer as any).cash_amount > 0
+                  ? isTo
+                    ? `${handle(offer.from_profile)} offers ${(offer as any).cash_amount} AED in cash to you.`
+                    : `You offer ${(offer as any).cash_amount} AED in cash to ${handle(offer.to_profile)}.`
+                  : "No cash included in this trade. Either party can propose cash to balance the deal."}
+              </p>
+            </div>
+          </div>
+
+          {(canAct || accepted) && (
+            <button
+              type="button"
+              onClick={() => setCashModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-500/40 bg-card px-4 py-2 text-xs font-black uppercase text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer shadow-sm"
+            >
+              <span>💰 {(offer as any).cash_amount != null && (offer as any).cash_amount > 0 ? "Adjust / Counter Cash" : "+ Add Cash Offer"}</span>
+            </button>
+          )}
+        </div>
+
         {offer.listing && senderItems.length > 0 && (
           <div className="mb-4">
             <FairTradeMeter
@@ -464,6 +522,8 @@ function OfferDetail() {
             heading="You give"
             images={giveImgs}
             owner={giveOwner}
+            cashAmount={myGiveCash}
+            onAdjustCash={(canAct || accepted) ? () => setCashModalOpen(true) : undefined}
             onAdd={accepted ? () => setAddOpen(true) : undefined}
             onRemove={accepted ? removeImg : undefined}
           />
@@ -674,6 +734,8 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
             heading="You get"
             images={getImgs}
             owner={getOwner}
+            cashAmount={myGetCash}
+            onAdjustCash={(canAct || accepted) ? () => setCashModalOpen(true) : undefined}
             onViewInventory={() =>
               setInventoryOf(
                 isTo
@@ -882,6 +944,17 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
           </div>
         </div>
       )}
+
+      {cashModalOpen && (
+        <CashNegotiationModal
+          currentCash={(offer as any).cash_amount ?? null}
+          isOpen={cashModalOpen}
+          onClose={() => setCashModalOpen(false)}
+          onSave={(amt) => updateCashMut.mutate(amt)}
+          isPending={updateCashMut.isPending}
+          otherUsername={handle(other)}
+        />
+      )}
       <Footer />
     </div>
   );
@@ -891,6 +964,8 @@ function SidePanel({
   heading,
   images,
   owner,
+  cashAmount,
+  onAdjustCash,
   onViewInventory,
   onAdd,
   onRemove,
@@ -898,18 +973,27 @@ function SidePanel({
   heading: string;
   images: Img[];
   owner: { username: string; display_name: string } | null | undefined;
+  cashAmount?: number | null;
+  onAdjustCash?: () => void;
   onViewInventory?: () => void;
   onAdd?: () => void;
   onRemove?: (img: Img) => void;
 }) {
-
   return (
     <section className="min-w-0 rounded-3xl border-2 border-primary/20 bg-card p-4 shadow-card">
       <p className="mb-3 text-center text-[11px] font-black uppercase tracking-wider text-primary">{heading}</p>
       <div className="flex flex-wrap justify-center gap-2">
         {images.length === 0 && (
-          <div className="grid h-20 w-20 place-items-center rounded-2xl border-2 border-dashed border-primary/30 text-xs text-muted-foreground">
-            None
+          <div className="flex flex-col items-center justify-center p-3 text-center">
+            {cashAmount != null && cashAmount > 0 ? (
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                (Pure cash offer — no items)
+              </span>
+            ) : (
+              <div className="grid h-20 w-20 place-items-center rounded-2xl border-2 border-dashed border-primary/30 text-xs text-muted-foreground">
+                None
+              </div>
+            )}
           </div>
         )}
         {images.map((img, i) => {
@@ -981,6 +1065,32 @@ function SidePanel({
           </button>
         )}
       </div>
+
+      {/* Cash card if included */}
+      {cashAmount != null && cashAmount > 0 && (
+        <div className="mt-3 flex items-center justify-between rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">💰</span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                Cash Component
+              </p>
+              <p className="text-xs font-black text-emerald-700 dark:text-emerald-400">
+                +{cashAmount} AED
+              </p>
+            </div>
+          </div>
+          {onAdjustCash && (
+            <button
+              type="button"
+              onClick={onAdjustCash}
+              className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 underline hover:opacity-80 cursor-pointer"
+            >
+              Negotiate
+            </button>
+          )}
+        </div>
+      )}
 
       {owner && (
         <Link
@@ -1414,6 +1524,124 @@ function ItemsNotReceivedModal({
             className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-destructive py-2.5 text-xs font-black uppercase tracking-wider text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
           >
             {isPending ? "Cancelling…" : "Cancel Swap & Return Listing"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function CashNegotiationModal({
+  currentCash,
+  isOpen,
+  onClose,
+  onSave,
+  isPending,
+  otherUsername,
+}: {
+  currentCash: number | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (amount: number | null) => void;
+  isPending: boolean;
+  otherUsername: string;
+}) {
+  const [val, setVal] = useState(currentCash != null && currentCash > 0 ? String(currentCash) : "");
+
+  useEffect(() => {
+    setVal(currentCash != null && currentCash > 0 ? String(currentCash) : "");
+  }, [currentCash, isOpen]);
+
+  if (!isOpen) return null;
+
+  const numVal = parseFloat(val);
+  const validNum = !isNaN(numVal) && numVal > 0 ? numVal : null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md rounded-3xl border-2 border-emerald-500/30 bg-card p-6 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">💰</span>
+            <div>
+              <h3 className="font-display text-lg font-black text-foreground">Negotiate Cash Offer</h3>
+              <p className="text-xs text-muted-foreground">Adjust cash terms with @{otherUsername}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition cursor-pointer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Propose or adjust the cash amount in this trade. A clear update will be recorded in your chat for mutual agreement.
+        </p>
+
+        <div className="rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 p-4">
+          <label className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+            Cash Amount (AED)
+          </label>
+          <div className="relative mt-2">
+            <input
+              type="number"
+              min="0"
+              step="5"
+              placeholder="0 (Pure swap)"
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              className="w-full rounded-xl border-2 border-emerald-500/30 bg-background px-3.5 py-2.5 text-base font-bold text-foreground outline-none focus:border-emerald-500 transition"
+              autoFocus
+            />
+            <span className="absolute right-3.5 top-3 text-xs font-black text-muted-foreground uppercase">
+              AED
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground">Quick adjust:</span>
+            {[50, 100, 200, 500].map((amt) => (
+              <button
+                key={amt}
+                type="button"
+                onClick={() => setVal(String((validNum ?? 0) + amt))}
+                className="rounded-full border border-emerald-500/30 bg-background px-2.5 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15 transition cursor-pointer"
+              >
+                +{amt}
+              </button>
+            ))}
+            {validNum != null && (
+              <button
+                type="button"
+                onClick={() => setVal("")}
+                className="text-[11px] font-bold text-muted-foreground hover:underline ml-auto cursor-pointer"
+              >
+                Clear cash
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:flex-1 rounded-full border border-border py-2.5 text-xs font-bold text-muted-foreground hover:bg-muted transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => onSave(validNum)}
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-primary py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 disabled:opacity-50 transition cursor-pointer"
+          >
+            {isPending ? "Updating…" : validNum ? `Propose ${validNum} AED` : "Set 0 AED (Pure Swap)"}
           </button>
         </div>
       </div>

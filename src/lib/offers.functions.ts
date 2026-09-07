@@ -4,15 +4,42 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyUser } from "./notifications.server";
 import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 
+/** Helper to extract cash amount from offer row (either cash_amount column or [CASH:150] metadata tag in message) */
+export function extractOfferCash(offer: { cash_amount?: number | null; message?: string | null } | null | undefined): number | null {
+  if (!offer) return null;
+  if (typeof (offer as any).cash_amount === "number" && !isNaN((offer as any).cash_amount) && (offer as any).cash_amount > 0) {
+    return Number((offer as any).cash_amount);
+  }
+  if (offer.message && typeof offer.message === "string") {
+    const match = offer.message.match(/\[CASH:([0-9]+(?:\.[0-9]+)?)\]/);
+    if (match && match[1]) {
+      const val = parseFloat(match[1]);
+      if (!isNaN(val) && val > 0) return val;
+    }
+  }
+  return null;
+}
+
+/** Helper to clean user visible message by stripping the [CASH:...] metadata tag */
+export function cleanOfferMessage(message: string | null | undefined): string {
+  if (!message) return "";
+  return message.replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "").trim();
+}
+
 export const createOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
         listing_id: z.string().uuid(),
-        offered_item_ids: z.array(z.string().uuid()).min(1).max(6),
+        offered_item_ids: z.array(z.string().uuid()).max(6).default([]),
+        cash_amount: z.number().nonnegative().max(100000).nullable().optional(),
         message: z.string().max(1000).default(""),
       })
+      .refine(
+        (data) => (data.offered_item_ids && data.offered_item_ids.length > 0) || (data.cash_amount != null && data.cash_amount > 0),
+        { message: "Please pick at least one item or offer a cash amount." },
+      )
       .parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -24,25 +51,47 @@ export const createOffer = createServerFn({ method: "POST" })
     if (lerr || !listing) throw new Error("Listing not found");
     if (listing.owner_id === context.userId) throw new Error("Cannot offer on your own listing");
     if (listing.status !== "active") throw new Error("Listing is not active");
-    const { data: row, error } = await context.supabase
-      .from("offers")
-      .insert({
-        listing_id: data.listing_id,
-        from_user: context.userId,
-        to_user: listing.owner_id,
-        offered_item_ids: data.offered_item_ids,
-        message: data.message,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
+
+    const cash = data.cash_amount && data.cash_amount > 0 ? Number(data.cash_amount) : null;
+    let finalMessage = (data.message || "").trim();
+    if (cash != null && !finalMessage.includes(`[CASH:`)) {
+      finalMessage = `[CASH:${cash}] ${finalMessage}`.trim();
+    }
+
+    const payload: Record<string, any> = {
+      listing_id: data.listing_id,
+      from_user: context.userId,
+      to_user: listing.owner_id,
+      offered_item_ids: data.offered_item_ids || [],
+      message: finalMessage,
+    };
+    if (cash != null) {
+      payload.cash_amount = cash;
+    }
+
+    let insertRes = await context.supabase.from("offers").insert(payload as any).select().single();
+    if (insertRes.error && insertRes.error.message.includes("cash_amount")) {
+      delete payload.cash_amount;
+      insertRes = await context.supabase.from("offers").insert(payload as any).select().single();
+    }
+    if (insertRes.error) throw new Error(insertRes.error.message);
+    const row = insertRes.data;
+
+    const cashStr = cash ? `${cash} AED` : null;
+    const itemsCount = (data.offered_item_ids || []).length;
+    const offerSummary = cashStr && itemsCount > 0
+      ? `${cashStr} + ${itemsCount} item${itemsCount > 1 ? "s" : ""}`
+      : cashStr
+        ? `${cashStr} cash`
+        : `${itemsCount} item${itemsCount > 1 ? "s" : ""}`;
+
     await notifyUser({
-  userId: listing.owner_id,
-  type: "offer_received",
-  title: "A new swap offer awaits you on SWAP",
-  body: `You've got a swap offer for your listed item: "${listing.title}". Another SWAP member is interested in trading.`,
-  link: `/offers/${row.id}`,
-});
+      userId: listing.owner_id,
+      type: "offer_received",
+      title: "A new swap offer awaits you on SWAP",
+      body: `You received an offer (${offerSummary}) for "${listing.title}". Another SWAP member is interested in trading.`,
+      link: `/offers/${row.id}`,
+    });
     return row;
   });
 
@@ -107,6 +156,8 @@ export const listMyOffers = createServerFn({ method: "GET" })
     const repairedOffers = await Promise.all(
       (data ?? []).map(async (off: any) => ({
         ...off,
+        cash_amount: extractOfferCash(off),
+        message: cleanOfferMessage(off.message),
         listing: off.listing
           ? {
               ...off.listing,
@@ -264,8 +315,13 @@ export const getOffer = createServerFn({ method: "GET" })
         }
       : (offer as any).to_profile;
 
+    const cashAmount = extractOfferCash(offer as any);
+    const cleanedMessage = cleanOfferMessage((offer as any).message);
+
     return {
       ...offer,
+      cash_amount: cashAmount,
+      message: cleanedMessage,
       listing: repairedListing,
       from_profile: repairedFromProfile,
       to_profile: repairedToProfile,
@@ -275,6 +331,88 @@ export const getOffer = createServerFn({ method: "GET" })
       removed_recipient_items: removedRecipientItems,
       viewer_id: context.userId,
     };
+  });
+
+/** Either party can propose or negotiate a cash amount for the offer. */
+export const updateOfferCash = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        cash_amount: z.number().nonnegative().max(100000).nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: offer, error: gerr } = await context.supabase
+      .from("offers")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (gerr || !offer) throw new Error("Offer not found");
+    const isFrom = offer.from_user === context.userId;
+    const isTo = offer.to_user === context.userId;
+    if (!isFrom && !isTo) throw new Error("Not a participant");
+    if (offer.status !== "pending" && offer.status !== "accepted") {
+      throw new Error("Cannot negotiate on a completed or closed trade");
+    }
+
+    const nextCash = data.cash_amount != null && data.cash_amount > 0 ? Number(data.cash_amount) : null;
+    const prevCash = extractOfferCash(offer as any);
+
+    // Update message tag as fallback
+    const cleanMsg = cleanOfferMessage(offer.message);
+    const finalMsg = nextCash != null ? `[CASH:${nextCash}] ${cleanMsg}`.trim() : cleanMsg;
+
+    const updatePayload: Record<string, any> = {
+      message: finalMsg,
+      items_ok_from: false,
+      items_ok_to: false,
+      turn_user: null,
+      updated_at: new Date().toISOString(),
+    };
+    if (nextCash !== undefined) {
+      updatePayload.cash_amount = nextCash;
+    }
+
+    let up = await context.supabase.from("offers").update(updatePayload as any).eq("id", data.id);
+    if (up.error && up.error.message.includes("cash_amount")) {
+      delete updatePayload.cash_amount;
+      up = await context.supabase.from("offers").update(updatePayload as any).eq("id", data.id);
+    }
+    if (up.error) throw new Error(up.error.message);
+
+    // Insert system notification message in chat
+    const cashNotice = nextCash != null
+      ? (prevCash != null
+          ? `💰 Cash offer adjusted from ${prevCash} AED to ${nextCash} AED.`
+          : `💰 Cash offer added: ${nextCash} AED.`)
+      : `💰 Cash offer removed.`;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    try {
+      await supabaseAdmin.from("messages").insert({
+        offer_id: data.id,
+        sender_id: context.userId,
+        body: cashNotice,
+        attachment_urls: [],
+      });
+    } catch (e) {
+      console.warn("Could not insert cash negotiation chat notice:", e);
+    }
+
+    // Notify the other party
+    const other = isFrom ? offer.to_user : offer.from_user;
+    await notifyUser({
+      userId: other,
+      type: "offer_revised",
+      title: "Cash terms updated",
+      body: cashNotice,
+      link: `/offers/${data.id}`,
+    });
+
+    return { ok: true, cash_amount: nextCash };
   });
 
 /** Either party freely edits the items on their OWN side. No turn-taking. */
