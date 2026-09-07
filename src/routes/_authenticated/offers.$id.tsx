@@ -834,20 +834,32 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
               </button>
             </>
           )}
-          {offer.status === "completed" && !bothReceived && (
+
+          {offer.status === "completed" && (
             <>
               <button
-                onClick={() => receivedMut.mutate()}
-                disabled={iConfirmedReceived || receivedMut.isPending}
-                className="flex-1 flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  if (!iConfirmedReceived && !bothReceived) receivedMut.mutate();
+                }}
+                disabled={bothReceived || iConfirmedReceived || receivedMut.isPending}
+                className={`flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-black uppercase shadow-sm ${
+                  bothReceived
+                    ? "bg-emerald-600 text-white cursor-default"
+                    : "bg-gradient-primary text-primary-foreground disabled:opacity-50"
+                }`}
               >
                 <Check className="h-4 w-4" />
-                {iConfirmedReceived ? "Receipt confirmed" : "I received the items"}
+                {bothReceived
+                  ? "Trade completed"
+                  : iConfirmedReceived
+                    ? "Receipt confirmed"
+                    : "I received the items"}
               </button>
               <button
                 type="button"
                 onClick={() => setNotReceivedOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
+                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
               >
                 <AlertTriangle className="h-4 w-4" /> Items not received
               </button>
@@ -855,13 +867,15 @@ setFiles((prev) => [...prev, ...picked].slice(0, 4));
           )}
         </div>
 
-        {(accepted || (offer.status === "completed" && !bothReceived)) && (
+        {(accepted || offer.status === "completed") && (
           <div className="mt-4 space-y-3">
             <p className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary-soft/40 p-4 text-center text-xs font-semibold text-muted-foreground">
               {offer.status === "completed"
-                ? `Trade marked completed. Both sides must confirm receipt — you: ${
-                    iConfirmedReceived ? "Confirmed" : "Pending"
-                  } · ${handle(other)}: ${receivedConfirmed.includes(other?.id as string) ? "Confirmed" : "Pending"}`
+                ? bothReceived
+                  ? `Swap complete! Both sides confirmed item receipt.`
+                  : `Trade marked completed. Both sides must confirm receipt — you: ${
+                      iConfirmedReceived ? "Confirmed" : "Pending"
+                    } · ${handle(other)}: ${receivedConfirmed.includes(other?.id as string) ? "Confirmed" : "Pending"}`
                 : `Completion needs both sides — you: ${iConfirmedComplete ? "Confirmed" : "Pending"} · ${handle(other)}: ${
                     completeConfirmed.includes(other?.id as string) ? "Confirmed" : "Pending"
                   }`}
