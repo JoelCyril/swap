@@ -19,29 +19,23 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
   const myItems = useServerFn(listMyItems);
   const offer = useServerFn(createOffer);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [cashAmount, setCashAmount] = useState<string>("");
   const [message, setMessage] = useState("");
 
   const { data: items, isLoading } = useQuery({ queryKey: ["my-items"], queryFn: () => myItems() });
 
-  const numericCash = cashAmount.trim() ? parseFloat(cashAmount) : null;
-  const hasValidCash = numericCash != null && !isNaN(numericCash) && numericCash > 0;
-  const canSubmit = selected.size > 0 || hasValidCash;
-
   const send = useMutation({
     mutationFn: async () => {
-      if (!canSubmit) throw new Error("Pick at least one item or enter a cash offer");
+      if (selected.size === 0) throw new Error("Pick at least one item to offer");
       await offer({
         data: {
           listing_id: listingId,
           offered_item_ids: [...selected],
-          cash_amount: hasValidCash ? numericCash : null,
           message: message.trim(),
         },
       });
     },
     onSuccess: () => {
-      toast.success(hasValidCash && selected.size === 0 ? "Cash offer sent!" : "Offer sent!");
+      toast.success("Offer sent!");
       onClose();
       navigate({ to: "/offers" });
     },
@@ -83,59 +77,7 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5">
-          {/* 1. Cash Option */}
-          <div className="rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 p-3.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <span>💰 Cash Offer (AED)</span>
-                <span className="text-[10px] font-medium lowercase text-muted-foreground">(optional)</span>
-              </label>
-              {hasValidCash && (
-                <button
-                  type="button"
-                  onClick={() => setCashAmount("")}
-                  className="text-[10px] font-bold text-emerald-700 hover:underline cursor-pointer"
-                >
-                  Clear cash
-                </button>
-              )}
-            </div>
-
-            <div className="relative mt-2">
-              <input
-                type="number"
-                min="0"
-                step="5"
-                placeholder="e.g. 150"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                className="w-full rounded-xl border-2 border-emerald-500/30 bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-emerald-500 transition"
-              />
-              <span className="absolute right-3 top-2 text-xs font-black text-muted-foreground uppercase">
-                AED
-              </span>
-            </div>
-
-            {/* Quick Suggestions */}
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-bold text-muted-foreground">Quick add:</span>
-              {[50, 100, 200, 500].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => setCashAmount(String((numericCash ?? 0) + amt))}
-                  className="rounded-full border border-emerald-500/30 bg-background/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15 transition cursor-pointer"
-                >
-                  +{amt}
-                </button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-[10px] text-muted-foreground">
-              Offer cash on top of your items, or make a cash-only offer. You can negotiate after!
-            </p>
-          </div>
-
-          {/* 2. Items from inventory */}
+          {/* Items from inventory */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -205,11 +147,11 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
             )}
           </div>
 
-          {/* 3. Optional Message */}
+          {/* Optional Message */}
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Optional message (e.g. Willing to negotiate cash, flexible meetup location)…"
+            placeholder="Optional message…"
             maxLength={1000}
             rows={2}
             className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
@@ -221,20 +163,14 @@ export function OfferDialog({ listingId, listingTitle, onClose }: Props) {
           <button
             type="button"
             onClick={() => send.mutate()}
-            disabled={send.isPending || !canSubmit}
+            disabled={send.isPending || selected.size === 0}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed"
           >
-            {send.isPending ? (
-              "Sending…"
-            ) : selected.size > 0 && hasValidCash ? (
-              `Send Offer (${selected.size} Item${selected.size > 1 ? "s" : ""} + ${numericCash} AED)`
-            ) : selected.size > 0 ? (
-              `Send Swap Offer (${selected.size} Item${selected.size > 1 ? "s" : ""})`
-            ) : hasValidCash ? (
-              `Send Cash Offer (${numericCash} AED)`
-            ) : (
-              "Pick items or enter cash to offer"
-            )}
+            {send.isPending
+              ? "Sending…"
+              : selected.size > 0
+                ? `Send Swap Offer (${selected.size} Item${selected.size > 1 ? "s" : ""})`
+                : "Pick items to offer"}
           </button>
         </div>
       </div>

@@ -162,16 +162,9 @@ function OfferList({
                 <p className="font-display text-base font-bold truncate sm:text-lg text-foreground">
                   {listing?.title ?? "Listing unavailable"}
                 </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-xs text-muted-foreground truncate">
-                    {incoming ? "From" : "To"} <span className="font-semibold text-foreground">@{handle(other)}</span> · {timeAgo(o.created_at)}
-                  </p>
-                  {o.cash_amount ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
-                      💰 {o.cash_amount} AED
-                    </span>
-                  ) : null}
-                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {incoming ? "From" : "To"} <span className="font-semibold text-foreground">@{handle(other)}</span> · {timeAgo(o.created_at)}
+                </p>
                 {o.message && <p className="mt-1 text-xs text-foreground/75 truncate italic">"{o.message}"</p>}
                 <span
                   className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider sm:hidden ${

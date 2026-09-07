@@ -45,7 +45,6 @@ function ListingDetailPage() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("");
-  const [cashAmount, setCashAmount] = useState("");
   const [activePhoto, setActivePhoto] = useState(0);
   const [viewCount, setViewCount] = useState<number | null>(null);
   const offerPanelRef = useRef<HTMLDivElement>(null);
@@ -108,28 +107,15 @@ function ListingDetailPage() {
   const { savedIds } = useSavedIds();
   const toggleSaved = useToggleSaved();
 
-  const numericCash = parseFloat(cashAmount);
-  const hasValidCash = !isNaN(numericCash) && numericCash > 0;
-
   const createOfferMut = useMutation({
     mutationFn: async () => {
-      if (selected.size === 0 && !hasValidCash) {
-        throw new Error("Pick at least one item or enter a cash amount");
-      }
-      await offer({
-        data: {
-          listing_id: id,
-          offered_item_ids: [...selected],
-          message,
-          cash_amount: hasValidCash ? numericCash : undefined,
-        },
-      });
+      if (selected.size === 0) throw new Error("Pick at least one item to offer");
+      await offer({ data: { listing_id: id, offered_item_ids: [...selected], message } });
     },
     onSuccess: () => {
       toast.success("Offer sent!");
       setSelected(new Set());
       setMessage("");
-      setCashAmount("");
       navigate({ to: "/offers" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -402,57 +388,9 @@ function ListingDetailPage() {
                 <p className="mt-3 text-sm text-muted-foreground">This listing is {listing.status}.</p>
               ) : (
                 <>
-                  {/* Cash Offer Option */}
-                  <div className="mt-3 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <span>💰 Cash Offer (AED)</span>
-                        <span className="text-[10px] font-medium lowercase text-muted-foreground">(optional)</span>
-                      </label>
-                      {hasValidCash && (
-                        <button
-                          type="button"
-                          onClick={() => setCashAmount("")}
-                          className="text-[10px] font-bold text-emerald-700 hover:underline cursor-pointer"
-                        >
-                          Clear cash
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="relative mt-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="5"
-                        placeholder="e.g. 150"
-                        value={cashAmount}
-                        onChange={(e) => setCashAmount(e.target.value)}
-                        className="w-full rounded-xl border-2 border-emerald-500/30 bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-emerald-500 transition"
-                      />
-                      <span className="absolute right-3 top-2 text-xs font-black text-muted-foreground uppercase">
-                        AED
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground">Quick add:</span>
-                      {[50, 100, 200, 500].map((amt) => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setCashAmount(String((numericCash || 0) + amt))}
-                          className="rounded-full border border-emerald-500/30 bg-background/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15 transition cursor-pointer"
-                        >
-                          +{amt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <p className="mt-4 text-xs font-semibold text-muted-foreground">Or pick items from your inventory:</p>
+                  <p className="mt-3 text-xs text-muted-foreground">Pick items from your inventory to offer:</p>
                   {items && items.length > 0 ? (
-                    <div className="mt-2 max-h-60 overflow-y-auto space-y-2">
+                    <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
                       {items.map((it) => {
                         const on = selected.has(it.id);
                         return (
@@ -480,11 +418,9 @@ function ListingDetailPage() {
                       })}
                     </div>
                   ) : (
-                    <div className="mt-2 rounded-2xl border-2 border-dashed border-primary/30 p-3 text-center">
-                      <p className="text-xs text-muted-foreground">
-                        No inventory items yet. You can still make a pure cash offer above!
-                      </p>
-                      <Link to="/new-listing" className="mt-1.5 inline-block text-xs font-bold text-primary hover:underline">
+                    <div className="mt-3 rounded-2xl border-2 border-dashed border-primary/30 p-4 text-center">
+                      <p className="text-xs text-muted-foreground">You don't have any items yet.</p>
+                      <Link to="/new-listing" className="mt-2 inline-block text-xs font-bold text-primary hover:underline">
                         Create an item →
                       </Link>
                     </div>
@@ -500,18 +436,10 @@ function ListingDetailPage() {
                   <button
                     type="button"
                     onClick={() => createOfferMut.mutate()}
-                    disabled={createOfferMut.isPending || (selected.size === 0 && !hasValidCash)}
+                    disabled={createOfferMut.isPending || selected.size === 0}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
                   >
-                    {createOfferMut.isPending ? (
-                      "Sending…"
-                    ) : selected.size > 0 && hasValidCash ? (
-                      `Send offer (${selected.size} items + ${numericCash} AED)`
-                    ) : hasValidCash ? (
-                      `Send cash offer (${numericCash} AED)`
-                    ) : (
-                      `Send offer (${selected.size} items)`
-                    )}
+                    {createOfferMut.isPending ? "Sending…" : `Send offer (${selected.size})`}
                   </button>
                 </>
               )}
