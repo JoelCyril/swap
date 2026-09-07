@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { adminMarkTradeCompleted } from "@/lib/admin.functions";
+import { toast } from "sonner";
 import {
   Users,
   Package,
@@ -16,8 +20,39 @@ import {
   CheckCircle2,
   Calendar,
   Mail,
+  X,
 } from "lucide-react";
 import { timeAgo, gradientForId, handle } from "@/lib/db-types";
+
+export type TradeItem = {
+  id: string;
+  status: "accepted" | "completed" | string;
+  created_at: string;
+  updated_at: string;
+  listing_id: string;
+  listing_title: string;
+  listing_image: string | null;
+  from_user: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    avatar_color: string | null;
+    has_confirmed_complete: boolean;
+    has_confirmed_received: boolean;
+  };
+  to_user: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    avatar_color: string | null;
+    has_confirmed_complete: boolean;
+    has_confirmed_received: boolean;
+  };
+  complete_count: number;
+  received_count: number;
+};
 
 type UserRow = {
   id: string;
@@ -56,6 +91,7 @@ type AnalyticsData = {
     users_with_trades: number;
   };
   users: UserRow[];
+  trades?: TradeItem[];
   emirate_breakdown: Record<string, { users: number; listings: number }>;
   category_breakdown: Record<string, number>;
 };
@@ -79,9 +115,31 @@ export function AnalyticsPanel({
   const [filter, setFilter] = useState<MemberFilter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortField>("newest");
+  const [tradesModalOpen, setTradesModalOpen] = useState(false);
+  const [tradesFilter, setTradesFilter] = useState<"all" | "completed" | "accepted">("all");
+
+  const qc = useQueryClient();
+  const markCompleteFn = useServerFn(adminMarkTradeCompleted);
+  const completeTradeMut = useMutation({
+    mutationFn: (offerId: string) => markCompleteFn({ data: { offerId } }),
+    onSuccess: (res) => {
+      toast.success(res.message || "Trade marked as completed!");
+      qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to mark trade as completed"),
+  });
 
   const summary = data?.summary;
   const rawUsers = data?.users ?? [];
+  const rawTrades = data?.trades ?? [];
+
+  const filteredTrades = useMemo(() => {
+    return rawTrades.filter((t) => {
+      if (tradesFilter === "completed") return t.status === "completed";
+      if (tradesFilter === "accepted") return t.status === "accepted";
+      return true;
+    });
+  }, [rawTrades, tradesFilter]);
 
   // Filter & Search
   const filteredUsers = useMemo(() => {
@@ -182,18 +240,34 @@ export function AnalyticsPanel({
         </div>
 
         {/* Completed Trades */}
-        <div className="rounded-2xl border-2 border-blue-500/20 bg-blue-500/5 p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setTradesModalOpen(true)}
+          className="group text-left rounded-2xl border-2 border-blue-500/30 bg-blue-500/5 p-4 shadow-sm hover:border-blue-500 hover:bg-blue-500/10 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+            <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400">
               Swaps Done
             </span>
-            <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+            <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 group-hover:text-blue-700">
+              <span>View</span>
+              <ArrowRightLeft className="h-3.5 w-3.5 text-blue-600 group-hover:scale-110 group-hover:rotate-12 transition-transform" />
+            </div>
           </div>
-          <p className="mt-2 font-display text-2xl font-black text-blue-800 dark:text-blue-300">
-            {summary.completed_swaps}
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="font-display text-2xl font-black text-blue-800 dark:text-blue-300">
+              {summary.completed_swaps}
+            </p>
+            {summary.accepted_offers > 0 && (
+              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:text-blue-300">
+                +{summary.accepted_offers} in progress
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-blue-600/90 mt-0.5 font-medium">
+            {summary.users_with_trades} traders active • Click to inspect ↗
           </p>
-          <p className="text-[11px] text-blue-600/90 mt-0.5">{summary.users_with_trades} traders active</p>
-        </div>
+        </button>
 
         {/* Marketplace Listings */}
         <div className="rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm">
@@ -444,6 +518,174 @@ export function AnalyticsPanel({
           )}
         </div>
       </div>
+
+      {/* TRADES / SWAPS DONE MODAL */}
+      {tradesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-3xl border-2 border-primary/30 bg-card p-6 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border/80 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/15 text-blue-600">
+                  <ArrowRightLeft className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-black text-foreground">
+                    Swaps & Trades ({data?.trades?.length ?? 0})
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {summary?.completed_swaps ?? 0} confirmed completed • {summary?.accepted_offers ?? 0} accepted & in-progress
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTradesModalOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 py-3 border-b border-border/60">
+              <button
+                type="button"
+                onClick={() => setTradesFilter("all")}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition cursor-pointer ${
+                  tradesFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                All Trades ({data?.trades?.length ?? 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTradesFilter("completed")}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition cursor-pointer ${
+                  tradesFilter === "completed"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Completed ({summary?.completed_swaps ?? 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTradesFilter("accepted")}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition cursor-pointer ${
+                  tradesFilter === "accepted"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Accepted / In Progress ({summary?.accepted_offers ?? 0})
+              </button>
+            </div>
+
+            {/* Trade Cards List */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
+              {filteredTrades.length === 0 ? (
+                <div className="py-16 text-center text-sm text-muted-foreground">
+                  No trades found matching this filter.
+                </div>
+              ) : (
+                filteredTrades.map((trade) => (
+                  <div
+                    key={trade.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/80 bg-background/60 p-4 transition hover:border-primary/40 hover:bg-background"
+                  >
+                    {/* Item and Traders */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {trade.listing_image ? (
+                        <img
+                          src={trade.listing_image}
+                          alt={trade.listing_title}
+                          className="h-14 w-14 rounded-xl object-cover border border-border/80 shrink-0"
+                        />
+                      ) : (
+                        <div className="grid h-14 w-14 place-items-center rounded-xl bg-primary/10 text-primary font-black text-xs shrink-0">
+                          SWAP
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <Link
+                          to="/listings/$id"
+                          params={{ id: trade.listing_id }}
+                          className="font-display text-sm font-black text-foreground hover:text-primary transition truncate block"
+                        >
+                          {trade.listing_title}
+                        </Link>
+                        {/* Traders */}
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <Link
+                            to="/profile/$username"
+                            params={{ username: trade.from_user.username }}
+                            className="font-bold text-foreground hover:underline"
+                          >
+                            @{trade.from_user.username}
+                          </Link>
+                          <span className="text-muted-foreground/60">⇄</span>
+                          <Link
+                            to="/profile/$username"
+                            params={{ username: trade.to_user.username }}
+                            className="font-bold text-foreground hover:underline"
+                          >
+                            @{trade.to_user.username}
+                          </Link>
+                        </div>
+                        <div className="mt-1 text-[11px] text-muted-foreground/80">
+                          Started {timeAgo(trade.created_at)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status & Actions */}
+                    <div className="flex flex-wrap sm:flex-col sm:items-end gap-2 shrink-0">
+                      <div className="flex items-center gap-2">
+                        {trade.status === "completed" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="h-3 w-3" /> Completed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-black text-amber-700 dark:text-amber-300">
+                            <Clock className="h-3 w-3" /> Accepted ({trade.complete_count}/2 confirmed)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to="/offers/$id"
+                          params={{ id: trade.id }}
+                          className="inline-flex items-center gap-1 rounded-xl border border-border/80 bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary/40 hover:text-primary transition cursor-pointer"
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Thread
+                        </Link>
+                        {trade.status !== "completed" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Mark this trade for "${trade.listing_title}" as completed?`)) {
+                                completeTradeMut.mutate(trade.id);
+                              }
+                            }}
+                            disabled={completeTradeMut.isPending}
+                            className="inline-flex items-center gap-1 rounded-xl bg-gradient-primary px-3 py-1.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-xs hover:scale-105 transition disabled:opacity-50 cursor-pointer"
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Mark Completed
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

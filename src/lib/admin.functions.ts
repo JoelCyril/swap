@@ -284,7 +284,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
     // 2. Fetch all listings
     const { data: listings, error: lErr } = await supabaseAdmin
       .from("listings")
-      .select("id, owner_id, title, category, condition, status, created_at, emirate, location");
+      .select("id, owner_id, title, category, condition, status, created_at, emirate, location, image_urls");
     if (lErr) throw new Error(lErr.message);
 
     // 3. Fetch all items (inventory)
@@ -296,7 +296,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
     // 4. Fetch all offers
     const { data: offers, error: oErr } = await supabaseAdmin
       .from("offers")
-      .select("id, from_user, to_user, listing_id, status, created_at, updated_at");
+      .select("id, from_user, to_user, listing_id, status, complete_confirmed_by, received_confirmed_by, created_at, updated_at");
     if (oErr) throw new Error(oErr.message);
 
     // 5. Fetch email notification logs to compute 7-day cooldowns
@@ -455,6 +455,52 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       }
     }
 
+    // Map profiles and listings by ID for quick trade lookup
+    const profilesById = new Map(allProfiles.map((p) => [p.id, p]));
+    const listingsById = new Map(allListings.map((l) => [l.id, l]));
+
+    // All active or completed trades
+    const tradesList = allOffers
+      .filter((o) => o.status === "accepted" || o.status === "completed")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .map((o) => {
+        const listing = listingsById.get(o.listing_id);
+        const fromProf = profilesById.get(o.from_user);
+        const toProf = profilesById.get(o.to_user);
+        const completeBy = ((o as any).complete_confirmed_by ?? []).filter(Boolean);
+        const receivedBy = ((o as any).received_confirmed_by ?? []).filter(Boolean);
+
+        return {
+          id: o.id,
+          status: o.status,
+          created_at: o.created_at,
+          updated_at: o.updated_at,
+          listing_id: o.listing_id,
+          listing_title: listing?.title ?? "Listing",
+          listing_image: (listing as any)?.image_urls?.[0] ?? null,
+          from_user: {
+            id: o.from_user,
+            username: fromProf?.username ?? "unknown",
+            display_name: fromProf?.display_name ?? fromProf?.username ?? "User",
+            avatar_url: fromProf?.avatar_url ?? null,
+            avatar_color: fromProf?.avatar_color ?? "#6366f1",
+            has_confirmed_complete: completeBy.includes(o.from_user),
+            has_confirmed_received: receivedBy.includes(o.from_user),
+          },
+          to_user: {
+            id: o.to_user,
+            username: toProf?.username ?? "unknown",
+            display_name: toProf?.display_name ?? toProf?.username ?? "User",
+            avatar_url: toProf?.avatar_url ?? null,
+            avatar_color: toProf?.avatar_color ?? "#6366f1",
+            has_confirmed_complete: completeBy.includes(o.to_user),
+            has_confirmed_received: receivedBy.includes(o.to_user),
+          },
+          complete_count: completeBy.length,
+          received_count: receivedBy.length,
+        };
+      });
+
     return {
       summary: {
         total_users: totalUsers,
@@ -470,9 +516,75 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         users_with_trades: Array.from(tradesByUser.values()).filter((t) => t.completedTrades > 0).length,
       },
       users: userRows,
+      trades: tradesList,
       emirate_breakdown: emirateBreakdown,
       category_breakdown: categoryBreakdown,
     };
+  });
+
+/** Moderator action: instantly mark an accepted trade as completed. */
+export const adminMarkTradeCompleted = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { offerId: string }) =>
+    z.object({ offerId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: offer, error: offErr } = await supabaseAdmin
+      .from("offers")
+      .select("id, from_user, to_user, listing_id, status")
+      .eq("id", data.offerId)
+      .maybeSingle();
+
+    if (offErr || !offer) throw new Error("Offer not found");
+
+    const both = [offer.from_user, offer.to_user];
+
+    const { error: upErr } = await supabaseAdmin
+      .from("offers")
+      .update({
+        status: "completed",
+        complete_confirmed_by: both,
+        received_confirmed_by: both,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.offerId);
+
+    if (upErr) throw new Error(upErr.message);
+
+    if (offer.listing_id) {
+      await supabaseAdmin
+        .from("listings")
+        .update({ status: "completed" })
+        .eq("id", offer.listing_id);
+    }
+
+    const notifs = [
+      {
+        user_id: offer.from_user,
+        type: "trade_completed",
+        title: "Trade confirmed completed",
+        body: "Your trade has been confirmed completed on SWAP.",
+        link: `/offers/${offer.id}`,
+      },
+      {
+        user_id: offer.to_user,
+        type: "trade_completed",
+        title: "Trade confirmed completed",
+        body: "Your trade has been confirmed completed on SWAP.",
+        link: `/offers/${offer.id}`,
+      },
+    ];
+
+    try {
+      await supabaseAdmin.from("notifications").insert(notifs);
+    } catch (e) {
+      console.warn("Could not insert completion notifications:", e);
+    }
+
+    return { ok: true, message: "Trade successfully marked completed" };
   });
 
 export const adminSendNotification = createServerFn({ method: "POST" })
