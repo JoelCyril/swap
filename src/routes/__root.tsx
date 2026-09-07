@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { TosGate } from "@/components/TosGate";
@@ -41,6 +41,22 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   const message = error instanceof Error ? error.message : String(error ?? "");
+
+  // Route files are emitted with content hashes. A tab that was open during a
+  // deployment can still try to import the previous hash, which no longer
+  // exists. Reload once to fetch the current document and route manifest.
+  useEffect(() => {
+    const isStaleRouteChunk =
+      /failed to fetch dynamically imported module|importing a module script failed|chunkloaderror/i.test(message);
+    if (!isStaleRouteChunk) return;
+
+    const reloadKey = `swap:chunk-reload:${message}`;
+    if (sessionStorage.getItem(reloadKey)) return;
+
+    sessionStorage.setItem(reloadKey, "1");
+    window.location.reload();
+  }, [message]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
