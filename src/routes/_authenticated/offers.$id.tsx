@@ -602,6 +602,7 @@ function OfferDetail() {
                 entry.kind === "msg" ? (
                   (() => {
                     const m = entry.data as any;
+                    const mine = m.sender_id === myId;
                     const referenced = m.reply_to as { body?: string; attachment_urls?: string[] } | null | undefined;
                     const reactions = (m.reactions ?? {}) as Record<string, string[]>;
                     const hasReactions = Object.values(reactions).some((arr) => arr && arr.length > 0);
