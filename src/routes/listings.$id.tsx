@@ -10,12 +10,17 @@ import { listMyItems } from "@/lib/items.functions";
 import { createOffer } from "@/lib/offers.functions";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
-import { getPublicProfile, getMyProfile } from "@/lib/profile.functions";
-import { adminToggleCollectorBadge } from "@/lib/admin.functions";
+import {
+  adminToggleCollectorBadge,
+  adminListBadges,
+  adminAwardListingBadge,
+  adminRemoveListingBadge,
+} from "@/lib/admin.functions";
+import { extractListingBadge, getListingGlowStyle, type ListingCustomBadge } from "@/lib/badges";
 import { trackListingView } from "@/lib/views.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package } from "lucide-react";
+import { ArrowRightLeft, MapPin, Star, Flag, Trash2, Pencil, ChevronLeft, ChevronRight, ShieldCheck, Package, Award } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/listings/$id")({
@@ -141,6 +146,47 @@ function ListingDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to toggle badge"),
   });
 
+  const listBadgesFn = useServerFn(adminListBadges);
+  const awardBadgeFn = useServerFn(adminAwardListingBadge);
+  const removeBadgeFn = useServerFn(adminRemoveListingBadge);
+
+  const { data: adminBadges = [] } = useQuery({
+    queryKey: ["admin-badges"],
+    queryFn: () => listBadgesFn(),
+    enabled: isAdmin,
+  });
+
+  const awardBadgeMut = useMutation({
+    mutationFn: (badge: ListingCustomBadge) =>
+      awardBadgeFn({
+        data: {
+          listingId: id,
+          badge: {
+            id: badge.id,
+            name: badge.name,
+            imageUrl: badge.imageUrl,
+            glowColor: badge.glowColor,
+          },
+        },
+      }),
+    onSuccess: (res) => {
+      toast.success(res.message);
+      qc.invalidateQueries({ queryKey: ["listing", id] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to award badge"),
+  });
+
+  const removeBadgeMut = useMutation({
+    mutationFn: () => removeBadgeFn({ data: { listingId: id } }),
+    onSuccess: (res) => {
+      toast.success(res.message);
+      qc.invalidateQueries({ queryKey: ["listing", id] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to remove badge"),
+  });
+
   const deleteMut = useMutation({
     mutationFn: () => removeListing({ data: { id } }),
     onSuccess: () => {
@@ -190,7 +236,8 @@ function ListingDetailPage() {
   const isOwner = !!myUserId && myUserId === listing.owner_id;
   const owner = listing.owner;
   const photos: string[] = listing.image_urls ?? [];
-
+  const customBadge = extractListingBadge(listing.moderation_note);
+  const customGlowStyle = getListingGlowStyle(customBadge?.glowColor);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -198,7 +245,28 @@ function ListingDetailPage() {
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
           <div className="min-w-0">
-            <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gradient-to-br ${gradientForId(listing.id)}`}>
+            <div
+              style={customGlowStyle}
+              className={`relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gradient-to-br ${gradientForId(listing.id)} ${customBadge?.glowColor ? "ring-2 ring-white/20" : ""}`}
+            >
+              {/* Custom Badge on Top Right of Listing Photo */}
+              {customBadge && (
+                <div
+                  title={`${customBadge.name} - Awarded Badge`}
+                  className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-full bg-black/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white border border-white/20 shadow-lg"
+                  style={customBadge.glowColor ? { boxShadow: `0 0 16px ${customBadge.glowColor}cc` } : undefined}
+                >
+                  {customBadge.imageUrl && (
+                    <img
+                      src={customBadge.imageUrl}
+                      alt=""
+                      className="h-4 w-4 rounded-full object-cover border border-white/40 shrink-0"
+                    />
+                  )}
+                  <span>{customBadge.name}</span>
+                </div>
+              )}
+
               {photos.length > 0 ? (
                 <img src={photos[Math.min(activePhoto, photos.length - 1)]} alt={listing.title} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
@@ -254,11 +322,28 @@ function ListingDetailPage() {
 
 
             <div className="mt-6 min-w-0">
-              {listing.moderation_note?.includes("COLLECTOR") && (
-                <div className="mb-2.5 inline-flex items-center rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/25 to-amber-600/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 shadow-2xs">
-                  Verified Collector's Item
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                {listing.moderation_note?.includes("COLLECTOR") && (
+                  <div className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/25 to-amber-600/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 shadow-2xs">
+                    Verified Collector's Item
+                  </div>
+                )}
+                {customBadge && (
+                  <div
+                    className="inline-flex items-center gap-2 rounded-full bg-black/85 backdrop-blur-md border border-white/20 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-white shadow-md"
+                    style={customBadge.glowColor ? { boxShadow: `0 0 16px ${customBadge.glowColor}99`, borderColor: customBadge.glowColor } : undefined}
+                  >
+                    {customBadge.imageUrl && (
+                      <img
+                        src={customBadge.imageUrl}
+                        alt=""
+                        className="h-4 w-4 rounded-full object-cover border border-white/40"
+                      />
+                    )}
+                    <span>{customBadge.name}</span>
+                  </div>
+                )}
+              </div>
 
               <h1 className="font-display text-2xl font-black break-words sm:text-3xl lg:text-4xl">{listing.title}</h1>
 
@@ -270,30 +355,68 @@ function ListingDetailPage() {
 
               {/* Moderator Controls Box */}
               {isAdmin && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-3.5 shadow-2xs">
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                        Moderator Controls
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Status: <strong className="text-foreground">{listing.moderation_note?.includes("COLLECTOR") ? "Collector's Item Awarded" : "Standard Listing"}</strong>
-                      </p>
+                <div className="mt-4 rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-4 shadow-2xs space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                          Moderator Controls
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Collector: <strong className="text-foreground">{listing.moderation_note?.includes("COLLECTOR") ? "Awarded" : "None"}</strong> · Custom Badge: <strong className="text-foreground">{customBadge ? customBadge.name : "None"}</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleCollectorMut.mutate()}
+                        disabled={toggleCollectorMut.isPending}
+                        className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95 cursor-pointer ${
+                          listing.moderation_note?.includes("COLLECTOR")
+                            ? "bg-rose-600 hover:bg-rose-700"
+                            : "bg-amber-600 hover:bg-amber-700 shadow-glow"
+                        }`}
+                      >
+                        {listing.moderation_note?.includes("COLLECTOR") ? "Remove Collector" : "Award Collector"}
+                      </button>
+
+                      {customBadge ? (
+                        <button
+                          type="button"
+                          onClick={() => removeBadgeMut.mutate()}
+                          disabled={removeBadgeMut.isPending}
+                          className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white hover:bg-rose-700 shadow-sm transition cursor-pointer"
+                        >
+                          Remove "{customBadge.name}"
+                        </button>
+                      ) : (
+                        <select
+                          defaultValue=""
+                          disabled={awardBadgeMut.isPending}
+                          onChange={(e) => {
+                            const b = adminBadges.find((x) => x.name === e.target.value);
+                            if (b) {
+                              awardBadgeMut.mutate(b);
+                              e.target.value = "";
+                            }
+                          }}
+                          className="rounded-full border-2 border-primary/20 bg-background px-3 py-1.5 text-xs font-bold text-foreground outline-none focus:border-primary"
+                        >
+                          <option value="" disabled>
+                            + Award Custom Badge...
+                          </option>
+                          {adminBadges.map((b) => (
+                            <option key={b.id || b.name} value={b.name}>
+                              {b.name} {b.glowColor ? `(${b.glowColor})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleCollectorMut.mutate()}
-                    disabled={toggleCollectorMut.isPending}
-                    className={`inline-flex items-center rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95 cursor-pointer ${
-                      listing.moderation_note?.includes("COLLECTOR")
-                        ? "bg-rose-600 hover:bg-rose-700"
-                        : "bg-amber-600 hover:bg-amber-700 shadow-glow"
-                    }`}
-                  >
-                    {listing.moderation_note?.includes("COLLECTOR") ? "Remove Collector's Badge" : "Award Collector's Badge"}
-                  </button>
                 </div>
               )}
 

@@ -18,11 +18,13 @@ import {
   adminSendNotification,
   adminEmailUsersWithoutListings,
   adminEmailIndividualUser,
+  adminListBadges,
 } from "@/lib/admin.functions";
 import { liftBan } from "@/lib/bans.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { gradientForId, timeAgo } from "@/lib/db-types";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
+import { AdminBadgesPanel } from "@/components/admin/AdminBadgesPanel";
 import {
   ShieldCheck,
   Trash2,
@@ -40,6 +42,7 @@ import {
   BarChart3,
   Bell,
   Send,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,7 +66,7 @@ function AdminPage() {
   const redeem = useServerFn(redeemAdminCode);
   const [code, setCode] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"analytics" | "flagged" | "withheld" | "banned" | "inquiries" | "broadcast">("analytics");
+  const [tab, setTab] = useState<"analytics" | "badges" | "flagged" | "withheld" | "banned" | "inquiries" | "broadcast">("analytics");
   const analyticsFn = useServerFn(getModeratorAnalytics);
   const withheldFn = useServerFn(listWithheldListings);
   const reviewFn = useServerFn(reviewWithheldListing);
@@ -73,6 +76,7 @@ function AdminPage() {
   const sendNotifFn = useServerFn(adminSendNotification);
   const emailCampaignFn = useServerFn(adminEmailUsersWithoutListings);
   const emailSingleUserFn = useServerFn(adminEmailIndividualUser);
+  const listBadgesFn = useServerFn(adminListBadges);
 
   const [channelMode, setChannelMode] = useState<"notification" | "email">("notification");
   const [notifTarget, setNotifTarget] = useState<"all" | "no_listings" | "user">("all");
@@ -175,6 +179,11 @@ function AdminPage() {
     queryFn: () => withheldFn(),
     enabled: !!isAdmin,
   });
+  const { data: badges } = useQuery({
+    queryKey: ["admin-badges"],
+    queryFn: () => listBadgesFn(),
+    enabled: !!isAdmin,
+  });
   const reviewMut = useMutation({
     mutationFn: (v: { id: string; approve: boolean }) => reviewFn({ data: v }),
     onSuccess: (_d, v) => {
@@ -254,6 +263,7 @@ function AdminPage() {
               {(
                 [
                   ["analytics", "Analytics & Members", (analytics?.users ?? []).length, BarChart3],
+                  ["badges", "Listing Badges", (badges ?? []).length, Award],
                   ["broadcast", "Send Notification", "New", Bell],
                   ["flagged", "Flagged listings", (flagged ?? []).length, Flag],
                   ["withheld", "Withheld listings", (withheld ?? []).length, EyeOff],
@@ -291,6 +301,8 @@ function AdminPage() {
                 }}
               />
             )}
+
+            {tab === "badges" && <AdminBadgesPanel />}
 
             {tab === "broadcast" && (
               <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 sm:p-8 shadow-card space-y-6">

@@ -7,6 +7,7 @@ import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
 import { OfferDialog } from "@/components/listings/OfferDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { extractListingBadge, getListingGlowStyle } from "@/lib/badges";
 import { toast } from "sonner";
 
 interface Props {
@@ -93,6 +94,8 @@ export function ListingCard({
   }
 
   const isCollector = Boolean(listing.moderation_note?.includes("COLLECTOR"));
+  const customBadge = extractListingBadge(listing.moderation_note);
+  const customGlowStyle = getListingGlowStyle(customBadge?.glowColor);
   // Older listings may predate the emirate column, so retain a location-based fallback.
   const listingEmirate = listing.emirate ?? emirateOf(listing.location);
 
@@ -102,10 +105,13 @@ export function ListingCard({
       tabIndex={0}
       onClick={openListing}
       onKeyDown={handleCardKeyDown}
+      style={customGlowStyle}
       className={`group relative flex min-w-0 flex-col rounded-md border-2 bg-card p-3 transition-all duration-300 hover:-translate-y-1.5 ${
-        isCollector
-          ? "border-amber-400/90 bg-gradient-to-b from-amber-400/[0.08] via-card to-card shadow-[0_0_24px_rgba(245,158,11,0.42),0_0_50px_rgba(251,191,36,0.22)] ring-1 ring-amber-400/60 hover:border-amber-300 hover:ring-2 hover:ring-amber-300/80 hover:shadow-[0_0_35px_rgba(245,158,11,0.7),0_0_65px_rgba(251,191,36,0.38)]"
-          : "border-primary/25 shadow-card hover:border-primary hover:shadow-card-hover"
+        customBadge?.glowColor
+          ? "ring-1 ring-white/20"
+          : isCollector
+            ? "border-amber-400/90 bg-gradient-to-b from-amber-400/[0.08] via-card to-card shadow-[0_0_24px_rgba(245,158,11,0.42),0_0_50px_rgba(251,191,36,0.22)] ring-1 ring-amber-400/60 hover:border-amber-300 hover:ring-2 hover:ring-amber-300/80 hover:shadow-[0_0_35px_rgba(245,158,11,0.7),0_0_65px_rgba(251,191,36,0.38)]"
+            : "border-primary/25 shadow-card hover:border-primary hover:shadow-card-hover"
       }`}
     >
       <div className={`relative aspect-[4/3] overflow-hidden rounded-sm bg-gradient-to-br ${gradientForId(listing.id)} ${isCollector ? "ring-1 ring-amber-400/60" : ""}`}>
@@ -131,6 +137,24 @@ export function ListingCard({
         >
           <Flag className={`h-4 w-4 transition ${reported ? "fill-destructive text-destructive" : "text-primary/70"}`} />
         </button>
+
+        {/* Custom Admin Badge on Top Right */}
+        {customBadge && (
+          <div
+            title={`${customBadge.name} - Awarded Badge`}
+            className={`absolute top-2 ${!isOwner ? "right-12" : "right-2"} z-10 flex items-center gap-1.5 rounded-full bg-black/80 backdrop-blur-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white border border-white/20 select-none shadow-md max-w-[170px]`}
+            style={customBadge.glowColor ? { boxShadow: `0 0 14px ${customBadge.glowColor}cc` } : undefined}
+          >
+            {customBadge.imageUrl && (
+              <img
+                src={customBadge.imageUrl}
+                alt=""
+                className="h-3.5 w-3.5 rounded-full object-cover border border-white/40 shrink-0"
+              />
+            )}
+            <span className="truncate">{customBadge.name}</span>
+          </div>
+        )}
 
         {isCollector && (
           <div

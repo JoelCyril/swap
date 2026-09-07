@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyUser } from "./notifications.server";
+import { extractListingBadge, formatNoteWithBadge, type ListingCustomBadge } from "./badges";
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -989,4 +990,249 @@ export const adminEmailIndividualUser = createServerFn({ method: "POST" })
       message: `Reminder email successfully sent to @${username}!`,
     };
   });
+
+export const adminListBadges = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+
+    // Try custom_badges table first
+    const { data: tableData, error: tableErr } = await context.supabase
+      .from("custom_badges")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!tableErr && tableData) {
+      return (tableData as any[]).map((b) => ({
+        id: b.id,
+        name: b.name,
+        imageUrl: b.image_url,
+        glowColor: b.glow_color || null,
+        created_at: b.created_at,
+      })) as ListingCustomBadge[];
+    }
+
+    // Fallback: check announcements with [ADMIN_BADGE_DEF:
+    const { data: annData } = await context.supabase
+      .from("announcements")
+      .select("id, body, created_at")
+      .ilike("body", "[ADMIN_BADGE_DEF:%")
+      .order("created_at", { ascending: false });
+
+    const badges: ListingCustomBadge[] = [];
+    for (const ann of annData ?? []) {
+      try {
+        const match = ann.body.match(/\[ADMIN_BADGE_DEF:(.+?)\]/);
+        if (match) {
+          const parsed = JSON.parse(match[1]);
+          badges.push({
+            id: ann.id,
+            name: parsed.name,
+            imageUrl: parsed.imageUrl,
+            glowColor: parsed.glowColor || null,
+            created_at: ann.created_at,
+          });
+        }
+      } catch (e) {
+        // ignore malformed entries
+      }
+    }
+    return badges;
+  });
+
+export const adminCreateBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        name: z.string().min(1).max(50),
+        imageUrl: z.string().min(1),
+        glowColor: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    const name = data.name.trim();
+    const imageUrl = data.imageUrl.trim();
+    const glowColor = data.glowColor?.trim() || null;
+
+    // Try custom_badges table
+    const { data: inserted, error: tableErr } = await context.supabase
+      .from("custom_badges")
+      .insert({
+        name,
+        image_url: imageUrl,
+        glow_color: glowColor,
+        created_by: context.userId,
+      })
+      .select()
+      .maybeSingle();
+
+    if (!tableErr && inserted) {
+      return {
+        id: inserted.id,
+        name: inserted.name,
+        imageUrl: inserted.image_url,
+        glowColor: inserted.glow_color || null,
+        created_at: inserted.created_at,
+      } as ListingCustomBadge;
+    }
+
+    // Fallback: announcements table
+    const payload = JSON.stringify({ name, imageUrl, glowColor });
+    const { data: ann, error: annErr } = await context.supabase
+      .from("announcements")
+      .insert({
+        author_id: context.userId,
+        body: `[ADMIN_BADGE_DEF:${payload}]`,
+      })
+      .select()
+      .single();
+
+    if (annErr) throw new Error(annErr.message || tableErr?.message || "Failed to create badge");
+
+    return {
+      id: ann.id,
+      name,
+      imageUrl,
+      glowColor,
+      created_at: ann.created_at,
+    } as ListingCustomBadge;
+  });
+
+export const adminDeleteBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    // Try custom_badges table
+    await context.supabase.from("custom_badges").delete().eq("id", data.id);
+    // Also try announcements table in case it was created in fallback
+    await context.supabase.from("announcements").delete().eq("id", data.id);
+
+    return { ok: true };
+  });
+
+export const adminAwardListingBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        listingId: z.string().uuid(),
+        badge: z.object({
+          id: z.string().optional(),
+          name: z.string().min(1),
+          imageUrl: z.string().min(1),
+          glowColor: z.string().nullable().optional(),
+        }),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    const { data: listing, error: fetchErr } = await context.supabase
+      .from("listings")
+      .select("id, owner_id, title, moderation_note")
+      .eq("id", data.listingId)
+      .single();
+
+    if (fetchErr || !listing) throw new Error("Listing not found");
+
+    const newNote = formatNoteWithBadge(listing.moderation_note, {
+      id: data.badge.id,
+      name: data.badge.name,
+      imageUrl: data.badge.imageUrl,
+      glowColor: data.badge.glowColor || null,
+    });
+
+    const { error: updateErr } = await context.supabase
+      .from("listings")
+      .update({ moderation_note: newNote })
+      .eq("id", data.listingId);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    // Notify listing owner
+    await notifyUser({
+      userId: listing.owner_id,
+      type: "system_announcement",
+      title: `Badge Awarded: ${data.badge.name}!`,
+      body: `Your listing "${listing.title}" has been awarded the "${data.badge.name}" badge by the SWAP team!`,
+      link: `/listings/${listing.id}`,
+    });
+
+    return {
+      ok: true,
+      message: `Awarded "${data.badge.name}" badge to "${listing.title}"`,
+    };
+  });
+
+export const adminRemoveListingBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ listingId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    const { data: listing, error: fetchErr } = await context.supabase
+      .from("listings")
+      .select("id, owner_id, title, moderation_note")
+      .eq("id", data.listingId)
+      .single();
+
+    if (fetchErr || !listing) throw new Error("Listing not found");
+
+    const newNote = formatNoteWithBadge(listing.moderation_note, null);
+
+    const { error: updateErr } = await context.supabase
+      .from("listings")
+      .update({ moderation_note: newNote })
+      .eq("id", data.listingId);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    return {
+      ok: true,
+      message: `Removed custom badge from "${listing.title}"`,
+    };
+  });
+
+export const adminSearchListingsForBadge = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { query?: string } | undefined) =>
+    z.object({ query: z.string().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    let query = context.supabase
+      .from("listings")
+      .select(`
+        id,
+        title,
+        status,
+        image_urls,
+        moderation_note,
+        created_at,
+        owner:profiles!listings_owner_profile_fkey(id, username, display_name, avatar_color)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (data.query && data.query.trim().length > 0) {
+      query = query.ilike("title", `%${data.query.trim()}%`);
+    }
+
+    const { data: listings, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (listings ?? []).map((l: any) => ({
+      ...l,
+      customBadge: extractListingBadge(l.moderation_note),
+    }));
+  });
+
 
