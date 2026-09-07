@@ -217,14 +217,28 @@ export const reactToMessage = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    // 1. Fetch message
-    const { data: msg, error: fetchErr } = await context.supabase
+    // 1. Fetch message (with fallback if reactions column is not yet present)
+    let msg: { id: string; offer_id: string; reactions?: any } | null = null;
+    const { data: withReactions, error: fetchErr } = await context.supabase
       .from("messages")
       .select("id, offer_id, reactions")
       .eq("id", data.message_id)
-      .single();
+      .maybeSingle();
 
-    if (fetchErr || !msg) throw new Error("Message not found");
+    if (fetchErr || !withReactions) {
+      const { data: basicMsg, error: basicErr } = await context.supabase
+        .from("messages")
+        .select("id, offer_id")
+        .eq("id", data.message_id)
+        .single();
+
+      if (basicErr || !basicMsg) {
+        throw new Error("Message not found");
+      }
+      msg = { ...basicMsg, reactions: {} };
+    } else {
+      msg = withReactions;
+    }
 
     // 2. Verify participant in offer
     const { data: offer, error: offerErr } = await context.supabase
