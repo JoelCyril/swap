@@ -10,6 +10,7 @@ import { listMyItems } from "@/lib/items.functions";
 import { createOffer } from "@/lib/offers.functions";
 import { useSavedIds, useToggleSaved } from "@/lib/use-saved";
 import { flagListing } from "@/lib/flags.functions";
+import { getPublicProfile, getMyProfile } from "@/lib/profile.functions";
 import {
   adminToggleCollectorBadge,
   adminListBadges,
