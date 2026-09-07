@@ -57,6 +57,7 @@ export function Navbar() {
   const markRead = useServerFn(markNotificationRead);
   const markAll = useServerFn(markAllNotificationsRead);
   const [bellOpen, setBellOpen] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const { data: notifs } = useQuery({
     queryKey: ["notifications", session?.user.id],
     queryFn: () => listNotifs(),
@@ -71,7 +72,10 @@ export function Navbar() {
       .channel(`notif-${session.user.id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${session.user.id}` },
+        // Bulk read updates emit one event per notification. Listening only for new
+        // notifications avoids turning a single "mark all" click into dozens of
+        // refetches.
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${session.user.id}` },
         () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
       )
       .subscribe();
@@ -119,6 +123,24 @@ export function Navbar() {
     await supabase.auth.signOut();
     setMenuOpen(false);
     navigate({ to: "/listings", replace: true });
+  }
+
+  async function handleMarkAllRead() {
+    if (markingAllRead) return;
+
+    setMarkingAllRead(true);
+    queryClient.setQueriesData({ queryKey: ["notifications"] }, (current: any) =>
+      Array.isArray(current) ? current.map((notification) => ({ ...notification, read: true })) : current,
+    );
+
+    try {
+      await markAll();
+    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.error(error instanceof Error ? error.message : "Could not mark notifications as read");
+    } finally {
+      setMarkingAllRead(false);
+    }
   }
 
   const avatarUrl = me?.profile?.avatar_url;
@@ -210,8 +232,9 @@ export function Navbar() {
                   <p className="text-sm font-bold">Notifications</p>
                   {unreadCount > 0 && (
                     <button
-                      onClick={async () => { await markAll(); queryClient.invalidateQueries({ queryKey: ["notifications"] }); }}
-                      className="text-xs text-primary hover:underline"
+                      onClick={handleMarkAllRead}
+                      disabled={markingAllRead}
+                      className="text-xs text-primary hover:underline disabled:cursor-wait disabled:opacity-60"
                     >
                       Mark all read
                     </button>

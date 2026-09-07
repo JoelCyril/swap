@@ -137,8 +137,14 @@ function OfferDetail() {
         if (typingTimer.current) clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(() => setOtherTyping(false), 3000);
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `offer_id=eq.${id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["messages", id] });
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `offer_id=eq.${id}` }, (payload) => {
+        // Realtime already contains the inserted row. Adding it directly avoids
+        // making the recipient wait for a second HTTP request after every message.
+        qc.setQueryData(["messages", id], (current: any) => {
+          const messages = Array.isArray(current) ? current : [];
+          const message = payload.new as { id: string };
+          return messages.some((item: any) => item.id === message.id) ? messages : [...messages, message];
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "meetup_proposals", filter: `offer_id=eq.${id}` }, () => {
         qc.invalidateQueries({ queryKey: ["meetup-proposals", id] });
@@ -261,10 +267,15 @@ function OfferDetail() {
       }
       return send({ data: { offer_id: id, body: text.trim(), attachment_urls: urls } });
     },
-    onSuccess: () => {
+    onSuccess: (message: any) => {
       setText("");
       setFiles([]);
-      qc.invalidateQueries({ queryKey: ["messages", id] });
+      // The server response is the newly-created message, so show it immediately
+      // instead of waiting for the next poll or Realtime round trip.
+      qc.setQueryData(["messages", id], (current: any) => {
+        const messages = Array.isArray(current) ? current : [];
+        return messages.some((item: any) => item.id === message.id) ? messages : [...messages, message];
+      });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Message not sent"),
   });

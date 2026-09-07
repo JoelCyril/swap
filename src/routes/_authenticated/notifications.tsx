@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { listMyNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/notifications.functions";
 import { Bell } from "lucide-react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
@@ -24,8 +25,26 @@ function NotificationsPage() {
   const list = useServerFn(listMyNotifications);
   const markRead = useServerFn(markNotificationRead);
   const markAll = useServerFn(markAllNotificationsRead);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const { data: notifs } = useQuery({ queryKey: ["notifications"], queryFn: () => list() });
   const unread = (notifs ?? []).filter((n: any) => !n.read).length;
+
+  async function handleMarkAllRead() {
+    if (markingAllRead) return;
+
+    setMarkingAllRead(true);
+    qc.setQueriesData({ queryKey: ["notifications"] }, (current: any) =>
+      Array.isArray(current) ? current.map((notification) => ({ ...notification, read: true })) : current,
+    );
+
+    try {
+      await markAll();
+    } catch {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -43,8 +62,9 @@ function NotificationsPage() {
           </div>
           {unread > 0 && (
             <button
-              onClick={async () => { await markAll(); qc.invalidateQueries({ queryKey: ["notifications"] }); }}
-              className="rounded-full border-2 border-primary/30 px-4 py-2 text-xs font-bold uppercase text-primary hover:bg-primary-soft"
+              onClick={handleMarkAllRead}
+              disabled={markingAllRead}
+              className="rounded-full border-2 border-primary/30 px-4 py-2 text-xs font-bold uppercase text-primary hover:bg-primary-soft disabled:cursor-wait disabled:opacity-60"
             >
               Mark all read
             </button>
