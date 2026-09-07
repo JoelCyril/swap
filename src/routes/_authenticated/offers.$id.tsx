@@ -33,11 +33,7 @@ import {
   confirmMeetupSafety,
 } from "@/lib/meetups.functions";
 import { getTermsStatus } from "@/lib/terms.functions";
-<<<<<<< HEAD
-import { uploadFileTo } from "@/lib/upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-=======
->>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, handle } from "@/lib/db-types";
 import {
@@ -116,15 +112,10 @@ function OfferDetail() {
   const confirmSafety = useServerFn(confirmMeetupSafety);
 
   const [text, setText] = useState("");
-<<<<<<< HEAD
   const [replyTo, setReplyTo] = useState<any | null>(null);
-  const [files, setFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
-=======
   const [editingMessage, setEditingMessage] = useState<{ id: string; body: string } | null>(null);
   const [activeReactionMenuMsgId, setActiveReactionMenuMsgId] = useState<string | null>(null);
   const [showExtraEmojisMsgId, setShowExtraEmojisMsgId] = useState<string | null>(null);
->>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const [guardianAsk, setGuardianAsk] = useState(false);
@@ -308,28 +299,11 @@ function OfferDetail() {
 
   const sendMut = useMutation({
     mutationFn: async () => {
-<<<<<<< HEAD
-      let urls: string[] = [];
-      if (files.length) {
-        setUploading(true);
-        try {
-          urls = await Promise.all(files.map((f) => uploadFileTo("listing-images", f)));
-        } finally {
-          setUploading(false);
-        }
-      }
-      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: urls, reply_to_id: replyTo?.id ?? null } });
+      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: [], reply_to_id: replyTo?.id ?? null } });
     },
     onSuccess: (message: any) => {
       setText("");
-      setFiles([]);
       setReplyTo(null);
-=======
-      return send({ data: { offer_id: id, body: text.trim(), attachment_urls: [] } });
-    },
-    onSuccess: (message: any) => {
-      setText("");
->>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
       // The server response is the newly-created message, so show it immediately
       // instead of waiting for the next poll or Realtime round trip.
       qc.setQueryData(["messages", id], (current: any) => {
@@ -628,16 +602,11 @@ function OfferDetail() {
                 entry.kind === "msg" ? (
                   (() => {
                     const m = entry.data as any;
-                    const mine = m.sender_id === myId;
-<<<<<<< HEAD
                     const referenced = m.reply_to as { body?: string; attachment_urls?: string[] } | null | undefined;
-=======
                     const reactions = (m.reactions ?? {}) as Record<string, string[]>;
                     const hasReactions = Object.values(reactions).some((arr) => arr && arr.length > 0);
                     const isReactionMenuOpen = activeReactionMenuMsgId === m.id;
                     const showExtra = showExtraEmojisMsgId === m.id;
-
->>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
                     return (
                       <div
                         key={m.id}
@@ -700,54 +669,6 @@ function OfferDetail() {
 
                         {/* Bubble Row with hover actions */}
                         <div
-<<<<<<< HEAD
-                          className={`group relative max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                            mine ? "bg-gradient-primary text-primary-foreground" : "bg-muted"
-                          }`}
-                        >
-                          {!mine && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  aria-label="Message actions"
-                                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full text-muted-foreground opacity-0 transition hover:bg-background/70 hover:text-foreground focus:opacity-100 group-hover:opacity-100"
-                                >
-                                  <ChevronDown className="h-3.5 w-3.5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    setReplyTo(m);
-                                    requestAnimationFrame(() => messageInputRef.current?.focus());
-                                  }}
-                                >
-                                  <Reply className="h-3.5 w-3.5" /> Reply
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                          {referenced && (
-                            <div className={`mb-1.5 border-l-2 px-2 py-1 text-xs ${mine ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/80" : "border-primary/60 bg-background/50 text-muted-foreground"}`}>
-                              <p className="truncate">{referenced.body || (referenced.attachment_urls?.length ? "Attachment" : "Message unavailable")}</p>
-                            </div>
-                          )}
-                          {m.body && <p className="break-words">{m.body}</p>}
-                          {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
-                            <div className="mt-1 grid gap-1.5">
-                              {((m as { attachment_urls?: string[] }).attachment_urls ?? []).map((u) =>
-                                /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? (
-                                  <video key={u} src={u} controls className="max-h-56 w-full rounded-xl bg-black" />
-                                ) : (
-                                  <a key={u} href={u} target="_blank" rel="noreferrer">
-                                    <img src={u} alt="attachment" className="max-h-56 w-full rounded-xl object-cover" />
-                                  </a>
-                                ),
-                              )}
-                            </div>
-                          )}
-=======
                           className={`flex items-center gap-1.5 max-w-[85%] sm:max-w-[75%] ${
                             mine ? "flex-row-reverse" : "flex-row"
                           }`}
@@ -760,8 +681,23 @@ function OfferDetail() {
                                 : "bg-muted text-foreground rounded-tl-xs"
                             }`}
                           >
+                            {referenced && (
+                              <div
+                                className={`mb-1.5 border-l-2 px-2 py-1 text-xs rounded ${
+                                  mine
+                                    ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/80"
+                                    : "border-primary/60 bg-background/50 text-muted-foreground"
+                                }`}
+                              >
+                                <p className="truncate">
+                                  {referenced.body ||
+                                    (referenced.attachment_urls?.length
+                                      ? "Attachment"
+                                      : "Message unavailable")}
+                                </p>
+                              </div>
+                            )}
                             {m.body && <p className="break-words whitespace-pre-wrap">{m.body}</p>}
->>>>>>> 643a4c5 (feat(chat): remove paperclip, add message editing and whatsapp emoji reactions)
 
                             {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
                               <div className="mt-1 grid gap-1.5">
@@ -797,6 +733,19 @@ function OfferDetail() {
                               isReactionMenuOpen ? "opacity-100" : ""
                             }`}
                           >
+                            {/* Reply button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyTo(m);
+                                requestAnimationFrame(() => messageInputRef.current?.focus());
+                              }}
+                              title="Reply to message"
+                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </button>
+
                             {/* React with emoji button */}
                             <button
                               type="button"
