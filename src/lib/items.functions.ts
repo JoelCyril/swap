@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
 import { repairImageUrls } from "./image-url-repair.server";
+import { resolveListingCategory, encodeListingCategory } from "./db-types";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
@@ -40,6 +41,7 @@ const itemSchema = z.object({
     "Books",
     "Toys",
     "Sports",
+    "Products",
   ]),
   condition: z.enum(["New", "Like New", "Good", "Fair"]),
   image_emoji: z.string().max(8).default("📦"),
@@ -57,7 +59,7 @@ export const listMyItems = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map(resolveListingCategory);
   });
 
 /** IDs of the signed-in user's inventory items that already have a live listing. */
@@ -99,7 +101,7 @@ export const listOwnerInventory = createServerFn({ method: "GET" })
       .eq("owner_id", data.owner_id)
       .eq("visibility", "public")
       .order("created_at", { ascending: false });
-    return rows ?? [];
+    return (rows ?? []).map(resolveListingCategory);
   });
 
 
@@ -114,7 +116,7 @@ export const getPublicItem = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("visibility", "public")
       .maybeSingle();
-    return item ?? null;
+    return item ? resolveListingCategory(item) : null;
   });
 
 /** Owner-scoped item detail so private items are still viewable by their owner. */
@@ -128,7 +130,7 @@ export const getMyItem = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("owner_id", context.userId)
       .maybeSingle();
-    return item ?? null;
+    return item ? resolveListingCategory(item) : null;
   });
 
 export const createItem = createServerFn({ method: "POST" })
@@ -136,13 +138,32 @@ export const createItem = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => itemSchema.parse(d))
   .handler(async ({ data, context }) => {
     await ensureProfile(context.userId);
-    const { data: row, error } = await context.supabase
+    let insertData: any = { ...data, owner_id: context.userId };
+    let { data: row, error } = await context.supabase
       .from("items")
-      .insert({ ...data, owner_id: context.userId })
+      .insert(insertData)
       .select()
       .single();
-    if (error) throw new Error(error.message);
-    return row;
+
+    if (error && error.code === "22P02" && data.category === "Products") {
+      const { dbDescription } = encodeListingCategory("Products", data.description ?? "");
+      insertData = {
+        ...insertData,
+        category: "Accessories",
+        description: dbDescription,
+      };
+      const { data: fallbackRow, error: fbErr } = await context.supabase
+        .from("items")
+        .insert(insertData)
+        .select()
+        .single();
+      if (fbErr) throw new Error(fbErr.message);
+      row = fallbackRow;
+    } else if (error) {
+      throw new Error(error.message);
+    }
+
+    return resolveListingCategory(row);
   });
 
 export const updateItem = createServerFn({ method: "POST" })
@@ -158,21 +179,51 @@ export const updateItem = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { id, looking_for, ...rest } = data;
-    const { data: row, error } = await context.supabase
+    let updateData: any = { ...rest };
+    let { data: row, error } = await context.supabase
       .from("items")
-      .update(rest)
+      .update(updateData)
       .eq("id", id)
       .eq("owner_id", context.userId)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+
+    if (error && error.code === "22P02" && rest.category === "Products") {
+      const { dbDescription } = encodeListingCategory("Products", rest.description ?? "");
+      updateData = {
+        ...updateData,
+        category: "Accessories",
+        description: dbDescription,
+      };
+      const { data: fallbackRow, error: fbErr } = await context.supabase
+        .from("items")
+        .update(updateData)
+        .eq("id", id)
+        .eq("owner_id", context.userId)
+        .select()
+        .single();
+      if (fbErr) throw new Error(fbErr.message);
+      row = fallbackRow;
+    } else if (error) {
+      throw new Error(error.message);
+    }
 
     // Sync changes to active/live listing if item is listed
     const listingUpdate: Record<string, any> = {};
     if (rest.name) listingUpdate.title = rest.name;
-    if (rest.category) listingUpdate.category = rest.category;
+    if (rest.category) {
+      if (rest.category === "Products") {
+        const { dbDescription } = encodeListingCategory("Products", rest.description ?? "");
+        listingUpdate.category = "Accessories";
+        listingUpdate.description = dbDescription;
+      } else {
+        listingUpdate.category = rest.category;
+      }
+    }
     if (rest.condition) listingUpdate.condition = rest.condition;
-    if (rest.description !== undefined) listingUpdate.description = rest.description;
+    if (rest.description !== undefined && rest.category !== "Products") {
+      listingUpdate.description = rest.description;
+    }
     if (rest.image_urls) listingUpdate.image_urls = rest.image_urls;
     if (looking_for !== undefined) listingUpdate.looking_for = looking_for;
 
@@ -185,7 +236,7 @@ export const updateItem = createServerFn({ method: "POST" })
         .neq("status", "removed");
     }
 
-    return row;
+    return resolveListingCategory(row);
   });
 
 export const deleteItem = createServerFn({ method: "POST" })

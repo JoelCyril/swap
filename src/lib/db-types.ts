@@ -21,7 +21,49 @@ export const CATEGORIES: ItemCategory[] = [
   "Books",
   "Toys",
   "Sports",
+  "Products",
 ];
+
+export const CATEGORY_PRODUCTS_TAG = "[CATEGORY:Products]";
+
+/**
+ * Resolves listing or item category, mapping embedded [CATEGORY:Products]
+ * tags in description to category: "Products".
+ */
+export function resolveListingCategory<
+  T extends { category?: string | null; description?: string | null }
+>(item: T): T {
+  if (!item) return item;
+  if (item.category === "Products") return item;
+  if (typeof item.description === "string" && item.description.includes(CATEGORY_PRODUCTS_TAG)) {
+    return {
+      ...item,
+      category: "Products" as any,
+      description: item.description.replace(CATEGORY_PRODUCTS_TAG, "").trim(),
+    };
+  }
+  return item;
+}
+
+/**
+ * Encodes category for database storage, embedding fallback tag if needed.
+ */
+export function encodeListingCategory(
+  category: string,
+  description: string = ""
+): { dbCategory: string; dbDescription: string } {
+  if (category === "Products") {
+    const cleanDesc = description.replace(CATEGORY_PRODUCTS_TAG, "").trim();
+    return {
+      dbCategory: "Products",
+      dbDescription: cleanDesc ? `${cleanDesc} ${CATEGORY_PRODUCTS_TAG}` : CATEGORY_PRODUCTS_TAG,
+    };
+  }
+  return {
+    dbCategory: category,
+    dbDescription: description.replace(CATEGORY_PRODUCTS_TAG, "").trim(),
+  };
+}
 
 export const CONDITIONS: ItemCondition[] = ["New", "Like New", "Good", "Fair"];
 

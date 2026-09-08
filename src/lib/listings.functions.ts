@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
 import { repairImageUrls } from "./image-url-repair.server";
+import { resolveListingCategory, encodeListingCategory, CATEGORY_PRODUCTS_TAG } from "./db-types";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
@@ -29,9 +30,7 @@ export const listListings = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const supabase = publicClient();
-    let q = supabase
-      .from("listings")
-      .select(`
+    const selectQuery = `
   id,
   owner_id,
   title,
@@ -53,19 +52,64 @@ export const listListings = createServerFn({ method: "GET" })
     avatar_color,
     avatar_url
   )
-`)
-      .in("status", ["active", "reserved"])
-      .order("created_at", { ascending: false });
-    if (data.category) q = q.eq("category", data.category as never);
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    if (!rows) return [];
+`;
+
+    let rows: any[] = [];
+
+    if (data.category === "Products") {
+      // 1. Try native enum filter if DB enum already has Products
+      try {
+        const { data: nativeRows, error: nativeErr } = await supabase
+          .from("listings")
+          .select(selectQuery)
+          .in("status", ["active", "reserved"])
+          .eq("category", "Products" as never)
+          .order("created_at", { ascending: false });
+        if (!nativeErr && nativeRows && nativeRows.length > 0) {
+          rows = nativeRows;
+        }
+      } catch {}
+
+      // 2. Also fetch listings with fallback [CATEGORY:Products] in description
+      const { data: fallbackRows, error: fbErr } = await supabase
+        .from("listings")
+        .select(selectQuery)
+        .in("status", ["active", "reserved"])
+        .ilike("description", `%${CATEGORY_PRODUCTS_TAG}%`)
+        .order("created_at", { ascending: false });
+      if (!fbErr && fallbackRows) {
+        const existingIds = new Set(rows.map((r) => r.id));
+        for (const fr of fallbackRows) {
+          if (!existingIds.has(fr.id)) {
+            rows.push(fr);
+          }
+        }
+      }
+    } else {
+      let q = supabase
+        .from("listings")
+        .select(selectQuery)
+        .in("status", ["active", "reserved"])
+        .order("created_at", { ascending: false });
+      if (data.category) q = q.eq("category", data.category as never);
+      const { data: fetchedRows, error } = await q;
+      if (error) throw new Error(error.message);
+      rows = fetchedRows ?? [];
+
+      // If querying Accessories, filter out any rows that have the Products fallback tag
+      if (data.category === "Accessories") {
+        rows = rows.filter((r) => !r.description?.includes(CATEGORY_PRODUCTS_TAG));
+      }
+    }
 
     const repaired = await Promise.all(
-      rows.map(async (row) => ({
-        ...row,
-        image_urls: await repairImageUrls(row.image_urls),
-      })),
+      rows.map(async (row) => {
+        const resolved = resolveListingCategory(row);
+        return {
+          ...resolved,
+          image_urls: await repairImageUrls(resolved.image_urls),
+        };
+      }),
     );
     return repaired;
   });
@@ -111,9 +155,10 @@ export const getListing = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!row) return null;
 
+    const resolved = resolveListingCategory(row);
     return {
-      ...row,
-      image_urls: await repairImageUrls(row.image_urls),
+      ...resolved,
+      image_urls: await repairImageUrls(resolved.image_urls),
     };
   });
 
@@ -136,10 +181,13 @@ export const listListingsByUsername = createServerFn({ method: "GET" })
     if (!listings) return { profile, listings: [] };
 
     const repaired = await Promise.all(
-      listings.map(async (l) => ({
-        ...l,
-        image_urls: await repairImageUrls(l.image_urls),
-      })),
+      listings.map(async (l) => {
+        const resolved = resolveListingCategory(l);
+        return {
+          ...resolved,
+          image_urls: await repairImageUrls(resolved.image_urls),
+        };
+      }),
     );
     return { profile, listings: repaired };
   });
@@ -156,6 +204,7 @@ const createSchema = z.object({
     "Books",
     "Toys",
     "Sports",
+    "Products",
   ]),
   condition: z.enum(["New", "Like New", "Good", "Fair"]),
   image_emoji: z.string().max(8).default("📦"),
@@ -192,7 +241,6 @@ export const createListing = createServerFn({ method: "POST" })
       }
     }
 
-
     const verdict = moderate(`${data.title}\n${data.description}\n${data.looking_for}`, "listing");
     const held = verdict.flagged
       ? {
@@ -201,13 +249,32 @@ export const createListing = createServerFn({ method: "POST" })
         }
       : {};
 
-    const { data: row, error } = await context.supabase
+    let insertData: any = { ...data, ...held, owner_id: context.userId };
+    let { data: row, error } = await context.supabase
       .from("listings")
-      .insert({ ...data, ...held, owner_id: context.userId })
+      .insert(insertData)
       .select()
       .single();
-    if (error) throw new Error(error.message);
-    return { ...row, withheld: verdict.flagged };
+
+    if (error && error.code === "22P02" && data.category === "Products") {
+      const { dbDescription } = encodeListingCategory("Products", data.description);
+      insertData = {
+        ...insertData,
+        category: "Accessories",
+        description: dbDescription,
+      };
+      const { data: fallbackRow, error: fbErr } = await context.supabase
+        .from("listings")
+        .insert(insertData)
+        .select()
+        .single();
+      if (fbErr) throw new Error(fbErr.message);
+      row = fallbackRow;
+    } else if (error) {
+      throw new Error(error.message);
+    }
+
+    return { ...resolveListingCategory(row), withheld: verdict.flagged };
   });
 
 export const updateListingStatus = createServerFn({ method: "POST" })
@@ -243,7 +310,7 @@ export const listMyListings = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map(resolveListingCategory);
   });
 
 /** Owner-scoped read so the edit form can load listings in any status. */
@@ -258,7 +325,7 @@ export const getMyListing = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return row;
+    return resolveListingCategory(row);
   });
 
 export const updateListing = createServerFn({ method: "POST" })
@@ -278,11 +345,31 @@ export const updateListing = createServerFn({ method: "POST" })
           moderation_note: `${verdict.category}: ${verdict.reason} Matched: ${verdict.terms.join(", ")}`,
         }
       : {};
-    const { error } = await context.supabase
+
+    let updateData: any = { ...fields, ...held };
+    let { error } = await context.supabase
       .from("listings")
-      .update({ ...fields, ...held })
+      .update(updateData)
       .eq("id", id)
       .eq("owner_id", context.userId);
-    if (error) throw new Error(error.message);
+
+    if (error && error.code === "22P02" && fields.category === "Products") {
+      const { dbDescription } = encodeListingCategory("Products", fields.description ?? "");
+      updateData = {
+        ...updateData,
+        category: "Accessories",
+        description: dbDescription,
+      };
+      const { error: fbErr } = await context.supabase
+        .from("listings")
+        .update(updateData)
+        .eq("id", id)
+        .eq("owner_id", context.userId);
+      if (fbErr) throw new Error(fbErr.message);
+      error = null;
+    } else if (error) {
+      throw new Error(error.message);
+    }
+
     return { ok: true, id, withheld: verdict.flagged };
   });
