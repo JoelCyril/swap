@@ -26,6 +26,7 @@ import {
   editMessage,
   reactToMessage,
 } from "@/lib/messages.functions";
+import { parseMessageMeta } from "@/lib/messages.meta";
 import {
   listMeetupProposals,
   proposeMeetup,
@@ -133,7 +134,22 @@ function OfferDetail() {
   });
   const { data: messages } = useQuery({
     queryKey: ["messages", id],
-    queryFn: () => list({ data: { offer_id: id } }),
+    queryFn: async () => {
+      const serverMsgs = await list({ data: { offer_id: id } });
+      const currentCache = qc.getQueryData<any[]>(["messages", id]);
+      if (!Array.isArray(currentCache) || currentCache.length === 0) return serverMsgs;
+      const cacheById = new Map(currentCache.map((m: any) => [m.id, m]));
+      return (serverMsgs ?? []).map((sm: any) => {
+        const cached = cacheById.get(sm.id);
+        if (!cached) return sm;
+        const smHasReactions = sm.reactions && Object.keys(sm.reactions).length > 0;
+        return {
+          ...sm,
+          reactions: smHasReactions ? sm.reactions : (cached.reactions || sm.reactions),
+          edited_at: sm.edited_at || cached.edited_at,
+        };
+      });
+    },
     refetchInterval: 4000,
   });
   const { data: proposals } = useQuery({
@@ -176,12 +192,21 @@ function OfferDetail() {
         qc.setQueryData(["messages", id], (current: any) => {
           const messages = Array.isArray(current) ? current : [];
           if (payload.eventType === "INSERT") {
-            const message = payload.new as { id: string };
+            const message = parseMessageMeta(payload.new as any);
             return messages.some((item: any) => item.id === message.id) ? messages : [...messages, message];
           }
           if (payload.eventType === "UPDATE") {
-            const updated = payload.new as { id: string };
-            return messages.map((item: any) => (item.id === updated.id ? { ...item, ...updated } : item));
+            const updated = parseMessageMeta(payload.new as any);
+            return messages.map((item: any) => {
+              if (item.id !== updated.id) return item;
+              const hasReactions = updated.reactions && Object.keys(updated.reactions).length > 0;
+              return {
+                ...item,
+                ...updated,
+                reactions: hasReactions ? updated.reactions : (item.reactions || updated.reactions),
+                edited_at: updated.edited_at || item.edited_at,
+              };
+            });
           }
           if (payload.eventType === "DELETE") {
             return messages.filter((item: any) => item.id !== (payload.old as any)?.id);
@@ -692,7 +717,7 @@ function OfferDetail() {
                               >
                                 <p className="truncate block max-w-full overflow-hidden">
                                   {referenced.body ||
-                                    (referenced.attachment_urls?.length
+                                    (referenced.attachment_urls?.filter((u: string) => !u.startsWith("__meta__:")).length
                                       ? "Attachment"
                                       : "Message unavailable")}
                                 </p>
@@ -704,19 +729,25 @@ function OfferDetail() {
                               </p>
                             )}
 
-                            {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
-                              <div className="mt-1 grid gap-1.5">
-                                {((m as { attachment_urls?: string[] }).attachment_urls ?? []).map((u) =>
-                                  /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? (
-                                    <video key={u} src={u} controls className="max-h-56 w-full rounded-xl bg-black" />
-                                  ) : (
-                                    <a key={u} href={u} target="_blank" rel="noreferrer">
-                                      <img src={u} alt="attachment" className="max-h-56 w-full rounded-xl object-cover" />
-                                    </a>
-                                  ),
-                                )}
-                              </div>
-                            )}
+                            {(() => {
+                              const attachments = ((m as { attachment_urls?: string[] }).attachment_urls ?? []).filter(
+                                (u: string) => typeof u === "string" && !u.startsWith("__meta__:"),
+                              );
+                              if (attachments.length === 0) return null;
+                              return (
+                                <div className="mt-1 grid gap-1.5">
+                                  {attachments.map((u) =>
+                                    /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? (
+                                      <video key={u} src={u} controls className="max-h-56 w-full rounded-xl bg-black" />
+                                    ) : (
+                                      <a key={u} href={u} target="_blank" rel="noreferrer">
+                                        <img src={u} alt="attachment" className="max-h-56 w-full rounded-xl object-cover" />
+                                      </a>
+                                    ),
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Timestamp, Edited indicator, and Seen status */}
                             <div
@@ -846,7 +877,7 @@ function OfferDetail() {
               {replyTo && (
                 <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-primary bg-primary-soft px-3 py-2 text-xs">
                   <Reply className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  <p className="min-w-0 flex-1 truncate">Replying to: {replyTo.body || (replyTo.attachment_urls?.length ? "Attachment" : "Message")}</p>
+                  <p className="min-w-0 flex-1 truncate">Replying to: {replyTo.body || (replyTo.attachment_urls?.filter((u: string) => !u.startsWith("__meta__:")).length ? "Attachment" : "Message")}</p>
                   <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="rounded p-0.5 hover:bg-background/70 cursor-pointer">
                     <X className="h-3.5 w-3.5" />
                   </button>

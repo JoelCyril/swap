@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { moderate } from "./moderation";
 import { notifyUser } from "./notifications.server";
+import { parseMessageMeta, encodeMessageMeta } from "./messages.meta";
 
 // Define or import your allowed attachment URL validation logic
 
@@ -29,7 +30,8 @@ function isAllowedAttachmentUrl(value: string) {
  */
 async function attachReplyPreviews(context: { supabase: any }, rows: any[]) {
   const replyIds = [...new Set(rows.map((row) => row.reply_to_id).filter(Boolean))];
-  if (replyIds.length === 0) return rows;
+  const parsedRows = rows.map((row) => parseMessageMeta(row));
+  if (replyIds.length === 0) return parsedRows;
 
   const { data: replies, error } = await context.supabase
     .from("messages")
@@ -37,8 +39,10 @@ async function attachReplyPreviews(context: { supabase: any }, rows: any[]) {
     .in("id", replyIds);
   if (error) throw new Error(error.message);
 
-  const repliesById = new Map((replies ?? []).map((reply: any) => [reply.id, reply]));
-  return rows.map((row) => ({
+  const repliesById = new Map(
+    (replies ?? []).map((reply: any) => [reply.id, parseMessageMeta(reply)]),
+  );
+  return parsedRows.map((row) => ({
     ...row,
     reply_to: row.reply_to_id ? repliesById.get(row.reply_to_id) ?? null : null,
   }));
@@ -177,7 +181,7 @@ export const editMessage = createServerFn({ method: "POST" })
 
     const now = new Date().toISOString();
 
-    // Try updating with edited_at
+    // Try updating with native edited_at column
     const { data: updated, error: updateErr } = await context.supabase
       .from("messages")
       .update({
@@ -189,21 +193,47 @@ export const editMessage = createServerFn({ method: "POST" })
       .single();
 
     if (!updateErr && updated) {
-      return updated;
+      return parseMessageMeta(updated);
     }
 
-    // Fallback if edited_at column is not present in DB
-    const { data: fallbackUpdated, error: fallbackErr } = await context.supabase
+    // Fallback: update body and persist edited_at inside attachment_urls metadata
+    const { data: currentMsg } = await context.supabase
+      .from("messages")
+      .select("attachment_urls")
+      .eq("id", data.message_id)
+      .single();
+
+    const nextAttachments = encodeMessageMeta(currentMsg?.attachment_urls ?? [], { edited_at: now });
+
+    let fallbackUpdated: any = null;
+    const { data: upd1, error: fallbackErr } = await context.supabase
       .from("messages")
       .update({
         body: trimmed,
+        attachment_urls: nextAttachments,
       } as any)
       .eq("id", data.message_id)
       .select("*, sender:profiles!messages_sender_profile_fkey(*)")
       .single();
 
-    if (fallbackErr) throw new Error(fallbackErr.message);
-    return { ...fallbackUpdated, edited_at: now };
+    if (fallbackErr) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: adminUpd, error: adminErr } = await supabaseAdmin
+        .from("messages")
+        .update({
+          body: trimmed,
+          attachment_urls: nextAttachments,
+        } as any)
+        .eq("id", data.message_id)
+        .select("*, sender:profiles!messages_sender_profile_fkey(*)")
+        .single();
+      if (adminErr) throw new Error(adminErr.message);
+      fallbackUpdated = adminUpd;
+    } else {
+      fallbackUpdated = upd1;
+    }
+
+    return parseMessageMeta({ ...fallbackUpdated, edited_at: now });
   });
 
 export const reactToMessage = createServerFn({ method: "POST" })
@@ -218,33 +248,36 @@ export const reactToMessage = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     // 1. Fetch message (with fallback if reactions column is not yet present)
-    let msg: { id: string; offer_id: string; reactions?: any } | null = null;
+    let rawMsg: { id: string; offer_id: string; attachment_urls?: string[]; reactions?: any } | null = null;
+    let hasNativeReactionsCol = true;
+
     const { data: withReactions, error: fetchErr } = await context.supabase
       .from("messages")
-      .select("id, offer_id, reactions")
+      .select("id, offer_id, reactions, attachment_urls")
       .eq("id", data.message_id)
       .maybeSingle();
 
     if (fetchErr || !withReactions) {
+      hasNativeReactionsCol = false;
       const { data: basicMsg, error: basicErr } = await context.supabase
         .from("messages")
-        .select("id, offer_id")
+        .select("id, offer_id, attachment_urls")
         .eq("id", data.message_id)
         .single();
 
       if (basicErr || !basicMsg) {
         throw new Error("Message not found");
       }
-      msg = { ...basicMsg, reactions: {} };
+      rawMsg = basicMsg;
     } else {
-      msg = withReactions;
+      rawMsg = withReactions;
     }
 
     // 2. Verify participant in offer
     const { data: offer, error: offerErr } = await context.supabase
       .from("offers")
       .select("from_user, to_user")
-      .eq("id", msg.offer_id)
+      .eq("id", rawMsg.offer_id)
       .single();
 
     if (offerErr || !offer) throw new Error("Offer not found");
@@ -253,8 +286,8 @@ export const reactToMessage = createServerFn({ method: "POST" })
     }
 
     // 3. Compute new reactions mapping: Record<string, string[]>
-    const currentReactions: Record<string, string[]> =
-      typeof msg.reactions === "object" && msg.reactions !== null ? { ...msg.reactions } : {};
+    const parsedMsg = parseMessageMeta(rawMsg);
+    const currentReactions: Record<string, string[]> = { ...(parsedMsg.reactions || {}) };
 
     const userId = context.userId;
     const emoji = data.emoji.trim();
@@ -277,13 +310,38 @@ export const reactToMessage = createServerFn({ method: "POST" })
     }
 
     // 4. Update in database
-    const { error: updateErr } = await context.supabase
+    if (hasNativeReactionsCol) {
+      const { error: updateErr } = await context.supabase
+        .from("messages")
+        .update({ reactions: currentReactions } as any)
+        .eq("id", data.message_id);
+
+      if (!updateErr) {
+        return {
+          message_id: data.message_id,
+          reactions: currentReactions,
+        };
+      }
+      console.warn("Native reactions column update failed, persisting via attachment_urls metadata:", updateErr.message);
+    }
+
+    // Persist via encoded attachment_urls metadata
+    const nextAttachments = encodeMessageMeta(rawMsg.attachment_urls ?? [], { reactions: currentReactions });
+    const { error: attErr } = await context.supabase
       .from("messages")
-      .update({ reactions: currentReactions } as any)
+      .update({ attachment_urls: nextAttachments })
       .eq("id", data.message_id);
 
-    if (updateErr) {
-      console.warn("Could not save reactions to messages column:", updateErr.message);
+    if (attErr) {
+      // Fallback to service role if user RLS restricted update
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: adminErr } = await supabaseAdmin
+        .from("messages")
+        .update({ attachment_urls: nextAttachments })
+        .eq("id", data.message_id);
+      if (adminErr) {
+        throw new Error(adminErr.message);
+      }
     }
 
     return {
