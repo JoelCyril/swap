@@ -590,7 +590,7 @@ function OfferDetail() {
               </div>
             )}
 
-            <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+            <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-4">
               {offer.message && (
                 <div className="text-center">
                   <p className="inline-block rounded-2xl bg-primary-soft px-4 py-2 text-xs italic text-primary">
@@ -611,7 +611,7 @@ function OfferDetail() {
                     return (
                       <div
                         key={m.id}
-                        className={`group/msg relative flex flex-col mb-1 ${mine ? "items-end" : "items-start"}`}
+                        className={`group/msg relative flex flex-col mb-1.5 w-full min-w-0 ${mine ? "items-end" : "items-start"}`}
                       >
                         {/* WhatsApp-style Floating Reaction Bar */}
                         {isReactionMenuOpen && (
@@ -670,13 +670,13 @@ function OfferDetail() {
 
                         {/* Bubble Row with hover actions */}
                         <div
-                          className={`flex items-center gap-1.5 max-w-[85%] sm:max-w-[75%] ${
+                          className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[75%] min-w-0 ${
                             mine ? "flex-row-reverse" : "flex-row"
                           }`}
                         >
                           {/* The Message Bubble */}
                           <div
-                            className={`relative rounded-2xl px-4 py-2 text-sm shadow-2xs transition ${
+                            className={`relative min-w-0 max-w-full rounded-2xl px-4 py-2 text-sm shadow-2xs transition ${
                               mine
                                 ? "bg-gradient-primary text-primary-foreground rounded-tr-xs"
                                 : "bg-muted text-foreground rounded-tl-xs"
@@ -684,13 +684,13 @@ function OfferDetail() {
                           >
                             {referenced && (
                               <div
-                                className={`mb-1.5 border-l-2 px-2 py-1 text-xs rounded ${
+                                className={`mb-1.5 border-l-2 px-2 py-1 text-xs rounded min-w-0 max-w-full overflow-hidden ${
                                   mine
                                     ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/80"
                                     : "border-primary/60 bg-background/50 text-muted-foreground"
                                 }`}
                               >
-                                <p className="truncate">
+                                <p className="truncate block max-w-full overflow-hidden">
                                   {referenced.body ||
                                     (referenced.attachment_urls?.length
                                       ? "Attachment"
@@ -698,7 +698,11 @@ function OfferDetail() {
                                 </p>
                               </div>
                             )}
-                            {m.body && <p className="break-words whitespace-pre-wrap">{m.body}</p>}
+                            {m.body && (
+                              <p className="break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+                                {m.body}
+                              </p>
+                            )}
 
                             {((m as { attachment_urls?: string[] }).attachment_urls ?? []).length > 0 && (
                               <div className="mt-1 grid gap-1.5">
@@ -730,7 +734,7 @@ function OfferDetail() {
 
                           {/* Quick Action Buttons (shown on hover or active menu) */}
                           <div
-                            className={`flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity ${
+                            className={`flex items-center gap-0.5 shrink-0 opacity-0 group-hover/msg:opacity-100 transition-opacity ${
                               isReactionMenuOpen ? "opacity-100" : ""
                             }`}
                           >
