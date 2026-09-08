@@ -28,6 +28,19 @@ export function renderErrorPage(message?: string): string {
         <a class="secondary" href="/">Go home</a>
       </div>
     </div>
+    <script>
+      (function() {
+        var key = 'swap:auto_reload_attempt';
+        var last = sessionStorage.getItem(key);
+        var now = Date.now();
+        if (!last || (now - Number(last)) > 8000) {
+          sessionStorage.setItem(key, String(now));
+          setTimeout(function() {
+            location.reload();
+          }, 1200);
+        }
+      })();
+    </script>
   </body>
 </html>`;
 }
