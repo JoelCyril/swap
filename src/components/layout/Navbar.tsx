@@ -305,7 +305,7 @@ export function Navbar() {
               )}
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl border-2 border-primary/20 bg-card p-2 text-foreground shadow-card-hover">
+              <div className="absolute right-0 mt-2 w-60 rounded-2xl border-2 border-primary/20 bg-card p-2 text-foreground shadow-card-hover">
                 <div className="px-3 py-2 border-b border-border">
                   <p className="text-sm font-bold truncate">{handle(me?.profile)}</p>
                 </div>
@@ -314,9 +314,9 @@ export function Navbar() {
                     to="/profile/$username"
                     params={{ username: me.profile.username }}
                     onClick={() => setMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-sm hover:bg-primary-soft"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-primary-soft"
                   >
-                    View profile
+                    <User className="h-4 w-4" /> View profile
                   </Link>
                 )}
                 <Link
@@ -343,9 +343,9 @@ export function Navbar() {
                     <ShieldCheck className="h-4 w-4" /> Admin
                   </Link>
                 )}
-                <div className="flex items-center justify-between border-t border-border px-3 py-1.5 text-xs">
-                  <span className="font-semibold text-muted-foreground">Appearance</span>
-                  <ThemeToggle showLabel className="px-2 py-1 text-xs hover:bg-muted" />
+                <div className="flex items-center justify-between border-t border-border px-3 py-2 my-0.5 text-xs">
+                  <span className="font-semibold text-muted-foreground whitespace-nowrap">Appearance</span>
+                  <ThemeToggle showLabel className="px-2.5 py-1 text-xs hover:bg-primary-soft dark:hover:bg-muted border border-border/40 dark:border-border/60" />
                 </div>
                 <button
                   onClick={handleSignOut}

@@ -14,10 +14,10 @@ export function ThemeToggle({ className = "", showLabel = false }: Props) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={`group relative ${
+      className={`group relative shrink-0 whitespace-nowrap ${
         showLabel
-          ? "inline-flex items-center gap-2 rounded-full px-3 py-1.5"
-          : "grid h-10 w-10 shrink-0 place-items-center rounded-full"
+          ? "inline-flex items-center gap-2 rounded-full px-2.5 py-1"
+          : "grid h-10 w-10 place-items-center rounded-full"
       } text-foreground/80 hover:bg-muted hover:text-foreground active:scale-95 transition-all cursor-pointer ${className}`}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
@@ -41,7 +41,7 @@ export function ThemeToggle({ className = "", showLabel = false }: Props) {
         />
       </div>
       {showLabel && (
-        <span className="text-xs font-bold capitalize">
+        <span className="text-xs font-bold capitalize whitespace-nowrap">
           {isDark ? "Dark mode" : "Light mode"}
         </span>
       )}
