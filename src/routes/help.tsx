@@ -50,7 +50,7 @@ function HelpPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not send your inquiry"),
   });
 
-  const field = "mt-1 w-full rounded-2xl border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary";
+  const field = "mt-1 w-full rounded-2xl border-2 border-primary/20 dark:border-border/80 bg-white dark:bg-background/90 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition";
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

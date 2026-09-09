@@ -107,6 +107,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --blob-strong: oklch(0.28 0.03 60);
   --blob-soft: oklch(0.25 0.02 60);
 
@@ -152,6 +153,38 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Universal dark mode text fields across all pages */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]),
+  .dark textarea:not([data-keep-light]),
+  .dark select:not([data-keep-light]) {
+    background-color: var(--color-background) !important;
+    color: var(--color-foreground) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: var(--color-muted-foreground) !important;
+    opacity: 0.8 !important;
+  }
+
+  .dark input:focus:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]),
+  .dark textarea:focus:not([data-keep-light]),
+  .dark select:focus:not([data-keep-light]) {
+    border-color: var(--color-primary) !important;
+    outline: none;
+  }
+
+  .dark select option {
+    background-color: var(--color-card) !important;
+    color: var(--color-foreground) !important;
+  }
+
+  .dark div:has(> input.bg-transparent) {
+    background-color: var(--color-background) !important;
+    border-color: var(--color-border) !important;
   }
 
 

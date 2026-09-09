@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 
 const searchSchema = z.object({ fromItem: z.string().uuid().optional() });
-const inputClass = "mt-1 w-full rounded-full border-2 border-primary/20 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary";
+const inputClass = "mt-1 w-full rounded-full border-2 border-primary/20 dark:border-border/80 bg-white dark:bg-background/90 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition";
 const labelClass = "text-xs font-bold uppercase text-muted-foreground";
 
 export const Route = createFileRoute("/_authenticated/new-listing")({
