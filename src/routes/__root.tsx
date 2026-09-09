@@ -44,46 +44,47 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   // Route files are emitted with content hashes. A tab that was open during a
   // deployment can still try to import the previous hash, which no longer
-  // exists. Reload once to fetch the current document and route manifest.
+  // exists. Reload to fetch the current document and route manifest.
   useEffect(() => {
     const isStaleRouteChunk =
       /failed to fetch dynamically imported module|importing a module script failed|chunkloaderror/i.test(message);
     if (!isStaleRouteChunk) return;
 
-    const reloadKey = `swap:chunk-reload:${message}`;
-    if (sessionStorage.getItem(reloadKey)) return;
-
-    sessionStorage.setItem(reloadKey, "1");
-    window.location.reload();
+    const lastReload = Number(sessionStorage.getItem("swap:last-chunk-reload") || 0);
+    if (Date.now() - lastReload > 10000) {
+      sessionStorage.setItem("swap:last-chunk-reload", String(Date.now()));
+      window.location.reload();
+    }
   }, [message]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl font-display">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          A new version was recently deployed. Please try refreshing to get the latest update.
         </p>
         {message && (
-          <p className="mt-2 text-xs text-destructive bg-destructive/10 rounded-lg p-2 font-mono break-words">
+          <p className="mt-3 text-xs text-destructive bg-destructive/10 rounded-xl p-3 font-mono break-words border border-destructive/20 text-left">
             {message}
           </p>
         )}
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
+            type="button"
             onClick={() => {
-              router.invalidate();
-              reset();
+              sessionStorage.removeItem("swap:last-chunk-reload");
+              window.location.reload();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105 active:scale-95 cursor-pointer"
           >
             Try again
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-full border-2 border-primary/30 bg-card px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground transition hover:bg-secondary"
           >
             Go home
           </a>
@@ -154,6 +155,19 @@ function RootShell({ children }: { children: ReactNode }) {
                     document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {}
+
+                // Automatically recover from stale deployment chunks
+                window.addEventListener('vite:preloadError', function() {
+                  try {
+                    var last = Number(sessionStorage.getItem('swap:preload-reload') || 0);
+                    if (Date.now() - last > 10000) {
+                      sessionStorage.setItem('swap:preload-reload', String(Date.now()));
+                      window.location.reload();
+                    }
+                  } catch (e) {
+                    window.location.reload();
+                  }
+                });
               })();
             `,
           }}
