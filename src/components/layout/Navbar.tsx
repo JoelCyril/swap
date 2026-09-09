@@ -149,12 +149,12 @@ export function Navbar() {
 
   return (
     <>
-    <header className="sticky top-0 z-40 bg-gradient-primary text-primary-foreground shadow-glow">
+    <header className="sticky top-0 z-40 bg-gradient-primary text-primary-foreground shadow-glow dark:bg-none dark:bg-card/90 dark:backdrop-blur-md dark:border-b dark:border-border dark:text-foreground dark:shadow-sm transition-colors">
       <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-3 py-3 sm:gap-6 sm:px-6">
         <button
           type="button"
           onClick={() => { setNavOpen((v) => !v); setMenuOpen(false); setBellOpen(false); }}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 xl:hidden"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 dark:bg-white/10 text-white dark:text-foreground transition hover:bg-white/25 dark:hover:bg-white/15 xl:hidden border border-transparent dark:border-white/10"
           aria-label="Menu"
           aria-expanded={navOpen}
         >
@@ -176,7 +176,9 @@ export function Navbar() {
                 key={l.to}
                 to={l.to}
                 className={`relative rounded-full px-4 py-2 transition-all ${
-                  active ? "bg-white/25 shadow-inner" : "opacity-80 hover:bg-white/15 hover:opacity-100"
+                  active
+                    ? "bg-white/25 text-white dark:bg-primary/20 dark:text-primary shadow-inner dark:shadow-none"
+                    : "opacity-80 hover:bg-white/15 hover:opacity-100 dark:opacity-90 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-white/10"
                 }`}
               >
                 {l.label}
@@ -199,19 +201,19 @@ export function Navbar() {
             navigate({ to: "/listings", search: { q: query.trim() || undefined } });
           }}
         >
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60" />
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60 dark:text-muted-foreground" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search items or people…"
             aria-label="Search items or people"
-            className="w-full rounded-full border-0 bg-white dark:bg-card py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground shadow-md outline-none ring-0 focus:ring-2 focus:ring-white/70 transition"
+            className="w-full rounded-full border border-transparent dark:border-border/60 bg-white dark:bg-background/90 py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground shadow-md outline-none ring-0 focus:ring-2 focus:ring-white/70 dark:focus:ring-primary/50 transition"
           />
         </form>
 
         {/* Theme Toggle Button */}
-        <ThemeToggle className="bg-white/15 text-white hover:bg-white/25 shrink-0" />
+        <ThemeToggle className="bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 shrink-0 border border-transparent dark:border-white/10" />
 
         {session ? (
           <>
@@ -219,7 +221,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => { setBellOpen((v) => !v); setMenuOpen(false); }}
-              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25 transition"
+              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 transition border border-transparent dark:border-white/10"
               aria-label="Notifications"
             >
               <Bell className="h-4 w-4" />
@@ -358,7 +360,7 @@ export function Navbar() {
         ) : (
           <Link
             to="/auth"
-            className="shrink-0 whitespace-nowrap rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wider text-primary shadow-md transition hover:scale-105 sm:px-5 sm:text-sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-white dark:bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary dark:text-primary-foreground shadow-md transition hover:scale-105 sm:px-5 sm:text-sm"
           >
             Sign in
           </Link>
@@ -366,7 +368,7 @@ export function Navbar() {
       </div>
 
       {navOpen && (
-        <nav className="border-t border-white/20 px-3 pb-3 xl:hidden">
+        <nav className="border-t border-white/20 dark:border-border px-3 pb-3 xl:hidden">
           <div className="flex flex-col gap-1 pt-2 text-sm font-semibold uppercase tracking-wider">
             {links.map((l) => {
               const active = pathname.startsWith(l.to);
@@ -376,7 +378,9 @@ export function Navbar() {
                   to={l.to}
                   onClick={() => setNavOpen(false)}
                   className={`flex items-center justify-between rounded-xl px-4 py-3 transition ${
-                    active ? "bg-white/25" : "hover:bg-white/15"
+                    active
+                      ? "bg-white/25 text-white dark:bg-primary/20 dark:text-primary"
+                      : "hover:bg-white/15 dark:hover:bg-white/10 text-white/90 dark:text-muted-foreground dark:hover:text-foreground"
                   }`}
                 >
                   {l.label}
@@ -388,9 +392,9 @@ export function Navbar() {
                 </Link>
               );
             })}
-            <div className="mt-2 border-t border-white/20 pt-3 px-2 flex items-center justify-between">
-              <span className="text-xs uppercase font-bold text-white/90">Appearance</span>
-              <ThemeToggle showLabel className="bg-white/15 text-white hover:bg-white/25" />
+            <div className="mt-2 border-t border-white/20 dark:border-border pt-3 px-2 flex items-center justify-between">
+              <span className="text-xs uppercase font-bold text-white/90 dark:text-muted-foreground">Appearance</span>
+              <ThemeToggle showLabel className="bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 border border-transparent dark:border-white/10" />
             </div>
           </div>
         </nav>

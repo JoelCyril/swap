@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
 import { repairImageUrls } from "./image-url-repair.server";
-import { resolveListingCategory, encodeListingCategory, CATEGORY_PRODUCTS_TAG } from "./db-types";
+import { resolveListingCategory, encodeListingCategory, CATEGORY_COSMETICS_TAG, CATEGORY_PRODUCTS_TAG } from "./db-types";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
