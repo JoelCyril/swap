@@ -16,7 +16,7 @@
   "rewrites": [
     {
       "source": "/media/:bucket/:path*",
-      "destination": "https://aacorcmqfjnfpmwauxwx.supabase.co/storage/v1/object/public/:bucket/:path*"
+      "destination": "https://ramwgcdselnqtcadkaok.supabase.co/storage/v1/object/public/:bucket/:path*"
     }
   ],
   "headers": [
