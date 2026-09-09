@@ -14,22 +14,28 @@ export function ThemeToggle({ className = "", showLabel = false }: Props) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={`group relative inline-flex items-center gap-2 rounded-full p-2 text-foreground/80 hover:bg-muted hover:text-foreground active:scale-95 transition-all cursor-pointer ${className}`}
+      className={`group relative ${
+        showLabel
+          ? "inline-flex items-center gap-2 rounded-full px-3 py-1.5"
+          : "grid h-10 w-10 shrink-0 place-items-center rounded-full"
+      } text-foreground/80 hover:bg-muted hover:text-foreground active:scale-95 transition-all cursor-pointer ${className}`}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       <div className="relative h-5 w-5 grid place-items-center">
         <Sun
-          className={`h-4 w-4 transition-all duration-300 ${
+          strokeWidth={2.25}
+          className={`h-4.5 w-4.5 transition-all duration-300 ${
             isDark
               ? "rotate-90 scale-0 opacity-0 absolute"
-              : "rotate-0 scale-100 opacity-100 text-amber-500"
+              : "rotate-0 scale-100 opacity-100 text-current drop-shadow-xs group-hover:rotate-45"
           }`}
         />
         <Moon
-          className={`h-4 w-4 transition-all duration-300 ${
+          strokeWidth={2.25}
+          className={`h-4.5 w-4.5 transition-all duration-300 ${
             isDark
-              ? "rotate-0 scale-100 opacity-100 text-blue-400"
+              ? "rotate-0 scale-100 opacity-100 text-current drop-shadow-xs group-hover:-rotate-12"
               : "-rotate-90 scale-0 opacity-0 absolute"
           }`}
         />
