@@ -61,7 +61,7 @@ function ResetPasswordPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="New password"
-              className="w-full rounded-full border-2 border-primary/20 bg-white px-4 py-3 text-sm outline-none focus:border-primary"
+              className="w-full rounded-full border-2 border-primary/20 dark:border-border/80 bg-white dark:bg-background/90 px-4 py-3 text-sm text-foreground outline-none focus:border-primary transition placeholder:text-muted-foreground"
             />
             <button
               type="submit"
