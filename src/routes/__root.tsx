@@ -168,6 +168,19 @@ function RootShell({ children }: { children: ReactNode }) {
                     window.location.reload();
                   }
                 });
+
+                // Automatically recover if stylesheet failed to load during deployment transition
+                window.addEventListener('error', function(e) {
+                  try {
+                    if (e.target && e.target.tagName === 'LINK' && e.target.rel === 'stylesheet') {
+                      var lastCss = Number(sessionStorage.getItem('swap:css-reload') || 0);
+                      if (Date.now() - lastCss > 10000) {
+                        sessionStorage.setItem('swap:css-reload', String(Date.now()));
+                        setTimeout(function() { window.location.reload(); }, 1500);
+                      }
+                    }
+                  } catch (err) {}
+                }, true);
               })();
             `,
           }}
