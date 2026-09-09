@@ -14,6 +14,7 @@ import { MapPin, ShieldCheck, Package, UserCheck, UserPlus } from "lucide-react"
 import { toast } from "sonner";
 import { handle } from "@/lib/db-types";
 import { useBlockedIds } from "@/lib/use-blocks";
+import { extractProfileBadge, cleanBioText } from "@/lib/badges";
 
 
 export const Route = createFileRoute("/profile/$username")({
@@ -91,6 +92,8 @@ function ProfilePage() {
   const listings = data.listings;
   const isOwnProfile = viewerId === owner.id;
   const isFollowing = (followedIds ?? []).includes(owner.id);
+  const profileBadge = extractProfileBadge(owner.bio);
+  const displayBio = cleanBioText(owner.bio);
 
   async function toggleFollow() {
     if (!viewerId) {
@@ -155,7 +158,31 @@ function ProfilePage() {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-3xl sm:text-5xl font-black truncate">{handle(owner)}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-display text-3xl sm:text-5xl font-black truncate">{handle(owner)}</h1>
+              {profileBadge && (
+                <div
+                  className="inline-flex items-center gap-2 rounded-full bg-black/85 backdrop-blur-md border border-white/25 px-3.5 py-1 text-xs sm:text-sm font-black uppercase tracking-wider text-white shadow-lg"
+                  style={
+                    profileBadge.glowColor
+                      ? {
+                          borderColor: profileBadge.glowColor,
+                          boxShadow: `0 0 16px ${profileBadge.glowColor}cc, 0 0 32px ${profileBadge.glowColor}55`,
+                        }
+                      : undefined
+                  }
+                >
+                  {profileBadge.imageUrl && (
+                    <img
+                      src={profileBadge.imageUrl}
+                      alt=""
+                      className="h-4 w-4 sm:h-5 sm:w-5 rounded-full object-cover border border-white/40 shrink-0"
+                    />
+                  )}
+                  <span>{profileBadge.name}</span>
+                </div>
+              )}
+            </div>
             <div className="mt-3 flex flex-wrap gap-4 text-sm">
               <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {owner.location ?? "UAE"}</span>
             </div>
@@ -164,7 +191,7 @@ function ProfilePage() {
                 <ShieldCheck className="h-3.5 w-3.5" /> Moderator
               </span>
             )}
-            {owner.bio && <p className="mt-3 max-w-2xl text-sm text-white/90">{owner.bio}</p>}
+            {displayBio && <p className="mt-3 max-w-2xl text-sm text-white/90">{displayBio}</p>}
             {!isOwnProfile && (
               <button
                 type="button"

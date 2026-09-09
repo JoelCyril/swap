@@ -25,10 +25,12 @@ import { getMyProfile } from "@/lib/profile.functions";
 import { gradientForId, timeAgo } from "@/lib/db-types";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import { AdminBadgesPanel } from "@/components/admin/AdminBadgesPanel";
+import { AdminProfileBadgesPanel } from "@/components/admin/AdminProfileBadgesPanel";
 import {
   ShieldCheck,
   Trash2,
   Flag,
+  Sparkles,
   X,
   MapPin,
   ChevronRight,
@@ -264,6 +266,7 @@ function AdminPage() {
                 [
                   ["analytics", "Analytics & Members", (analytics?.users ?? []).length, BarChart3],
                   ["badges", "Listing Badges", (badges ?? []).length, Award],
+                  ["profile-badges", "Profile Badges", "Studio", Sparkles],
                   ["broadcast", "Send Notification", "New", Bell],
                   ["flagged", "Flagged listings", (flagged ?? []).length, Flag],
                   ["withheld", "Withheld listings", (withheld ?? []).length, EyeOff],
@@ -303,6 +306,8 @@ function AdminPage() {
             )}
 
             {tab === "badges" && <AdminBadgesPanel />}
+
+            {tab === "profile-badges" && <AdminProfileBadgesPanel />}
 
             {tab === "broadcast" && (
               <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 sm:p-8 shadow-card space-y-6">

@@ -26,7 +26,7 @@ const CATEGORY_META: Record<ItemCategory, { icon: typeof Laptop; description: st
   Books: { icon: BookOpen, description: "Books, comics, magazines" },
   Toys: { icon: Gamepad2, description: "Kids toys, games, hobbies" },
   Sports: { icon: Dumbbell, description: "Gym gear, sport equipment" },
-  Products: { icon: Sparkles, description: "Perfumes, beauty, and care products" },
+  Cosmetics: { icon: Sparkles, description: "Perfumes, cosmetics, and beauty care" },
 };
 
 interface Props {

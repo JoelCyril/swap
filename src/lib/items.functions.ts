@@ -41,7 +41,7 @@ const itemSchema = z.object({
     "Books",
     "Toys",
     "Sports",
-    "Products",
+    "Cosmetics",
   ]),
   condition: z.enum(["New", "Like New", "Good", "Fair"]),
   image_emoji: z.string().max(8).default("📦"),
@@ -145,8 +145,8 @@ export const createItem = createServerFn({ method: "POST" })
       .select()
       .single();
 
-    if (error && error.code === "22P02" && data.category === "Products") {
-      const { dbDescription } = encodeListingCategory("Products", data.description ?? "");
+    if (error && error.code === "22P02" && (data.category === "Cosmetics" || (data.category as any) === "Products")) {
+      const { dbDescription } = encodeListingCategory("Cosmetics", data.description ?? "");
       insertData = {
         ...insertData,
         category: "Accessories",
@@ -188,8 +188,8 @@ export const updateItem = createServerFn({ method: "POST" })
       .select()
       .single();
 
-    if (error && error.code === "22P02" && rest.category === "Products") {
-      const { dbDescription } = encodeListingCategory("Products", rest.description ?? "");
+    if (error && error.code === "22P02" && (rest.category === "Cosmetics" || (rest.category as any) === "Products")) {
+      const { dbDescription } = encodeListingCategory("Cosmetics", rest.description ?? "");
       updateData = {
         ...updateData,
         category: "Accessories",
@@ -212,8 +212,8 @@ export const updateItem = createServerFn({ method: "POST" })
     const listingUpdate: Record<string, any> = {};
     if (rest.name) listingUpdate.title = rest.name;
     if (rest.category) {
-      if (rest.category === "Products") {
-        const { dbDescription } = encodeListingCategory("Products", rest.description ?? "");
+      if (rest.category === "Cosmetics" || (rest.category as any) === "Products") {
+        const { dbDescription } = encodeListingCategory("Cosmetics", rest.description ?? "");
         listingUpdate.category = "Accessories";
         listingUpdate.description = dbDescription;
       } else {
@@ -221,7 +221,7 @@ export const updateItem = createServerFn({ method: "POST" })
       }
     }
     if (rest.condition) listingUpdate.condition = rest.condition;
-    if (rest.description !== undefined && rest.category !== "Products") {
+    if (rest.description !== undefined && rest.category !== "Cosmetics" && (rest.category as any) !== "Products") {
       listingUpdate.description = rest.description;
     }
     if (rest.image_urls) listingUpdate.image_urls = rest.image_urls;

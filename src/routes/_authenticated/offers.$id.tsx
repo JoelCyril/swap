@@ -27,6 +27,7 @@ import {
   reactToMessage,
 } from "@/lib/messages.functions";
 import { parseMessageMeta } from "@/lib/messages.meta";
+import { extractProfileBadge } from "@/lib/badges";
 import {
   listMeetupProposals,
   proposeMeetup,
@@ -54,6 +55,8 @@ import {
   AlertTriangle,
   ChevronDown,
   Reply,
+  Copy,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -595,7 +598,42 @@ function OfferDetail() {
                   (other?.display_name || other?.username)?.[0]?.toUpperCase()
                 )}
               </div>
-              <p className="flex-1 text-sm font-bold">{handle(other)}</p>
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <Link
+                  to="/profile/$username"
+                  params={{ username: other?.username || "" }}
+                  className="text-sm font-bold truncate hover:text-primary transition"
+                >
+                  {handle(other)}
+                </Link>
+                {(() => {
+                  const partnerBadge = extractProfileBadge((other as any)?.bio);
+                  if (!partnerBadge) return null;
+                  return (
+                    <div
+                      className="inline-flex items-center gap-1 rounded-full bg-black/85 backdrop-blur-md border border-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-xs shrink-0"
+                      style={
+                        partnerBadge.glowColor
+                          ? {
+                              borderColor: partnerBadge.glowColor,
+                              boxShadow: `0 0 10px ${partnerBadge.glowColor}aa`,
+                            }
+                          : undefined
+                      }
+                      title={`${partnerBadge.name} - Awarded Profile Badge`}
+                    >
+                      {partnerBadge.imageUrl && (
+                        <img
+                          src={partnerBadge.imageUrl}
+                          alt=""
+                          className="h-3 w-3 rounded-full object-cover shrink-0"
+                        />
+                      )}
+                      <span>{partnerBadge.name}</span>
+                    </div>
+                  );
+                })()}
+              </div>
               <span className="flex items-center gap-1 text-[10px] font-black uppercase text-primary">
                 <ArrowRightLeft className="h-3 w-3" /> {statusLabel}
               </span>
@@ -615,7 +653,14 @@ function OfferDetail() {
               </div>
             )}
 
-            <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-4">
+            <div
+              ref={scrollRef}
+              onClick={() => {
+                setActiveReactionMenuMsgId(null);
+                setShowExtraEmojisMsgId(null);
+              }}
+              className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-4"
+            >
               {offer.message && (
                 <div className="text-center">
                   <p className="inline-block rounded-2xl bg-primary-soft px-4 py-2 text-xs italic text-primary">
@@ -641,9 +686,10 @@ function OfferDetail() {
                         {/* WhatsApp-style Floating Reaction Bar */}
                         {isReactionMenuOpen && (
                           <div
-                            className={`absolute -top-11 ${
+                            onClick={(e) => e.stopPropagation()}
+                            className={`absolute -top-12 ${
                               mine ? "right-2" : "left-2"
-                            } z-30 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md px-2.5 py-1 border-2 border-primary/25 shadow-xl animate-in fade-in zoom-in-95 duration-150`}
+                            } z-30 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md px-2.5 py-1 border-2 border-primary/25 shadow-xl animate-in fade-in zoom-in-95 duration-150 touch-manipulation`}
                           >
                             {QUICK_EMOJIS.map((emoji) => {
                               const isSelected = (reactions[emoji] ?? []).includes(myId as string);
@@ -651,8 +697,11 @@ function OfferDetail() {
                                 <button
                                   key={emoji}
                                   type="button"
-                                  onClick={() => reactMut.mutate({ message_id: m.id, emoji })}
-                                  className={`grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer ${
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    reactMut.mutate({ message_id: m.id, emoji });
+                                  }}
+                                  className={`grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer touch-manipulation ${
                                     isSelected ? "bg-primary-soft scale-115" : "hover:bg-muted"
                                   }`}
                                 >
@@ -662,28 +711,50 @@ function OfferDetail() {
                             })}
                             <button
                               type="button"
-                              onClick={() =>
-                                setShowExtraEmojisMsgId((prev) => (prev === m.id ? null : m.id))
-                              }
-                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs font-bold transition cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowExtraEmojisMsgId((prev) => (prev === m.id ? null : m.id));
+                              }}
+                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs font-bold transition cursor-pointer touch-manipulation"
                               title="More emojis"
                             >
                               {showExtra ? "✕" : "+"}
                             </button>
 
+                            {/* Quick copy text on mobile */}
+                            {m.body && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard?.writeText(m.body);
+                                  toast.success("Copied to clipboard");
+                                  setActiveReactionMenuMsgId(null);
+                                }}
+                                className="sm:hidden grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs transition cursor-pointer touch-manipulation"
+                                title="Copy text"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+
                             {/* Extra Emojis popover */}
                             {showExtra && (
                               <div
+                                onClick={(e) => e.stopPropagation()}
                                 className={`absolute top-11 ${
                                   mine ? "right-0" : "left-0"
-                                } z-40 flex flex-wrap gap-1 rounded-2xl bg-card/95 backdrop-blur-md p-2 border-2 border-primary/20 shadow-2xl max-w-[200px] animate-in fade-in`}
+                                } z-40 flex flex-wrap gap-1 rounded-2xl bg-card/95 backdrop-blur-md p-2 border-2 border-primary/20 shadow-2xl max-w-[200px] animate-in fade-in touch-manipulation`}
                               >
                                 {EXTRA_EMOJIS.map((emoji) => (
                                   <button
                                     key={emoji}
                                     type="button"
-                                    onClick={() => reactMut.mutate({ message_id: m.id, emoji })}
-                                    className="grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 cursor-pointer hover:bg-muted"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      reactMut.mutate({ message_id: m.id, emoji });
+                                    }}
+                                    className="grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer hover:bg-muted touch-manipulation"
                                   >
                                     {emoji}
                                   </button>
@@ -693,15 +764,19 @@ function OfferDetail() {
                           </div>
                         )}
 
-                        {/* Bubble Row with hover actions */}
+                        {/* Bubble Row with hover/mobile actions */}
                         <div
-                          className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[75%] min-w-0 ${
+                          className={`flex items-end gap-1.5 max-w-[88%] sm:max-w-[75%] min-w-0 ${
                             mine ? "flex-row-reverse" : "flex-row"
                           }`}
                         >
-                          {/* The Message Bubble */}
+                          {/* The Message Bubble (tap on mobile opens actions & reactions) */}
                           <div
-                            className={`relative min-w-0 max-w-full rounded-2xl px-4 py-2 text-sm shadow-2xs transition ${
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id));
+                            }}
+                            className={`relative min-w-0 max-w-full rounded-2xl px-4 py-2 text-sm shadow-2xs transition cursor-pointer select-text active:scale-[0.99] touch-manipulation ${
                               mine
                                 ? "bg-gradient-primary text-primary-foreground rounded-tr-xs"
                                 : "bg-muted text-foreground rounded-tl-xs"
@@ -763,21 +838,38 @@ function OfferDetail() {
                             </div>
                           </div>
 
-                          {/* Quick Action Buttons (shown on hover or active menu) */}
+                          {/* Quick Action Buttons (shown on hover or when reaction menu is open; on mobile subtle trigger is always accessible) */}
                           <div
-                            className={`flex items-center gap-0.5 shrink-0 opacity-0 group-hover/msg:opacity-100 transition-opacity ${
-                              isReactionMenuOpen ? "opacity-100" : ""
+                            className={`flex items-center gap-0.5 shrink-0 transition-opacity ${
+                              isReactionMenuOpen
+                                ? "opacity-100"
+                                : "opacity-35 sm:opacity-0 group-hover/msg:opacity-100"
                             }`}
                           >
+                            {/* Mobile More trigger */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id));
+                              }}
+                              title="Message options"
+                              className="sm:hidden grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-95 transition cursor-pointer touch-manipulation"
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+
                             {/* Reply button */}
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setReplyTo(m);
+                                setActiveReactionMenuMsgId(null);
                                 requestAnimationFrame(() => messageInputRef.current?.focus());
                               }}
                               title="Reply to message"
-                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                             >
                               <Reply className="h-3.5 w-3.5" />
                             </button>
@@ -785,11 +877,12 @@ function OfferDetail() {
                             {/* React with emoji button */}
                             <button
                               type="button"
-                              onClick={() =>
-                                setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id))
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id));
+                              }}
                               title="React to message"
-                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                              className="hidden sm:grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                             >
                               <Smile className="h-4 w-4" />
                             </button>
@@ -798,14 +891,34 @@ function OfferDetail() {
                             {mine && (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setEditingMessage({ id: m.id, body: m.body });
                                   setText(m.body);
+                                  setActiveReactionMenuMsgId(null);
+                                  requestAnimationFrame(() => messageInputRef.current?.focus());
                                 }}
                                 title="Edit message"
-                                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+
+                            {/* Copy button on desktop */}
+                            {m.body && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard?.writeText(m.body);
+                                  toast.success("Copied to clipboard");
+                                  setActiveReactionMenuMsgId(null);
+                                }}
+                                title="Copy text"
+                                className="hidden sm:grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
@@ -878,7 +991,12 @@ function OfferDetail() {
                 <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-primary bg-primary-soft px-3 py-2 text-xs">
                   <Reply className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <p className="min-w-0 flex-1 truncate">Replying to: {replyTo.body || (replyTo.attachment_urls?.filter((u: string) => !u.startsWith("__meta__:")).length ? "Attachment" : "Message")}</p>
-                  <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="rounded p-0.5 hover:bg-background/70 cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => setReplyTo(null)}
+                    aria-label="Cancel reply"
+                    className="grid h-6 w-6 place-items-center rounded-full hover:bg-background/80 active:scale-95 cursor-pointer touch-manipulation"
+                  >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -902,7 +1020,7 @@ function OfferDetail() {
                       setEditingMessage(null);
                       setText("");
                     }}
-                    className="rounded-full p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground transition cursor-pointer"
+                    className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-black/5 hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                     title="Cancel editing (Esc)"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -948,13 +1066,13 @@ function OfferDetail() {
                   }
                   maxLength={2000}
                   disabled={!chatOpen}
-                  className="min-w-0 flex-1 rounded-full border-2 border-primary/20 bg-white px-4 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
+                  className="min-w-0 flex-1 rounded-full border-2 border-primary/20 bg-background text-foreground px-4 py-2 text-sm outline-none focus:border-primary disabled:opacity-50 transition"
                 />
                 <button
                   type="submit"
                   disabled={!chatOpen || !text.trim() || sendMut.isPending || editMut.isPending}
                   title={editingMessage ? "Save edit" : "Send message"}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-primary text-primary-foreground disabled:opacity-50 transition hover:opacity-90 active:scale-95 cursor-pointer shadow-sm"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-primary text-primary-foreground disabled:opacity-50 transition hover:opacity-90 active:scale-95 cursor-pointer shadow-sm touch-manipulation"
                 >
                   {editingMessage ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 </button>

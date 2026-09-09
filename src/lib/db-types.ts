@@ -21,25 +21,32 @@ export const CATEGORIES: ItemCategory[] = [
   "Books",
   "Toys",
   "Sports",
-  "Products",
+  "Cosmetics",
 ];
 
+export const CATEGORY_COSMETICS_TAG = "[CATEGORY:Cosmetics]";
 export const CATEGORY_PRODUCTS_TAG = "[CATEGORY:Products]";
 
 /**
- * Resolves listing or item category, mapping embedded [CATEGORY:Products]
- * tags in description to category: "Products".
+ * Resolves listing or item category, mapping embedded [CATEGORY:Cosmetics]
+ * or legacy [CATEGORY:Products] tags in description to category: "Cosmetics".
  */
 export function resolveListingCategory<
   T extends { category?: string | null; description?: string | null }
 >(item: T): T {
   if (!item) return item;
-  if (item.category === "Products") return item;
-  if (typeof item.description === "string" && item.description.includes(CATEGORY_PRODUCTS_TAG)) {
+  if (item.category === "Cosmetics") return item;
+  if (item.category === "Products") {
     return {
       ...item,
-      category: "Products" as any,
-      description: item.description.replace(CATEGORY_PRODUCTS_TAG, "").trim(),
+      category: "Cosmetics" as any,
+    };
+  }
+  if (typeof item.description === "string" && (item.description.includes(CATEGORY_COSMETICS_TAG) || item.description.includes(CATEGORY_PRODUCTS_TAG))) {
+    return {
+      ...item,
+      category: "Cosmetics" as any,
+      description: item.description.replace(CATEGORY_COSMETICS_TAG, "").replace(CATEGORY_PRODUCTS_TAG, "").trim(),
     };
   }
   return item;
@@ -52,16 +59,16 @@ export function encodeListingCategory(
   category: string,
   description: string = ""
 ): { dbCategory: string; dbDescription: string } {
-  if (category === "Products") {
-    const cleanDesc = description.replace(CATEGORY_PRODUCTS_TAG, "").trim();
+  if (category === "Cosmetics" || category === "Products") {
+    const cleanDesc = description.replace(CATEGORY_COSMETICS_TAG, "").replace(CATEGORY_PRODUCTS_TAG, "").trim();
     return {
-      dbCategory: "Products",
-      dbDescription: cleanDesc ? `${cleanDesc} ${CATEGORY_PRODUCTS_TAG}` : CATEGORY_PRODUCTS_TAG,
+      dbCategory: "Cosmetics",
+      dbDescription: cleanDesc ? `${cleanDesc} ${CATEGORY_COSMETICS_TAG}` : CATEGORY_COSMETICS_TAG,
     };
   }
   return {
     dbCategory: category,
-    dbDescription: description.replace(CATEGORY_PRODUCTS_TAG, "").trim(),
+    dbDescription: description.replace(CATEGORY_COSMETICS_TAG, "").replace(CATEGORY_PRODUCTS_TAG, "").trim(),
   };
 }
 

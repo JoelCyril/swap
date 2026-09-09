@@ -17,7 +17,7 @@ import {
   adminAwardListingBadge,
   adminRemoveListingBadge,
 } from "@/lib/admin.functions";
-import { extractListingBadge, getListingGlowStyle, type ListingCustomBadge } from "@/lib/badges";
+import { extractListingBadge, extractProfileBadge, getListingGlowStyle, type ListingCustomBadge } from "@/lib/badges";
 import { trackListingView } from "@/lib/views.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
@@ -453,6 +453,32 @@ function ListingDetailPage() {
                     >
                       {handle(owner)}
                     </Link>
+                    {(() => {
+                      const ownerBadge = extractProfileBadge(owner.bio || (ownerPublic?.profile as any)?.bio);
+                      if (!ownerBadge) return null;
+                      return (
+                        <div
+                          className="inline-flex items-center gap-1.5 rounded-full bg-black/85 backdrop-blur-md border border-white/20 px-2.5 py-0.5 text-xs font-black uppercase tracking-wider text-white shadow-sm"
+                          style={
+                            ownerBadge.glowColor
+                              ? {
+                                  borderColor: ownerBadge.glowColor,
+                                  boxShadow: `0 0 12px ${ownerBadge.glowColor}aa`,
+                                }
+                              : undefined
+                          }
+                        >
+                          {ownerBadge.imageUrl && (
+                            <img
+                              src={ownerBadge.imageUrl}
+                              alt=""
+                              className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+                            />
+                          )}
+                          <span>{ownerBadge.name}</span>
+                        </div>
+                      );
+                    })()}
                     {ownerPublic?.isAdmin && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary-foreground">
                         <ShieldCheck className="h-3 w-3" /> Admin

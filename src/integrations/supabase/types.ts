@@ -754,6 +754,7 @@ export type Database = {
         | "Toys"
         | "Sports"
         | "Products"
+        | "Cosmetics"
       item_condition: "New" | "Like New" | "Good" | "Fair"
       item_visibility: "public" | "private"
       listing_status:
@@ -906,6 +907,7 @@ export const Constants = {
         "Books",
         "Toys",
         "Sports",
+        "Cosmetics",
         "Products",
       ],
       item_condition: ["New", "Like New", "Good", "Fair"],

@@ -10,6 +10,7 @@ import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { listMyNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/notifications.functions";
 import { listAnnouncements } from "@/lib/announcements.functions";
 import { PendingOfferPopup } from "@/components/offers/PendingOfferPopup";
+import { ThemeToggle } from "./ThemeToggle";
 
 import { toast } from "sonner";
 const logoUrl = "/swap-logo.png";
@@ -205,10 +206,12 @@ export function Navbar() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search items or people…"
             aria-label="Search items or people"
-            className="w-full rounded-full border-0 bg-white py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground shadow-md outline-none ring-0 focus:ring-2 focus:ring-white/70"
+            className="w-full rounded-full border-0 bg-white dark:bg-card py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground shadow-md outline-none ring-0 focus:ring-2 focus:ring-white/70 transition"
           />
         </form>
 
+        {/* Theme Toggle Button */}
+        <ThemeToggle className="bg-white/15 text-white hover:bg-white/25 shrink-0" />
 
         {session ? (
           <>
@@ -338,6 +341,10 @@ export function Navbar() {
                     <ShieldCheck className="h-4 w-4" /> Admin
                   </Link>
                 )}
+                <div className="flex items-center justify-between border-t border-border px-3 py-1.5 text-xs">
+                  <span className="font-semibold text-muted-foreground">Appearance</span>
+                  <ThemeToggle showLabel className="px-2 py-1 text-xs hover:bg-muted" />
+                </div>
                 <button
                   onClick={handleSignOut}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
@@ -381,6 +388,10 @@ export function Navbar() {
                 </Link>
               );
             })}
+            <div className="mt-2 border-t border-white/20 pt-3 px-2 flex items-center justify-between">
+              <span className="text-xs uppercase font-bold text-white/90">Appearance</span>
+              <ThemeToggle showLabel className="bg-white/15 text-white hover:bg-white/25" />
+            </div>
           </div>
         </nav>
       )}

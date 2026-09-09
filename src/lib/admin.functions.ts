@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyUser } from "./notifications.server";
-import { extractListingBadge, formatNoteWithBadge, type ListingCustomBadge } from "./badges";
+import {
+  extractListingBadge,
+  formatNoteWithBadge,
+  type ListingCustomBadge,
+  extractProfileBadge,
+  formatBioWithProfileBadge,
+  type ProfileCustomBadge,
+} from "./badges";
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -1234,5 +1241,121 @@ export const adminSearchListingsForBadge = createServerFn({ method: "GET" })
       customBadge: extractListingBadge(l.moderation_note),
     }));
   });
+
+export const adminSearchUsersForBadge = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { query?: string } | undefined) =>
+    z.object({ query: z.string().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let q = supabaseAdmin
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, avatar_color, bio, location")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (data.query && data.query.trim().length > 0) {
+      const term = data.query.trim();
+      q = q.or(`username.ilike.%${term}%,display_name.ilike.%${term}%`);
+    }
+
+    const { data: users, error } = await q;
+    if (error) throw new Error(error.message);
+
+    return (users ?? []).map((u: any) => ({
+      ...u,
+      customBadge: extractProfileBadge(u.bio),
+    }));
+  });
+
+export const adminAwardProfileBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        badge: z.object({
+          id: z.string().optional(),
+          name: z.string().min(1),
+          imageUrl: z.string().min(1),
+          glowColor: z.string().nullable().optional(),
+        }),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: user, error: fetchErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, username, display_name, bio")
+      .eq("id", data.userId)
+      .single();
+
+    if (fetchErr || !user) throw new Error("User profile not found");
+
+    const newBio = formatBioWithProfileBadge(user.bio, {
+      id: data.badge.id,
+      name: data.badge.name,
+      imageUrl: data.badge.imageUrl,
+      glowColor: data.badge.glowColor || null,
+    });
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ bio: newBio } as never)
+      .eq("id", data.userId);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    // Notify member
+    await notifyUser({
+      userId: user.id,
+      type: "system_announcement",
+      title: `Profile Badge Awarded: ${data.badge.name}!`,
+      body: `You have been awarded the "${data.badge.name}" badge by the SWAP team! Check it out on your profile.`,
+      link: `/profile/${user.username}`,
+    });
+
+    return {
+      ok: true,
+      message: `Awarded "${data.badge.name}" badge to @${user.username}`,
+    };
+  });
+
+export const adminRemoveProfileBadge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: user, error: fetchErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, username, display_name, bio")
+      .eq("id", data.userId)
+      .single();
+
+    if (fetchErr || !user) throw new Error("User profile not found");
+
+    const newBio = formatBioWithProfileBadge(user.bio, null);
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ bio: newBio } as never)
+      .eq("id", data.userId);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    return {
+      ok: true,
+      message: `Removed profile badge from @${user.username}`,
+    };
+  });
+
 
 

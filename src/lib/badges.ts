@@ -1,4 +1,4 @@
-﻿export interface ListingCustomBadge {
+export interface ListingCustomBadge {
   id?: string;
   name: string;
   imageUrl: string;
@@ -77,3 +77,68 @@ export function getListingGlowStyle(glowColor?: string | null): React.CSSPropert
     boxShadow: `0 0 20px ${hex}55, 0 0 45px ${hex}28`,
   };
 }
+
+export interface ProfileCustomBadge {
+  id?: string;
+  name: string;
+  imageUrl: string;
+  glowColor?: string | null;
+  created_at?: string;
+}
+
+/**
+ * Extracts custom profile badge data embedded in a user's bio.
+ * Format: [PROFILE_BADGE:{"id":"...","name":"...","imageUrl":"...","glowColor":"#..."}]
+ */
+export function extractProfileBadge(bio?: string | null): ProfileCustomBadge | null {
+  if (!bio) return null;
+  const match = bio.match(/\[(?:CUSTOM_)?PROFILE_BADGE:(.+?)\]/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (parsed && typeof parsed.name === "string" && typeof parsed.imageUrl === "string") {
+      return {
+        id: parsed.id || undefined,
+        name: parsed.name,
+        imageUrl: parsed.imageUrl,
+        glowColor: parsed.glowColor || null,
+      };
+    }
+  } catch {
+    // Malformed JSON payload - gracefully ignore
+  }
+  return null;
+}
+
+/**
+ * Cleans any embedded [PROFILE_BADGE:...] tags from bio for display.
+ */
+export function cleanBioText(bio?: string | null): string {
+  if (!bio) return "";
+  return bio.replace(/\[(?:CUSTOM_)?PROFILE_BADGE:\{.*?\}\]/g, "").trim();
+}
+
+/**
+ * Returns a new bio string with the given profile badge added or replaced.
+ * If badge is null, removes any existing profile badge tag.
+ */
+export function formatBioWithProfileBadge(
+  existingBio: string | null | undefined,
+  badge: ProfileCustomBadge | null
+): string | null {
+  let cleaned = cleanBioText(existingBio);
+
+  if (badge) {
+    const payload = JSON.stringify({
+      id: badge.id,
+      name: badge.name.trim(),
+      imageUrl: badge.imageUrl.trim(),
+      glowColor: badge.glowColor?.trim() || null,
+    });
+    const tag = `[PROFILE_BADGE:${payload}]`;
+    cleaned = cleaned ? `${cleaned} ${tag}` : tag;
+  }
+
+  return cleaned.length > 0 ? cleaned : null;
+}
+

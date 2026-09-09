@@ -25,26 +25,26 @@ function publicClient() {
 }
 
 export const listListings = createServerFn({ method: "GET" })
-  .inputValidator((d: { category?: string | null } | undefined) =>
-    z.object({ category: z.string().nullable().optional() }).parse(d ?? {}),
+  .inputValidator((d: { category?: string } | undefined) =>
+    z.object({ category: z.string().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data }) => {
     const supabase = publicClient();
+
     const selectQuery = `
   id,
-  owner_id,
   title,
-  description,
   category,
   condition,
+  description,
+  image_urls,
+  image_emoji,
   location,
   emirate,
   looking_for,
-  image_urls,
-  image_emoji,
   status,
-  moderation_note,
   created_at,
+  moderation_note,
   owner:profiles!listings_owner_profile_fkey(
     id,
     username,
@@ -56,26 +56,26 @@ export const listListings = createServerFn({ method: "GET" })
 
     let rows: any[] = [];
 
-    if (data.category === "Products") {
-      // 1. Try native enum filter if DB enum already has Products
+    if (data.category === "Cosmetics" || data.category === "Products") {
+      // 1. Try native enum filter if DB enum already has Cosmetics
       try {
         const { data: nativeRows, error: nativeErr } = await supabase
           .from("listings")
           .select(selectQuery)
           .in("status", ["active", "reserved"])
-          .eq("category", "Products" as never)
+          .eq("category", "Cosmetics" as never)
           .order("created_at", { ascending: false });
         if (!nativeErr && nativeRows && nativeRows.length > 0) {
           rows = nativeRows;
         }
       } catch {}
 
-      // 2. Also fetch listings with fallback [CATEGORY:Products] in description
+      // 2. Also fetch listings with fallback [CATEGORY:Cosmetics] or [CATEGORY:Products] in description
       const { data: fallbackRows, error: fbErr } = await supabase
         .from("listings")
         .select(selectQuery)
         .in("status", ["active", "reserved"])
-        .ilike("description", `%${CATEGORY_PRODUCTS_TAG}%`)
+        .or(`description.ilike.%${CATEGORY_COSMETICS_TAG}%,description.ilike.%${CATEGORY_PRODUCTS_TAG}%`)
         .order("created_at", { ascending: false });
       if (!fbErr && fallbackRows) {
         const existingIds = new Set(rows.map((r) => r.id));
@@ -96,9 +96,9 @@ export const listListings = createServerFn({ method: "GET" })
       if (error) throw new Error(error.message);
       rows = fetchedRows ?? [];
 
-      // If querying Accessories, filter out any rows that have the Products fallback tag
+      // If querying Accessories, filter out any rows that have the Cosmetics/Products fallback tag
       if (data.category === "Accessories") {
-        rows = rows.filter((r) => !r.description?.includes(CATEGORY_PRODUCTS_TAG));
+        rows = rows.filter((r) => !r.description?.includes(CATEGORY_COSMETICS_TAG) && !r.description?.includes(CATEGORY_PRODUCTS_TAG));
       }
     }
 
@@ -147,7 +147,8 @@ export const getListing = createServerFn({ method: "GET" })
     username,
     display_name,
     avatar_color,
-    avatar_url
+    avatar_url,
+    bio
   )
 `)
       .eq("id", data.id)
@@ -204,7 +205,7 @@ const createSchema = z.object({
     "Books",
     "Toys",
     "Sports",
-    "Products",
+    "Cosmetics",
   ]),
   condition: z.enum(["New", "Like New", "Good", "Fair"]),
   image_emoji: z.string().max(8).default("📦"),
@@ -256,8 +257,8 @@ export const createListing = createServerFn({ method: "POST" })
       .select()
       .single();
 
-    if (error && error.code === "22P02" && data.category === "Products") {
-      const { dbDescription } = encodeListingCategory("Products", data.description);
+    if (error && error.code === "22P02" && (data.category === "Cosmetics" || (data.category as any) === "Products")) {
+      const { dbDescription } = encodeListingCategory("Cosmetics", data.description);
       insertData = {
         ...insertData,
         category: "Accessories",
@@ -353,8 +354,8 @@ export const updateListing = createServerFn({ method: "POST" })
       .eq("id", id)
       .eq("owner_id", context.userId);
 
-    if (error && error.code === "22P02" && fields.category === "Products") {
-      const { dbDescription } = encodeListingCategory("Products", fields.description ?? "");
+    if (error && error.code === "22P02" && (fields.category === "Cosmetics" || (fields.category as any) === "Products")) {
+      const { dbDescription } = encodeListingCategory("Cosmetics", fields.description ?? "");
       updateData = {
         ...updateData,
         category: "Accessories",
