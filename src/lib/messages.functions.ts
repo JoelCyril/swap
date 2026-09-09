@@ -17,7 +17,11 @@ function isAllowedAttachmentUrl(value: string) {
       url.hostname.includes("supabase.co") &&
       url.pathname.includes("/storage/v1/object/");
 
-    return isSupabaseStorage;
+    const isProxiedMedia =
+      (url.hostname === "swapuae.com" || url.hostname === "www.swapuae.com") &&
+      url.pathname.startsWith("/media/");
+
+    return isSupabaseStorage || isProxiedMedia;
   } catch {
     return false;
   }
