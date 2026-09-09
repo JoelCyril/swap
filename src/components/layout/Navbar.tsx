@@ -149,8 +149,8 @@ export function Navbar() {
 
   return (
     <>
-    <header className="sticky top-0 z-40 bg-gradient-primary text-primary-foreground shadow-glow dark:bg-none dark:bg-card/90 dark:backdrop-blur-md dark:border-b dark:border-border dark:text-foreground dark:shadow-sm transition-colors">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-3 py-3 sm:gap-6 sm:px-6">
+    <header className="sticky top-0 z-40 w-full max-w-full bg-gradient-primary text-primary-foreground shadow-glow dark:bg-none dark:bg-card/90 dark:backdrop-blur-md dark:border-b dark:border-border dark:text-foreground dark:shadow-sm transition-colors">
+      <div className="mx-auto flex w-full max-w-[1400px] items-center gap-2 px-3 py-2.5 sm:gap-6 sm:px-6 sm:py-3">
         <button
           type="button"
           onClick={() => { setNavOpen((v) => !v); setMenuOpen(false); setBellOpen(false); }}
@@ -164,7 +164,7 @@ export function Navbar() {
           <img
             src={logoUrl}
             alt="SWAP"
-            className="h-12 w-auto object-contain transition-transform group-hover:rotate-[-4deg] drop-shadow sm:h-16"
+            className="h-10 w-auto object-contain transition-transform group-hover:rotate-[-4deg] drop-shadow sm:h-14"
           />
         </Link>
 
@@ -188,14 +188,13 @@ export function Navbar() {
                   </span>
                 )}
               </Link>
-
             );
           })}
         </nav>
 
+        {/* Desktop search bar (hidden on mobile, visible from sm up) */}
         <form
-          className="relative ml-auto w-full min-w-0 flex-1 sm:max-w-md lg:max-w-xl"
-
+          className="relative ml-auto hidden w-full min-w-0 flex-1 sm:block sm:max-w-md lg:max-w-xl"
           onSubmit={(e) => {
             e.preventDefault();
             navigate({ to: "/listings", search: { q: query.trim() || undefined } });
@@ -212,27 +211,28 @@ export function Navbar() {
           />
         </form>
 
-        {/* Theme Toggle Button */}
-        <ThemeToggle className="bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 shrink-0 border border-transparent dark:border-white/10" />
+        <div className="ml-auto flex items-center gap-2 shrink-0 sm:ml-0">
+          {/* Theme Toggle Button */}
+          <ThemeToggle className="bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 shrink-0 border border-transparent dark:border-white/10" />
 
-        {session ? (
-          <>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => { setBellOpen((v) => !v); setMenuOpen(false); }}
-              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 transition border border-transparent dark:border-white/10"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid min-w-5 h-5 place-items-center rounded-full bg-destructive text-[10px] font-black text-destructive-foreground px-1 shadow">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
-            {bellOpen && (
-              <div className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-primary/20 bg-card text-foreground shadow-card-hover">
+          {session ? (
+            <>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => { setBellOpen((v) => !v); setMenuOpen(false); }}
+                className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 dark:bg-white/10 text-white dark:text-foreground hover:bg-white/25 dark:hover:bg-white/15 transition border border-transparent dark:border-white/10"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 grid min-w-5 h-5 place-items-center rounded-full bg-destructive text-[10px] font-black text-destructive-foreground px-1 shadow">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {bellOpen && (
+                <div className="absolute right-0 mt-2 w-[calc(100vw-24px)] max-w-sm max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-primary/20 bg-card text-foreground shadow-card-hover sm:w-80">
                 <div className="flex items-center justify-between border-b border-border px-4 py-2">
                   <p className="text-sm font-bold">Notifications</p>
                   {unreadCount > 0 && (
@@ -360,16 +360,47 @@ export function Navbar() {
         ) : (
           <Link
             to="/auth"
-            className="shrink-0 whitespace-nowrap rounded-full bg-white dark:bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary dark:text-primary-foreground shadow-md transition hover:scale-105 sm:px-5 sm:text-sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-white dark:bg-primary px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-primary dark:text-primary-foreground shadow-md transition hover:scale-105 sm:px-5 sm:py-2 sm:text-sm"
           >
             Sign in
           </Link>
         )}
+        </div>
+      </div>
+
+      {/* Mobile search bar (full width on small screens) */}
+      <div className="px-3 pb-2.5 sm:hidden">
+        <form
+          className="relative w-full min-w-0"
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate({ to: "/listings", search: { q: query.trim() || undefined } });
+          }}
+        >
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60 dark:text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search items or people…"
+            aria-label="Search items or people"
+            className="w-full rounded-full border border-transparent dark:border-border/60 bg-white dark:bg-background/90 py-2 pl-10 pr-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground shadow-sm outline-none ring-0 focus:ring-2 focus:ring-white/70 dark:focus:ring-primary/50 transition"
+          />
+        </form>
       </div>
 
       {navOpen && (
         <nav className="border-t border-white/20 dark:border-border px-3 pb-3 xl:hidden">
           <div className="flex flex-col gap-1 pt-2 text-sm font-semibold uppercase tracking-wider">
+            {!session && (
+              <Link
+                to="/auth"
+                onClick={() => setNavOpen(false)}
+                className="flex items-center justify-between rounded-xl bg-white/20 dark:bg-primary/25 px-4 py-3 font-black text-white dark:text-primary transition hover:bg-white/30 mb-1"
+              >
+                <span>Sign in / Register</span>
+              </Link>
+            )}
             {links.map((l) => {
               const active = pathname.startsWith(l.to);
               return (

@@ -531,7 +531,7 @@ function OfferDetail() {
             </p>
           </div>
           <span
-            className={`rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-wider ${
+            className={`rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-wider max-w-full text-center whitespace-normal leading-tight sm:whitespace-nowrap ${
               !accepted || confirmedProposal
                 ? "bg-gradient-primary text-primary-foreground shadow-glow"
                 : "bg-muted text-muted-foreground"
@@ -683,13 +683,13 @@ function OfferDetail() {
                         key={m.id}
                         className={`group/msg relative flex flex-col mb-1.5 w-full min-w-0 ${mine ? "items-end" : "items-start"}`}
                       >
-                        {/* WhatsApp-style Floating Reaction Bar */}
+                        {/* WhatsApp-style Floating Reaction & Action Bar */}
                         {isReactionMenuOpen && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className={`absolute -top-12 ${
-                              mine ? "right-2" : "left-2"
-                            } z-30 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md px-2.5 py-1 border-2 border-primary/25 shadow-xl animate-in fade-in zoom-in-95 duration-150 touch-manipulation`}
+                            className={`absolute -top-11 ${
+                              mine ? "right-0 sm:right-2" : "left-0 sm:left-2"
+                            } z-30 flex max-w-[calc(100vw-2.5rem)] items-center gap-1 rounded-full bg-card/95 backdrop-blur-md px-2 py-1 border-2 border-primary/25 shadow-xl animate-in fade-in zoom-in-95 duration-150 touch-manipulation overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                           >
                             {QUICK_EMOJIS.map((emoji) => {
                               const isSelected = (reactions[emoji] ?? []).includes(myId as string);
@@ -701,7 +701,7 @@ function OfferDetail() {
                                     e.stopPropagation();
                                     reactMut.mutate({ message_id: m.id, emoji });
                                   }}
-                                  className={`grid h-8 w-8 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer touch-manipulation ${
+                                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-base transition-transform hover:scale-130 active:scale-95 cursor-pointer touch-manipulation ${
                                     isSelected ? "bg-primary-soft scale-115" : "hover:bg-muted"
                                   }`}
                                 >
@@ -715,13 +715,48 @@ function OfferDetail() {
                                 e.stopPropagation();
                                 setShowExtraEmojisMsgId((prev) => (prev === m.id ? null : m.id));
                               }}
-                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs font-bold transition cursor-pointer touch-manipulation"
+                              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs font-bold transition cursor-pointer touch-manipulation"
                               title="More emojis"
                             >
                               {showExtra ? "✕" : "+"}
                             </button>
 
-                            {/* Quick copy text on mobile */}
+                            <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
+
+                            {/* Reply button inside menu */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReplyTo(m);
+                                setActiveReactionMenuMsgId(null);
+                                requestAnimationFrame(() => messageInputRef.current?.focus());
+                              }}
+                              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary-soft hover:text-primary active:scale-95 transition cursor-pointer touch-manipulation"
+                              title="Reply"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </button>
+
+                            {/* Edit button inside menu (for sender) */}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingMessage({ id: m.id, body: m.body });
+                                  setText(m.body);
+                                  setActiveReactionMenuMsgId(null);
+                                  requestAnimationFrame(() => messageInputRef.current?.focus());
+                                }}
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary-soft hover:text-primary active:scale-95 transition cursor-pointer touch-manipulation"
+                                title="Edit message"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+
+                            {/* Copy button inside menu */}
                             {m.body && (
                               <button
                                 type="button"
@@ -731,7 +766,7 @@ function OfferDetail() {
                                   toast.success("Copied to clipboard");
                                   setActiveReactionMenuMsgId(null);
                                 }}
-                                className="sm:hidden grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground text-xs transition cursor-pointer touch-manipulation"
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary-soft hover:text-primary active:scale-95 transition cursor-pointer touch-manipulation"
                                 title="Copy text"
                               >
                                 <Copy className="h-3.5 w-3.5" />
@@ -843,7 +878,7 @@ function OfferDetail() {
                             className={`flex items-center gap-0.5 shrink-0 transition-opacity ${
                               isReactionMenuOpen
                                 ? "opacity-100"
-                                : "opacity-35 sm:opacity-0 group-hover/msg:opacity-100"
+                                : "opacity-40 sm:opacity-0 group-hover/msg:opacity-100"
                             }`}
                           >
                             {/* Mobile More trigger */}
@@ -854,7 +889,7 @@ function OfferDetail() {
                                 setActiveReactionMenuMsgId((prev) => (prev === m.id ? null : m.id));
                               }}
                               title="Message options"
-                              className="sm:hidden grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-95 transition cursor-pointer touch-manipulation"
+                              className="sm:hidden grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-95 transition cursor-pointer touch-manipulation"
                             >
                               <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
@@ -869,7 +904,7 @@ function OfferDetail() {
                                 requestAnimationFrame(() => messageInputRef.current?.focus());
                               }}
                               title="Reply to message"
-                              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
+                              className="hidden sm:grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                             >
                               <Reply className="h-3.5 w-3.5" />
                             </button>
@@ -899,7 +934,7 @@ function OfferDetail() {
                                   requestAnimationFrame(() => messageInputRef.current?.focus());
                                 }}
                                 title="Edit message"
-                                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
+                                className="hidden sm:grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition cursor-pointer touch-manipulation"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>

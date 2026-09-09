@@ -7,8 +7,8 @@ interface Props {
 
 export function CategoryBar({ active = "All", onChange }: Props) {
   return (
-    <div className="bg-gradient-to-r from-primary/95 via-primary to-primary-glow text-primary-foreground shadow-xs dark:bg-none dark:bg-card/75 dark:backdrop-blur-md dark:border-b dark:border-border/70 dark:text-foreground transition-colors">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="w-full max-w-full overflow-hidden bg-gradient-to-r from-primary/95 via-primary to-primary-glow text-primary-foreground shadow-xs dark:bg-none dark:bg-card/75 dark:backdrop-blur-md dark:border-b dark:border-border/70 dark:text-foreground transition-colors">
+      <div className="mx-auto flex max-w-[1400px] w-full items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* ALL */}
         <button
           type="button"
