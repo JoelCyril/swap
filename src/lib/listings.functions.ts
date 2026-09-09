@@ -25,14 +25,15 @@ function publicClient() {
 }
 
 export const listListings = createServerFn({ method: "GET" })
-  .inputValidator((d: { category?: string } | undefined) =>
-    z.object({ category: z.string().optional() }).parse(d ?? {}),
+  .inputValidator((d: { category?: string | null } | undefined) =>
+    z.object({ category: z.string().nullable().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data }) => {
     const supabase = publicClient();
 
     const selectQuery = `
   id,
+  owner_id,
   title,
   category,
   condition,
