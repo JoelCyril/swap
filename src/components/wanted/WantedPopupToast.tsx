@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listWantedRequests } from "@/lib/wanted.functions";
 import { type WantedRequestItem } from "@/lib/wanted.server";
-import { X, ArrowRightLeft, MapPin, Sparkles } from "lucide-react";
+import { X, ArrowRightLeft, MapPin } from "lucide-react";
 
 const STORAGE_KEY = "swap_wanted_popup_last_shown";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -122,8 +122,8 @@ export function WantedPopupToast() {
         {/* Top bar: Badge & Close button */}
         <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-              <Sparkles className="h-3 w-3 animate-pulse" /> Wanted in UAE
+            <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+              Wanted in UAE
             </span>
             <span className="text-[10px] font-semibold text-muted-foreground">
               {request.category}
