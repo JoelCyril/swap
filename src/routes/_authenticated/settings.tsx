@@ -255,7 +255,7 @@ function ProfileTab() {
                 <User className="h-8 w-8 text-white" />
               )}
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-primary/30 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary-soft">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-primary/30 dark:border-border/60 bg-white dark:bg-card px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary dark:text-foreground hover:bg-primary-soft dark:hover:bg-primary/20 transition">
               <Upload className="h-4 w-4" />
               {uploadingAvatar ? "Uploading…" : form.avatar_url ? "Change" : "Upload"}
               <input
@@ -288,7 +288,7 @@ function ProfileTab() {
 
         <div>
           <label className="text-xs font-bold uppercase text-muted-foreground">Profile banner</label>
-          <div className="mt-2 grid h-28 place-items-center overflow-hidden rounded-2xl border-2 border-primary/20 bg-primary-soft">
+          <div className="mt-2 grid h-28 place-items-center overflow-hidden rounded-2xl border-2 border-primary/20 dark:border-border/60 bg-primary-soft dark:bg-muted/40">
             {form.banner_url ? (
               <img src={form.banner_url} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -296,7 +296,7 @@ function ProfileTab() {
             )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-4">
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-primary/30 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary-soft">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-primary/30 dark:border-border/60 bg-white dark:bg-card px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary dark:text-foreground hover:bg-primary-soft dark:hover:bg-primary/20 transition">
               <Upload className="h-4 w-4" />
               {uploadingBanner ? "Uploading…" : form.banner_url ? "Change" : "Upload"}
               <input

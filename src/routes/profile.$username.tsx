@@ -134,11 +134,11 @@ function ProfilePage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden min-h-[200px] sm:min-h-[240px] flex items-center">
         {owner.banner_url ? (
           <>
             <img src={owner.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/45 to-foreground/25" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/20" />
           </>
         ) : (
           <>
@@ -146,7 +146,7 @@ function ProfilePage() {
             <div className="absolute inset-0 bg-gradient-hero" />
           </>
         )}
-        <div className="relative mx-auto grid max-w-[1200px] grid-cols-[auto_minmax(0,1fr)] items-center gap-6 px-6 py-12 text-primary-foreground">
+        <div className="relative mx-auto w-full max-w-[1200px] grid grid-cols-[auto_minmax(0,1fr)] items-center gap-6 px-6 py-10 sm:py-14 text-white">
           <div
             className="grid h-24 w-24 sm:h-32 sm:w-32 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-white/90 text-3xl font-black text-white shadow-glow"
             style={{ backgroundColor: owner.avatar_url ? "transparent" : owner.avatar_color }}
@@ -159,7 +159,7 @@ function ProfilePage() {
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-3xl sm:text-5xl font-black truncate">{handle(owner)}</h1>
+              <h1 className="font-display text-3xl sm:text-5xl font-black truncate text-white">{handle(owner)}</h1>
               {profileBadge && (
                 <div
                   className="inline-flex items-center gap-2 rounded-full bg-black/85 backdrop-blur-md border border-white/25 px-3.5 py-1 text-xs sm:text-sm font-black uppercase tracking-wider text-white shadow-lg"
@@ -183,11 +183,11 @@ function ProfilePage() {
                 </div>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-white/90">
               <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {owner.location ?? "UAE"}</span>
             </div>
             {pub?.isAdmin && (
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
                 <ShieldCheck className="h-3.5 w-3.5" /> Moderator
               </span>
             )}
