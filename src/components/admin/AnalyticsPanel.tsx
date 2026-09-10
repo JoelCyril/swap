@@ -1,9 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminMarkTradeCompleted } from "@/lib/admin.functions";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import {
   Users,
   Package,
@@ -21,8 +30,20 @@ import {
   Calendar,
   Mail,
   X,
+  BarChart3,
 } from "lucide-react";
 import { timeAgo, gradientForId, handle } from "@/lib/db-types";
+
+export type DailyGrowthPoint = {
+  date: string;
+  label: string;
+  users_joined: number;
+  cumulative_users: number;
+  listings_created: number;
+  cumulative_listings: number;
+  trades_completed: number;
+  cumulative_trades: number;
+};
 
 export type TradeItem = {
   id: string;
@@ -92,6 +113,7 @@ type AnalyticsData = {
   };
   users: UserRow[];
   trades?: TradeItem[];
+  daily_growth?: DailyGrowthPoint[];
   emirate_breakdown: Record<string, { users: number; listings: number }>;
   category_breakdown: Record<string, number>;
 };
@@ -117,6 +139,8 @@ export function AnalyticsPanel({
   const [sort, setSort] = useState<SortField>("newest");
   const [tradesModalOpen, setTradesModalOpen] = useState(false);
   const [tradesFilter, setTradesFilter] = useState<"all" | "completed" | "accepted">("all");
+  const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [chartMetric, setChartMetric] = useState<"users" | "listings" | "trades">("users");
 
   const qc = useQueryClient();
   const markCompleteFn = useServerFn(adminMarkTradeCompleted);
@@ -140,6 +164,35 @@ export function AnalyticsPanel({
       return true;
     });
   }, [rawTrades, tradesFilter]);
+
+  const rawTimeline = useMemo<DailyGrowthPoint[]>(() => {
+    if (data?.daily_growth && data.daily_growth.length > 0) {
+      return data.daily_growth;
+    }
+    const userMap = new Map<string, number>();
+    for (const u of rawUsers) {
+      const d = u.created_at ? u.created_at.slice(0, 10) : null;
+      if (d) userMap.set(d, (userMap.get(d) || 0) + 1);
+    }
+    const dates = Array.from(userMap.keys()).sort();
+    let cum = 0;
+    return dates.map((date) => {
+      const count = userMap.get(date) || 0;
+      cum += count;
+      const d = new Date(`${date}T12:00:00Z`);
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return {
+        date,
+        label,
+        users_joined: count,
+        cumulative_users: cum,
+        listings_created: 0,
+        cumulative_listings: 0,
+        trades_completed: 0,
+        cumulative_trades: 0,
+      };
+    });
+  }, [data?.daily_growth, rawUsers]);
 
   // Filter & Search
   const filteredUsers = useMemo(() => {
@@ -193,17 +246,35 @@ export function AnalyticsPanel({
       {/* KPI METRIC CARDS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {/* Total Members */}
-        <div className="rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setChartMetric("users");
+            setChartModalOpen(true);
+          }}
+          className="group text-left rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm hover:border-primary/50 hover:bg-primary/5 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/40"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Members</span>
-            <Users className="h-4 w-4 text-primary" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+              Total Members
+            </span>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-primary group-hover:scale-110 transition-transform">
+              <span>Graph</span>
+              <TrendingUp className="h-3.5 w-3.5" />
+            </div>
           </div>
           <p className="mt-2 font-display text-2xl font-black text-foreground">{summary.total_users}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Registered accounts</p>
-        </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Click for join trend graph ↗</p>
+        </button>
 
         {/* Members With Listings */}
-        <div className="rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setFilter(filter === "with_listings" ? "all" : "with_listings");
+          }}
+          className="group text-left rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 p-4 shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               With Listings
@@ -214,7 +285,7 @@ export function AnalyticsPanel({
             {summary.users_with_listings}
           </p>
           <p className="text-[11px] font-bold text-emerald-600/90 mt-0.5">{summary.conversion_rate}% lister rate</p>
-        </div>
+        </button>
 
         {/* 0 Listings (Lurkers) */}
         <div className="rounded-2xl border-2 border-amber-500/20 bg-amber-500/5 p-4 shadow-sm">
@@ -240,8 +311,7 @@ export function AnalyticsPanel({
         </div>
 
         {/* Completed Trades */}
-        <button
-          type="button"
+        <div
           onClick={() => setTradesModalOpen(true)}
           className="group text-left rounded-2xl border-2 border-blue-500/30 bg-blue-500/5 p-4 shadow-sm hover:border-blue-500 hover:bg-blue-500/10 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/40"
         >
@@ -249,8 +319,20 @@ export function AnalyticsPanel({
             <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400">
               Swaps Done
             </span>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 group-hover:text-blue-700">
-              <span>View</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setChartMetric("trades");
+                  setChartModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 hover:bg-blue-500/35 px-1.5 py-0.5 text-[10px] font-black text-blue-700 dark:text-blue-300 transition cursor-pointer"
+                title="View Swaps Growth Graph"
+              >
+                <span>Graph</span>
+                <TrendingUp className="h-3 w-3" />
+              </button>
               <ArrowRightLeft className="h-3.5 w-3.5 text-blue-600 group-hover:scale-110 group-hover:rotate-12 transition-transform" />
             </div>
           </div>
@@ -267,17 +349,29 @@ export function AnalyticsPanel({
           <p className="text-[11px] text-blue-600/90 mt-0.5 font-medium">
             {summary.users_with_trades} traders active • Click to inspect ↗
           </p>
-        </button>
+        </div>
 
         {/* Marketplace Listings */}
-        <div className="rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setChartMetric("listings");
+            setChartModalOpen(true);
+          }}
+          className="group text-left rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm hover:border-primary/50 hover:bg-primary/5 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/40"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Listings</span>
-            <Package className="h-4 w-4 text-primary" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+              Listings
+            </span>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-primary group-hover:scale-110 transition-transform">
+              <span>Graph</span>
+              <TrendingUp className="h-3.5 w-3.5" />
+            </div>
           </div>
           <p className="mt-2 font-display text-2xl font-black text-foreground">{summary.active_listings}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Active on marketplace</p>
-        </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Click for activity graph ↗</p>
+        </button>
 
         {/* Total Inventory Items */}
         <div className="rounded-2xl border-2 border-primary/20 bg-card p-4 shadow-sm">
@@ -582,6 +676,18 @@ export function AnalyticsPanel({
               >
                 Accepted / In Progress ({summary?.accepted_offers ?? 0})
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTradesModalOpen(false);
+                  setChartMetric("trades");
+                  setChartModalOpen(true);
+                }}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 transition cursor-pointer"
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>Swaps Growth Graph 📈</span>
+              </button>
             </div>
 
             {/* Trade Cards List */}
@@ -686,6 +792,439 @@ export function AnalyticsPanel({
           </div>
         </div>
       )}
+
+      {/* LINE / AREA GROWTH GRAPH MODAL */}
+      <GrowthTrendsModal
+        open={chartModalOpen}
+        onClose={() => setChartModalOpen(false)}
+        data={rawTimeline}
+        summary={summary}
+        initialMetric={chartMetric}
+      />
     </div>
   );
 }
+
+type GrowthMetric = "users" | "listings" | "trades";
+type GrowthMode = "daily" | "cumulative";
+type GrowthRange = "7" | "14" | "30" | "all";
+
+function GrowthTrendsModal({
+  open,
+  onClose,
+  data,
+  summary,
+  initialMetric = "users",
+}: {
+  open: boolean;
+  onClose: () => void;
+  data: DailyGrowthPoint[];
+  summary: AnalyticsData["summary"] | undefined;
+  initialMetric: GrowthMetric;
+}) {
+  const [metric, setMetric] = useState<GrowthMetric>(initialMetric);
+  const [mode, setMode] = useState<GrowthMode>("daily");
+  const [range, setRange] = useState<GrowthRange>("30");
+
+  useEffect(() => {
+    if (open) {
+      setMetric(initialMetric);
+    }
+  }, [open, initialMetric]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (range === "7") return data.slice(-7);
+    if (range === "14") return data.slice(-14);
+    if (range === "30") return data.slice(-30);
+    return data;
+  }, [data, range]);
+
+  const config = useMemo(() => {
+    if (metric === "listings") {
+      return {
+        title: "Listings Activity & Growth",
+        subtitle: "Items listed on the marketplace over time",
+        dailyKey: "listings_created" as const,
+        cumulativeKey: "cumulative_listings" as const,
+        unit: "listings",
+        allTimeCount: summary?.total_listings ?? 0,
+        color: "#10b981",
+        gradientId: "listingsGrad",
+        badgeBg: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+      };
+    }
+    if (metric === "trades") {
+      return {
+        title: "Swaps Completed Growth",
+        subtitle: "Successful trades completed between members over time",
+        dailyKey: "trades_completed" as const,
+        cumulativeKey: "cumulative_trades" as const,
+        unit: "swaps",
+        allTimeCount: summary?.completed_swaps ?? 0,
+        color: "#3b82f6",
+        gradientId: "tradesGrad",
+        badgeBg: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30",
+      };
+    }
+    return {
+      title: "Member Growth & Daily Signups",
+      subtitle: "New members joining SwapUAE over time",
+      dailyKey: "users_joined" as const,
+      cumulativeKey: "cumulative_users" as const,
+      unit: "members",
+      allTimeCount: summary?.total_users ?? 0,
+      color: "#8b5cf6",
+      gradientId: "usersGrad",
+      badgeBg: "bg-primary/10 text-primary border-primary/30",
+    };
+  }, [metric, summary]);
+
+  const stats = useMemo(() => {
+    if (filteredData.length === 0) {
+      return { totalInPeriod: 0, peak: 0, peakDate: "—", avg: "0.0" };
+    }
+    let sum = 0;
+    let max = 0;
+    let maxDate = "—";
+    for (const d of filteredData) {
+      const val = d[config.dailyKey];
+      sum += val;
+      if (val > max) {
+        max = val;
+        maxDate = d.label;
+      }
+    }
+    const avg = (sum / filteredData.length).toFixed(1);
+    return {
+      totalInPeriod: sum,
+      peak: max,
+      peakDate: maxDate,
+      avg,
+    };
+  }, [filteredData, config.dailyKey]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex flex-col w-full max-w-4xl max-h-[92vh] rounded-3xl border border-border/80 bg-card p-5 sm:p-7 shadow-2xl overflow-y-auto text-card-foreground"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 pb-4 border-b border-border/60">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-bold ${config.badgeBg}`}>
+                <TrendingUp className="h-3.5 w-3.5" />
+                Growth & Activity Graph
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black font-display tracking-tight text-foreground mt-2">
+              {config.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              {config.subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+            aria-label="Close modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Metric, Mode & Range Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-3">
+          {/* Metric Selector Pills */}
+          <div className="flex items-center gap-1.5 rounded-2xl bg-muted/50 p-1 border border-border/60">
+            <button
+              type="button"
+              onClick={() => setMetric("users")}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                metric === "users"
+                  ? "bg-card text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              👥 Members
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetric("listings")}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                metric === "listings"
+                  ? "bg-card text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              📦 Listings
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetric("trades")}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                metric === "trades"
+                  ? "bg-card text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              🔄 Swaps
+            </button>
+          </div>
+
+          {/* Mode Selector (Daily vs Cumulative) */}
+          <div className="flex items-center gap-1.5 rounded-2xl bg-muted/50 p-1 border border-border/60">
+            <button
+              type="button"
+              onClick={() => setMode("daily")}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                mode === "daily"
+                  ? "bg-card text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Amt vs Day Joined
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("cumulative")}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                mode === "cumulative"
+                  ? "bg-card text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Cumulative Total
+            </button>
+          </div>
+
+          {/* Range Selector */}
+          <div className="flex items-center gap-1 rounded-2xl bg-muted/50 p-1 border border-border/60">
+            {(["7", "14", "30", "all"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                className={`rounded-xl px-2.5 py-1 text-xs font-bold transition cursor-pointer uppercase ${
+                  range === r
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r === "all" ? "All Time" : `${r}d`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Metric Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3">
+          <div className="rounded-2xl border border-border/80 bg-background/60 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Total In Period
+            </span>
+            <p className="mt-1 text-xl font-black font-display text-foreground">
+              +{stats.totalInPeriod} <span className="text-xs font-normal text-muted-foreground">{config.unit}</span>
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/80 bg-background/60 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Peak Day
+            </span>
+            <p className="mt-1 text-xl font-black font-display text-foreground">
+              {stats.peak} <span className="text-xs font-normal text-muted-foreground">({stats.peakDate})</span>
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/80 bg-background/60 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Daily Average
+            </span>
+            <p className="mt-1 text-xl font-black font-display text-foreground">
+              {stats.avg} <span className="text-xs font-normal text-muted-foreground">/ day</span>
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/80 bg-background/60 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              All-Time Total
+            </span>
+            <p className="mt-1 text-xl font-black font-display text-foreground">
+              {config.allTimeCount} <span className="text-xs font-normal text-muted-foreground">{config.unit}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Chart Canvas */}
+        <div className="rounded-2xl border border-border/80 bg-background/40 p-3 sm:p-4 my-2">
+          {filteredData.length === 0 ? (
+            <div className="py-24 text-center text-sm text-muted-foreground">
+              No growth data available for this range.
+            </div>
+          ) : (
+            <div className="h-[280px] sm:h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={filteredData}
+                  margin={{ top: 12, right: 12, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id={config.gradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={config.color} stopOpacity={0.45} />
+                      <stop offset="95%" stopColor={config.color} stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="currentColor"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ opacity: 0.3 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    stroke="currentColor"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ opacity: 0.3 }}
+                    allowDecimals={false}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    content={
+                      <CustomChartTooltip
+                        metric={metric}
+                        mode={mode}
+                        color={config.color}
+                        unit={config.unit}
+                      />
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={mode === "cumulative" ? config.cumulativeKey : config.dailyKey}
+                    stroke={config.color}
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill={`url(#${config.gradientId})`}
+                    dot={{ r: 2.5, fill: config.color }}
+                    activeDot={{ r: 5, fill: config.color, stroke: "#fff", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Daily Timeline Activity */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Recent Activity Breakdown
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Showing days in selected period
+            </span>
+          </div>
+          <div className="max-h-44 overflow-y-auto rounded-xl border border-border/70 divide-y divide-border/60">
+            {filteredData
+              .slice()
+              .reverse()
+              .slice(0, 10)
+              .map((point) => {
+                const dailyVal = point[config.dailyKey];
+                const cumVal = point[config.cumulativeKey];
+                return (
+                  <div
+                    key={point.date}
+                    className="flex items-center justify-between px-3.5 py-2 text-xs hover:bg-muted/40 transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-muted-foreground text-[11px]">{point.date}</span>
+                      <span className="font-bold text-foreground">{point.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`font-black px-2 py-0.5 rounded-md ${
+                          dailyVal > 0
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted/60 text-muted-foreground"
+                        }`}
+                      >
+                        +{dailyVal} {config.unit}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        total: <strong className="text-foreground">{cumVal}</strong>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomChartTooltip({
+  active,
+  payload,
+  metric,
+  mode,
+  color,
+  unit,
+}: any) {
+  if (!active || !payload || !payload.length) return null;
+  const dataPoint: DailyGrowthPoint = payload[0].payload;
+
+  const dailyVal =
+    metric === "listings"
+      ? dataPoint.listings_created
+      : metric === "trades"
+      ? dataPoint.trades_completed
+      : dataPoint.users_joined;
+
+  const cumVal =
+    metric === "listings"
+      ? dataPoint.cumulative_listings
+      : metric === "trades"
+      ? dataPoint.cumulative_trades
+      : dataPoint.cumulative_users;
+
+  return (
+    <div className="rounded-2xl border border-border/90 bg-popover/95 p-3 shadow-xl backdrop-blur-md text-popover-foreground min-w-[160px]">
+      <div className="text-[11px] font-bold text-muted-foreground">{dataPoint.date}</div>
+      <div className="font-display text-sm font-black text-foreground mt-0.5">{dataPoint.label}</div>
+      <div className="mt-2 space-y-1 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">Amt on this day:</span>
+          <span className="font-black" style={{ color }}>
+            +{dailyVal} {unit}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/50">
+          <span className="text-muted-foreground">Cumulative total:</span>
+          <span className="font-black text-foreground">{cumVal} total</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+

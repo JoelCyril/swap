@@ -509,6 +509,91 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         };
       });
 
+    // 6. Compute Daily Activity & Growth timeline (for Line Charts)
+    const toDateKey = (iso: string | null | undefined) => {
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      return d.toISOString().slice(0, 10);
+    };
+
+    const userCountByDate = new Map<string, number>();
+    const listingCountByDate = new Map<string, number>();
+    const tradeCountByDate = new Map<string, number>();
+
+    let earliestTime = Date.now();
+
+    for (const p of allProfiles) {
+      const key = toDateKey(p.created_at);
+      if (key) {
+        userCountByDate.set(key, (userCountByDate.get(key) || 0) + 1);
+        const t = new Date(p.created_at).getTime();
+        if (t < earliestTime) earliestTime = t;
+      }
+    }
+
+    for (const l of allListings) {
+      const key = toDateKey(l.created_at);
+      if (key) {
+        listingCountByDate.set(key, (listingCountByDate.get(key) || 0) + 1);
+        const t = new Date(l.created_at).getTime();
+        if (t < earliestTime) earliestTime = t;
+      }
+    }
+
+    for (const o of allOffers) {
+      if (o.status === "completed") {
+        const key = toDateKey(o.updated_at || o.created_at);
+        if (key) {
+          tradeCountByDate.set(key, (tradeCountByDate.get(key) || 0) + 1);
+        }
+      }
+    }
+
+    const timelineDates: string[] = [];
+    const startDate = new Date(earliestTime);
+    startDate.setUTCHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const curr = new Date(startDate);
+    while (curr <= today) {
+      timelineDates.push(curr.toISOString().slice(0, 10));
+      curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+
+    if (timelineDates.length === 0) {
+      timelineDates.push(today.toISOString().slice(0, 10));
+    }
+
+    let cumUsers = 0;
+    let cumListings = 0;
+    let cumTrades = 0;
+
+    const dailyGrowth = timelineDates.map((dateStr) => {
+      const uCount = userCountByDate.get(dateStr) || 0;
+      const lCount = listingCountByDate.get(dateStr) || 0;
+      const tCount = tradeCountByDate.get(dateStr) || 0;
+
+      cumUsers += uCount;
+      cumListings += lCount;
+      cumTrades += tCount;
+
+      const d = new Date(`${dateStr}T12:00:00Z`);
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+      return {
+        date: dateStr,
+        label,
+        users_joined: uCount,
+        cumulative_users: cumUsers,
+        listings_created: lCount,
+        cumulative_listings: cumListings,
+        trades_completed: tCount,
+        cumulative_trades: cumTrades,
+      };
+    });
+
     return {
       summary: {
         total_users: totalUsers,
@@ -525,6 +610,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       },
       users: userRows,
       trades: tradesList,
+      daily_growth: dailyGrowth,
       emirate_breakdown: emirateBreakdown,
       category_breakdown: categoryBreakdown,
     };
