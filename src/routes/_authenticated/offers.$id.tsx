@@ -18,7 +18,6 @@ import { adminMarkTradeCompleted } from "@/lib/admin.functions";
 
 
 
-import { FairTradeMeter } from "@/components/offers/FairTradeMeter";
 import { listOwnerInventory } from "@/lib/items.functions";
 import {
   listMessages,
@@ -578,25 +577,6 @@ function OfferDetail() {
             )}
           </span>
         </div>
-
-        {offer.listing && senderItems.length > 0 && (
-          <div className="mb-4">
-            <FairTradeMeter
-              targetListing={{
-                title: offer.listing.title || "Target Item",
-                category: offer.listing.category || "General",
-                condition: offer.listing.condition || "Good",
-                description: offer.listing.description || "",
-              }}
-              offeredItems={senderItems.map((i: any) => ({
-                name: i.name || "Offered item",
-                category: i.category || "General",
-                condition: i.condition || "Good",
-                description: i.description || "",
-              }))}
-            />
-          </div>
-        )}
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,260px)]">
           {/* Left panel (Offered items) */}

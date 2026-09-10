@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI } from "./ai.server";
+import { analyzeItemPhotoWithAI } from "./ai.server";
 import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 import { batchEstimateAedValues } from "./groq.server";
 
@@ -18,32 +18,6 @@ export const autoFillItemFromPhoto = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return await analyzeItemPhotoWithAI(data);
-  });
-
-export const getTradeFairnessScore = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        targetListing: z.object({
-          title: z.string(),
-          category: z.string(),
-          condition: z.string(),
-          description: z.string().optional(),
-        }),
-        offeredItems: z.array(
-          z.object({
-            name: z.string(),
-            category: z.string(),
-            condition: z.string(),
-            description: z.string().optional(),
-          }),
-        ),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    return await evaluateTradeFairnessAI(data);
   });
 
 export interface SmartMatch {
