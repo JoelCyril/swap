@@ -41,8 +41,8 @@ function AboutUsPage() {
 
           <h2 className="mt-10 text-2xl font-bold text-foreground">Meet the Team</h2>
           <div className="mt-3 space-y-1 text-base leading-relaxed text-foreground">
-            <p>Founder: Atul Aiit Nair</p>
-            <p>Co-Founders: Abdul Raafay Amaan, Haron Emmanuel, Aqeeb Muhammed Shamim</p>
+            <p>Founder: Atul Ajit Nair</p>
+            <p>Co-Founders: Abdul Raafay Amaan, Haron Emmanuel, Aqeel Muhammed Shamim</p>
             <p>Lead Developers: Abdul Raafay Amaan, Haron Emmanuel, and Joel Thomas Cyril</p>
           </div>
 
