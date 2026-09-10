@@ -236,7 +236,14 @@ function ProfilePage() {
                 >
                   <div className="grid aspect-square place-items-center overflow-hidden rounded-2xl bg-primary-soft">
                     {it.image_urls && it.image_urls.length > 0 ? (
-                      <img src={it.image_urls[0]} alt={it.name} className="h-full w-full object-cover" />
+                      <img
+                        src={it.image_urls[0]}
+                        alt={it.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <Package className="h-10 w-10 text-primary/40" />
                     )}

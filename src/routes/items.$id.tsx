@@ -23,14 +23,36 @@ export const Route = createFileRoute("/items/$id")({
   component: ItemPage,
 });
 
+function normalizeUrl(url: string | null | undefined, bucket: "listing-images" | "avatars" = "listing-images"): string {
+  if (!url || typeof url !== "string") return "";
+  if (url.includes(`/media/${bucket}/`)) return url;
+  const signMarker = `/storage/v1/object/sign/${bucket}/`;
+  const publicMarker = `/storage/v1/object/public/${bucket}/`;
+  let rawPath: string | null = null;
+  if (url.includes(signMarker)) {
+    rawPath = url.split(signMarker)[1]?.split("?")[0];
+  } else if (url.includes(publicMarker)) {
+    rawPath = url.split(publicMarker)[1]?.split("?")[0];
+  }
+  if (rawPath) {
+    return `https://swapuae.com/media/${bucket}/${decodeURIComponent(rawPath)}`;
+  }
+  return url;
+}
+
 function ItemPage() {
   const { id } = Route.useParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [photo, setPhoto] = useState(0);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
   }, []);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [photo]);
 
   const pubFn = useServerFn(getPublicItem);
   const mineFn = useServerFn(getMyItem);
@@ -71,7 +93,8 @@ function ItemPage() {
     );
   }
 
-  const photos: string[] = item.image_urls ?? [];
+  const photos: string[] = (item.image_urls ?? []).map((u: string) => normalizeUrl(u, "listing-images")).filter(Boolean);
+  const ownerAvatar = normalizeUrl(item.owner?.avatar_url, "avatars");
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -80,8 +103,13 @@ function ItemPage() {
         <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_300px]">
           <div>
             <div className="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-3xl border-2 border-primary/20 bg-primary-soft shadow-card">
-              {photos.length > 0 ? (
-                <img src={photos[photo]} alt={item.name} className="absolute inset-0 h-full w-full object-cover" />
+              {photos.length > 0 && !imgError ? (
+                <img
+                  src={photos[photo]}
+                  alt={item.name}
+                  onError={() => setImgError(true)}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
               ) : (
                 <Package className="h-24 w-24 text-primary/40" />
               )}
@@ -112,7 +140,14 @@ function ItemPage() {
                     onClick={() => setPhoto(i)}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 ${i === photo ? "border-primary" : "border-primary/20"}`}
                   >
-                    <img src={u} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+                    <img
+                      src={u}
+                      alt={`Photo ${i + 1}`}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                      className="h-full w-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -134,10 +169,10 @@ function ItemPage() {
               >
                 <span
                   className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-black text-white"
-                  style={{ backgroundColor: item.owner.avatar_url ? "transparent" : item.owner.avatar_color }}
+                  style={{ backgroundColor: ownerAvatar ? "transparent" : item.owner.avatar_color }}
                 >
-                  {item.owner.avatar_url ? (
-                    <img src={item.owner.avatar_url} alt="" className="h-full w-full object-cover" />
+                  {ownerAvatar ? (
+                    <img src={ownerAvatar} alt="" className="h-full w-full object-cover" />
                   ) : (
                     item.owner.display_name?.[0]?.toUpperCase()
                   )}

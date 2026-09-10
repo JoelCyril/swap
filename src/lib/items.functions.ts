@@ -5,8 +5,23 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
-import { repairImageUrls } from "./image-url-repair.server";
+import { repairImageUrls, toCachedImageUrl } from "./image-url-repair.server";
 import { resolveListingCategory, encodeListingCategory } from "./db-types";
+
+function formatItemOutput(it: any) {
+  if (!it) return null;
+  const resolved = resolveListingCategory(it);
+  return {
+    ...resolved,
+    image_urls: repairImageUrls(resolved.image_urls),
+    owner: resolved.owner
+      ? {
+          ...resolved.owner,
+          avatar_url: toCachedImageUrl(resolved.owner.avatar_url, "avatars"),
+        }
+      : resolved.owner,
+  };
+}
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
@@ -59,7 +74,7 @@ export const listMyItems = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map(resolveListingCategory);
+    return (data ?? []).map(formatItemOutput);
   });
 
 /** IDs of the signed-in user's inventory items that already have a live listing. */
@@ -101,7 +116,7 @@ export const listOwnerInventory = createServerFn({ method: "GET" })
       .eq("owner_id", data.owner_id)
       .eq("visibility", "public")
       .order("created_at", { ascending: false });
-    return (rows ?? []).map(resolveListingCategory);
+    return (rows ?? []).map(formatItemOutput);
   });
 
 
@@ -116,7 +131,7 @@ export const getPublicItem = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("visibility", "public")
       .maybeSingle();
-    return item ? resolveListingCategory(item) : null;
+    return formatItemOutput(item);
   });
 
 /** Owner-scoped item detail so private items are still viewable by their owner. */
@@ -130,7 +145,7 @@ export const getMyItem = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("owner_id", context.userId)
       .maybeSingle();
-    return item ? resolveListingCategory(item) : null;
+    return formatItemOutput(item);
   });
 
 export const createItem = createServerFn({ method: "POST" })
