@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutUsRouteImport } from './routes/AboutUs'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -39,6 +40,11 @@ import { Route as AuthenticatedOffersArchiveRouteImport } from './routes/_authen
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutUsRoute = AboutUsRouteImport.update({
+  id: '/AboutUs',
+  path: '/AboutUs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -173,6 +179,7 @@ const AuthenticatedOffersArchiveRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/AboutUs': typeof AboutUsRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/AboutUs': typeof AboutUsRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/AboutUs': typeof AboutUsRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/AboutUs'
     | '/announcements'
     | '/auth'
     | '/help'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/AboutUs'
     | '/announcements'
     | '/auth'
     | '/help'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/AboutUs'
     | '/announcements'
     | '/auth'
     | '/help'
@@ -342,6 +354,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AboutUsRoute: typeof AboutUsRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
   AuthRoute: typeof AuthRoute
   HelpRoute: typeof HelpRoute
@@ -362,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/AboutUs': {
+      id: '/AboutUs'
+      path: '/AboutUs'
+      fullPath: '/AboutUs'
+      preLoaderRoute: typeof AboutUsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -580,6 +600,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AboutUsRoute: AboutUsRoute,
   AnnouncementsRoute: AnnouncementsRoute,
   AuthRoute: AuthRoute,
   HelpRoute: HelpRoute,

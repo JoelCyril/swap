@@ -68,12 +68,50 @@ const itemSchema = z.object({
 export const listMyItems = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    let { data, error } = await context.supabase
       .from("items")
       .select("*")
       .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+
+    let itemsList = [...(data ?? [])];
+
+    // Self-healing: check if user has active listings missing an item in items table
+    const { data: activeListings } = await context.supabase
+      .from("listings")
+      .select("id, title, description, category, condition, image_urls, image_emoji, item_id")
+      .eq("owner_id", context.userId)
+      .eq("status", "active");
+
+    const existingIds = new Set(itemsList.map((it: any) => it.id));
+    for (const l of activeListings ?? []) {
+      if (!l.item_id || !existingIds.has(l.item_id)) {
+        const { data: created, error: createErr } = await context.supabase
+          .from("items")
+          .insert({
+            owner_id: context.userId,
+            name: l.title,
+            description: l.description || "",
+            category: l.category,
+            condition: l.condition,
+            image_urls: l.image_urls || [],
+            image_emoji: l.image_emoji || "📦",
+            visibility: "public",
+          })
+          .select()
+          .single();
+
+        if (!createErr && created) {
+          await context.supabase
+            .from("listings")
+            .update({ item_id: created.id })
+            .eq("id", l.id);
+          itemsList.unshift(created);
+          existingIds.add(created.id);
+        }
+      }
+    }
 
     // Filter out any items that have been traded/completed in an offer
     const { data: completedOffers } = await context.supabase
@@ -98,7 +136,7 @@ export const listMyItems = createServerFn({ method: "GET" })
       }
     }
 
-    return (data ?? [])
+    return itemsList
       .filter((it: any) => !swappedIds.has(it.id))
       .map(formatItemOutput);
   });

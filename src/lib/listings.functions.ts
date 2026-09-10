@@ -249,6 +249,27 @@ export const createListing = createServerFn({ method: "POST" })
       }
     }
 
+    let linkedItemId = data.item_id;
+    if (!linkedItemId) {
+      const { data: createdItem, error: itemErr } = await context.supabase
+        .from("items")
+        .insert({
+          owner_id: context.userId,
+          name: data.title,
+          description: data.description || "",
+          category: data.category,
+          condition: data.condition,
+          image_urls: data.image_urls || [],
+          image_emoji: data.image_emoji || "📦",
+          visibility: "public",
+        })
+        .select("id")
+        .single();
+      if (!itemErr && createdItem) {
+        linkedItemId = createdItem.id;
+      }
+    }
+
     const verdict = moderate(`${data.title}\n${data.description}\n${data.looking_for}`, "listing");
     const held = verdict.flagged
       ? {
@@ -257,7 +278,7 @@ export const createListing = createServerFn({ method: "POST" })
         }
       : {};
 
-    let insertData: any = { ...data, ...held, owner_id: context.userId };
+    let insertData: any = { ...data, ...held, item_id: linkedItemId, owner_id: context.userId };
     let { data: row, error } = await context.supabase
       .from("listings")
       .insert(insertData)
