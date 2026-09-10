@@ -1,8 +1,10 @@
-﻿User-agent: *
+User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
 Disallow: /media/
+
+Sitemap: https://swapuae.com/sitemap.xml
 
 # Block aggressive AI crawlers and bandwidth-draining scrapers
 User-agent: GPTBot
