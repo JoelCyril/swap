@@ -2,7 +2,6 @@ import { useState } from "react";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 import { EMIRATES, CONDITIONS, type ItemCondition } from "@/lib/db-types";
 import { InquiryUpdates } from "@/components/support/InquiryUpdates";
-import { WantedSidebarWidget } from "@/components/wanted/WantedSidebarWidget";
 
 export type SortKey = "shuffle" | "newest" | "oldest";
 
@@ -31,7 +30,6 @@ export function FilterSidebar(props: Props) {
         <div className="rounded-3xl border-2 border-primary/20 bg-card p-5 shadow-card">
           <FilterPanel {...props} />
         </div>
-        <WantedSidebarWidget signedIn={props.signedIn} />
         <InquiryUpdates signedIn={props.signedIn} placement="sidebar" />
       </div>
     </aside>
@@ -67,7 +65,6 @@ export function MobileFilters(props: Props) {
           >
             <div className="flex flex-col gap-4">
               <FilterPanel {...props} />
-              <WantedSidebarWidget signedIn={props.signedIn} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

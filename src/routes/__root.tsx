@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { TosGate } from "@/components/TosGate";
 import { BanGate } from "@/components/BanGate";
 import { Toaster } from "@/components/ui/sonner";
+import { WantedPopupToast } from "@/components/wanted/WantedPopupToast";
 
 
 function NotFoundComponent() {
@@ -207,6 +208,7 @@ function RootComponent() {
       </BanGate>
       {/* Outside the gates so confirmation toasts always render. */}
       <Toaster position="top-center" richColors closeButton style={{ zIndex: 100000 }} />
+      <WantedPopupToast />
     </QueryClientProvider>
   );
 }
