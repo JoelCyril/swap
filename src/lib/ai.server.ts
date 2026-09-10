@@ -121,55 +121,15 @@ Output JSON:
   }
 }
 
+import { evaluateTradeFairnessWithGroq, type TradeFairnessResponse } from "./groq.server";
+
 export interface TradeFairnessResult {
   score: number; // 0 to 100
-  verdict: "Balanced Swap" | "Slight Advantage to You" | "Favorable to Partner" | "Value Imbalance";
+  verdict: "Balanced Swap" | "Slight Advantage to You" | "Favorable to Partner" | "Value Imbalance" | "Highly Unbalanced" | string;
   summary: string;
   advice: string;
-}
-
-// Market valuation weights
-const CATEGORY_TIER_POINTS: Record<string, number> = {
-  "Phones & Tablets": 450,
-  "Laptops & Computers": 550,
-  "Gaming & Consoles": 400,
-  "Cameras & Optics": 380,
-  "Audio & Tech": 280,
-  "Electronics": 320,
-  "Watches & Jewelry": 350,
-  "Fashion & Apparel": 180,
-  "Sports & Outdoors": 200,
-  "Home & Appliances": 220,
-  "Musical Instruments": 300,
-  "Toys & Collectibles": 160,
-  "Books & Hobbies": 100,
-  "Other": 150,
-};
-
-const HIGH_TIER_KEYWORDS = [
-  "iphone", "macbook", "ipad", "ps5", "playstation", "xbox", "rtx", "sony",
-  "nintendo switch", "dji", "canon", "nikon", "rolex", "apple watch", "galaxy", "bose"
-];
-
-export function estimateItemTradePoints(item: { name: string; category: string; condition: string }): number {
-  let basePoints = CATEGORY_TIER_POINTS[item.category] || 200;
-
-  const nameLower = (item.name || "").toLowerCase();
-  for (const kw of HIGH_TIER_KEYWORDS) {
-    if (nameLower.includes(kw)) {
-      basePoints *= 1.35;
-      break;
-    }
-  }
-
-  const condMultipliers: Record<string, number> = {
-    "Brand New": 1.15,
-    "Like New": 0.95,
-    "Good": 0.75,
-    "Fair": 0.50,
-  };
-
-  return Math.round(basePoints * (condMultipliers[item.condition] || 0.75));
+  target_aed?: number;
+  offered_total_aed?: number;
 }
 
 export async function evaluateTradeFairnessAI(params: {
@@ -186,45 +146,14 @@ export async function evaluateTradeFairnessAI(params: {
     description?: string;
   }>;
 }): Promise<TradeFairnessResult> {
-  const targetPoints = estimateItemTradePoints({
-    name: params.targetListing.title,
-    category: params.targetListing.category,
-    condition: params.targetListing.condition,
-  });
-
-  const offeredPoints = params.offeredItems.reduce(
-    (acc, it) => acc + estimateItemTradePoints({ name: it.name, category: it.category, condition: it.condition }),
-    0,
-  );
-
-  const ratio = offeredPoints / Math.max(1, targetPoints);
-
-  // Parity percentage
-  let score = 100 - Math.round(Math.abs(1.0 - ratio) * 50);
-  score = Math.max(30, Math.min(99, score));
-
-  let verdict: TradeFairnessResult["verdict"] = "Balanced Swap";
-  let summary = "";
-  let advice = "";
-
-  if (ratio >= 0.85 && ratio <= 1.25) {
-    verdict = "Balanced Swap";
-    summary = `Equitable trade. ${params.offeredItems.length} offered item(s) matches the market tier of "${params.targetListing.title}".`;
-    advice = "Great barter match! Proceed with meetup coordination.";
-  } else if (ratio > 1.25) {
-    verdict = "Slight Advantage to You";
-    summary = `The offered bundle holds higher estimated market value than "${params.targetListing.title}".`;
-    advice = "Very favorable proposal for you.";
-  } else {
-    verdict = "Favorable to Partner";
-    summary = `The requested item ("${params.targetListing.title}") holds higher estimated value than the offered item(s).`;
-    advice = "Consider adding an accessory or item to balance the trade.";
-  }
-
+  const res = await evaluateTradeFairnessWithGroq(params);
   return {
-    score,
-    verdict,
-    summary,
-    advice,
+    score: res.score,
+    verdict: res.verdict,
+    summary: res.summary,
+    advice: res.advice,
+    target_aed: res.target_aed,
+    offered_total_aed: res.offered_total_aed,
   };
 }
+

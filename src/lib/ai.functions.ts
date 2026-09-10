@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI, estimateItemTradePoints } from "./ai.server";
+import { analyzeItemPhotoWithAI, evaluateTradeFairnessAI } from "./ai.server";
 import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
+import { batchEstimateAedValues } from "./groq.server";
 
 export const autoFillItemFromPhoto = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -52,6 +53,7 @@ export interface SmartMatch {
     category: string;
     condition: string;
     image_url?: string;
+    estimated_aed?: number;
   };
   matched_listing: {
     id: string;
@@ -62,6 +64,7 @@ export interface SmartMatch {
     location: string;
     emirate: string;
     image_url?: string;
+    estimated_aed?: number;
     owner: {
       id: string;
       username: string;
@@ -70,7 +73,7 @@ export interface SmartMatch {
       avatar_color?: string;
     };
   };
-  match_score: number; // 70 - 99%
+  match_score: number; // 60 - 99%
   match_reason: string;
 }
 
@@ -151,56 +154,80 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       })),
     );
 
+    // 3. Batch estimate AED values using Groq & local heuristics
+    const allForValuation = [
+      ...allMyItems.map((it) => ({
+        id: it.id,
+        name: it.name,
+        category: it.category,
+        condition: it.condition,
+      })),
+      ...otherListings.map((l) => ({
+        id: l.id,
+        name: l.title,
+        category: l.category,
+        condition: l.condition,
+      })),
+    ];
+
+    const aedMap = await batchEstimateAedValues(allForValuation);
+
     const matches: SmartMatch[] = [];
 
-    // For EACH item the user owns, find the top matched counter-listing
+    // For EACH item the user owns, find the top fair matched counter-listing
     for (const myItem of allMyItems) {
-      const myPoints = estimateItemTradePoints({
-        name: myItem.name,
-        category: myItem.category,
-        condition: myItem.condition,
-      });
+      const myAed = aedMap.get(myItem.id) || 100;
 
-      let bestMatchForThisItem: { listing: any; score: number; reason: string } | null = null;
+      let bestMatchForThisItem: {
+        listing: any;
+        score: number;
+        reason: string;
+        listingAed: number;
+      } | null = null;
 
       for (const listing of otherListings) {
-        const listingPoints = estimateItemTradePoints({
-          name: listing.title,
-          category: listing.category,
-          condition: listing.condition,
-        });
+        const listingAed = aedMap.get(listing.id) || 100;
 
-        // Value parity score
-        const parityRatio = Math.min(myPoints, listingPoints) / Math.max(1, Math.max(myPoints, listingPoints));
-        let matchScore = Math.round(parityRatio * 50) + 35; // 35 to 85 base
+        // Rigorous parity ratio: 0 to 1.0
+        const minAed = Math.min(myAed, listingAed);
+        const maxAed = Math.max(1, Math.max(myAed, listingAed));
+        const parityRatio = minAed / maxAed;
+
+        // STRICT PARITY GATE: If the value gap is wider than 40% (parity < 0.60), REJECT MATCH COMPLETELY
+        if (parityRatio < 0.6) {
+          continue;
+        }
+
+        // Base match score from parity (0.60 -> 60, 1.0 -> 90)
+        let matchScore = Math.round(parityRatio * 75) + 15;
 
         const lookingFor = (listing.looking_for || "").toLowerCase();
         const myCategory = myItem.category.toLowerCase();
         const myName = myItem.name.toLowerCase();
 
-        let reason = `Compatible ${myItem.category} value tier.`;
+        let reason = `Balanced value tier: ~${myAed} AED vs ~${listingAed} AED.`;
 
         // Direct looking-for keyword bonus
         if (lookingFor && (lookingFor.includes(myCategory) || lookingFor.includes(myName))) {
-          matchScore += 18;
-          reason = `Trader is specifically looking for "${myItem.name}" or ${myItem.category}.`;
-        } else if (lookingFor.includes("open") || lookingFor.includes("any") || lookingFor.length < 5) {
           matchScore += 8;
-          reason = `Trader is open to all offers on "${listing.title}".`;
+          reason = `Trader is specifically seeking "${myItem.name}". Values align closely (~${myAed} vs ~${listingAed} AED).`;
+        } else if (lookingFor.includes("open") || lookingFor.includes("any")) {
+          matchScore += 3;
+          reason = `Trader is open to offers. Equitable value swap (~${myAed} vs ~${listingAed} AED).`;
         }
 
         // Category affinity bonus
         if (myItem.category === listing.category) {
-          matchScore += 10;
+          matchScore += 4;
           if (!lookingFor.includes(myName)) {
-            reason = `Same category trade: both are in ${myItem.category}.`;
+            reason = `Both items in ${myItem.category} with equitable market value (~${myAed} vs ~${listingAed} AED).`;
           }
         }
 
-        matchScore = Math.min(99, Math.max(70, matchScore));
+        matchScore = Math.min(98, Math.max(60, matchScore));
 
         if (!bestMatchForThisItem || matchScore > bestMatchForThisItem.score) {
-          bestMatchForThisItem = { listing, score: matchScore, reason };
+          bestMatchForThisItem = { listing, score: matchScore, reason, listingAed };
         }
       }
 
@@ -212,6 +239,7 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
             category: myItem.category,
             condition: myItem.condition,
             image_url: myItem.image_url,
+            estimated_aed: myAed,
           },
           matched_listing: {
             id: bestMatchForThisItem.listing.id,
@@ -222,6 +250,7 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
             location: bestMatchForThisItem.listing.location,
             emirate: bestMatchForThisItem.listing.emirate,
             image_url: bestMatchForThisItem.listing.image_urls?.[0],
+            estimated_aed: bestMatchForThisItem.listingAed,
             owner: (bestMatchForThisItem.listing.owner as any) || {
               id: bestMatchForThisItem.listing.owner_id,
               username: "trader",

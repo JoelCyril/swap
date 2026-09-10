@@ -172,6 +172,11 @@ export function SmartMatchesSection() {
                       <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.my_item.name}>
                         {m.my_item.name}
                       </p>
+                      {m.my_item.estimated_aed && (
+                        <span className="text-[9px] font-mono font-bold text-muted-foreground block">
+                          ~{m.my_item.estimated_aed} AED
+                        </span>
+                      )}
                     </div>
 
                     {/* Swap Arrow */}
@@ -199,6 +204,11 @@ export function SmartMatchesSection() {
                       <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.matched_listing.title}>
                         {m.matched_listing.title}
                       </p>
+                      {m.matched_listing.estimated_aed && (
+                        <span className="text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
+                          ~{m.matched_listing.estimated_aed} AED
+                        </span>
+                      )}
                     </div>
                   </div>
 

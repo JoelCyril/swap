@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/layout/Navbar";
@@ -151,6 +151,11 @@ function SmartMatchesPage() {
                       <p className="mt-1.5 text-xs font-bold truncate text-foreground" title={m.my_item.name}>
                         {m.my_item.name}
                       </p>
+                      {m.my_item.estimated_aed && (
+                        <span className="text-[10px] font-mono font-bold text-muted-foreground mt-0.5 block">
+                          ~{m.my_item.estimated_aed} AED
+                        </span>
+                      )}
                     </div>
 
                     {/* Swap Arrow */}
@@ -178,6 +183,11 @@ function SmartMatchesPage() {
                       <p className="mt-1.5 text-xs font-bold truncate text-foreground" title={m.matched_listing.title}>
                         {m.matched_listing.title}
                       </p>
+                      {m.matched_listing.estimated_aed && (
+                        <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-0.5 block">
+                          ~{m.matched_listing.estimated_aed} AED
+                        </span>
+                      )}
                     </div>
                   </div>
 
