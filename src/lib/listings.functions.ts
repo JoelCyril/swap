@@ -5,7 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { moderate } from "./moderation";
-import { repairImageUrls } from "./image-url-repair.server";
+import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 import { resolveListingCategory, encodeListingCategory, CATEGORY_COSMETICS_TAG, CATEGORY_PRODUCTS_TAG } from "./db-types";
 
 function publicClient() {
@@ -180,7 +180,13 @@ export const listListingsByUsername = createServerFn({ method: "GET" })
       .eq("owner_id", profile.id)
       .in("status", ["active", "reserved"])
       .order("created_at", { ascending: false });
-    if (!listings) return { profile, listings: [] };
+    const repairedProfile = profile
+      ? {
+          ...profile,
+          avatar_url: repairImageUrl(profile.avatar_url, "avatars"),
+          banner_url: repairImageUrl(profile.banner_url, "avatars"),
+        }
+      : null;
 
     const repaired = await Promise.all(
       listings.map(async (l) => {
@@ -191,7 +197,7 @@ export const listListingsByUsername = createServerFn({ method: "GET" })
         };
       }),
     );
-    return { profile, listings: repaired };
+    return { profile: repairedProfile, listings: repaired };
   });
 
 const createSchema = z.object({
