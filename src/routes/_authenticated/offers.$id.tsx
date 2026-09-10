@@ -14,6 +14,7 @@ import {
   toggleListingItem,
   reportItemsNotReceived,
 } from "@/lib/offers.functions";
+import { adminMarkTradeCompleted } from "@/lib/admin.functions";
 
 
 
@@ -95,11 +96,10 @@ function OfferDetail() {
   const confirmReceived = useServerFn(confirmItemsReceived);
   const toggleListed = useServerFn(toggleListingItem);
   const reportNotReceived = useServerFn(reportItemsNotReceived);
+  const adminMarkComplete = useServerFn(adminMarkTradeCompleted);
 
   const [notReceivedOpen, setNotReceivedOpen] = useState(false);
   const [complaintText, setComplaintText] = useState("");
-
-
 
   const list = useServerFn(listMessages);
   const markRead = useServerFn(markMessagesRead);
@@ -135,9 +135,14 @@ function OfferDetail() {
     queryKey: ["offer", id],
     queryFn: () => get({ data: { id } }),
   });
+
+  const viewerId = (offer as { viewer_id?: string } | undefined)?.viewer_id;
+  const isParticipant = !!offer && (viewerId === offer.from_user || viewerId === offer.to_user);
+
   const { data: messages } = useQuery({
     queryKey: ["messages", id],
     queryFn: async () => {
+      if (!isParticipant) return [];
       const serverMsgs = await list({ data: { offer_id: id } });
       const currentCache = qc.getQueryData<any[]>(["messages", id]);
       if (!Array.isArray(currentCache) || currentCache.length === 0) return serverMsgs;
@@ -153,7 +158,8 @@ function OfferDetail() {
         };
       });
     },
-    refetchInterval: 4000,
+    enabled: isParticipant,
+    refetchInterval: isParticipant ? 4000 : false,
   });
   const { data: proposals } = useQuery({
     queryKey: ["meetup-proposals", id],
@@ -162,9 +168,8 @@ function OfferDetail() {
     refetchInterval: 5000,
   });
 
-  const viewerId = (offer as { viewer_id?: string } | undefined)?.viewer_id;
-
   useEffect(() => {
+    if (!isParticipant) return;
     const channel = supabase
       .channel(`offer-${id}`)
       .on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -227,16 +232,16 @@ function OfferDetail() {
       typingChan.current = null;
       supabase.removeChannel(channel);
     };
-  }, [id, qc, viewerId]);
+  }, [id, qc, viewerId, isParticipant]);
 
   // Mark the other side's messages as read whenever we see them.
   useEffect(() => {
-    if (!messages || messages.length === 0) return;
+    if (!isParticipant || !messages || messages.length === 0) return;
     const unread = (messages as { sender_id: string; read_at: string | null }[]).some(
       (m) => m.sender_id !== viewerId && !m.read_at,
     );
     if (unread) markRead({ data: { offer_id: id } }).catch(() => {});
-  }, [messages, viewerId, id, markRead]);
+  }, [messages, viewerId, id, markRead, isParticipant]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -259,6 +264,15 @@ function OfferDetail() {
       toast.success("Updated");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const adminCompleteMut = useMutation({
+    mutationFn: () => adminMarkComplete({ data: { offerId: id } }),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Trade marked as completed by Admin");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to complete trade"),
   });
 
   const reviseMut = useMutation({
@@ -525,7 +539,11 @@ function OfferDetail() {
       <main className="mx-auto w-full max-w-[1300px] flex-1 px-4 py-6 sm:py-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="font-display text-xl font-black sm:text-2xl">Trade with {handle(other)}</h1>
+            <h1 className="font-display text-xl font-black sm:text-2xl">
+              {isParticipant
+                ? `Trade with ${handle(other)}`
+                : `Trade: @${offer.from_profile?.username} ⇄ @${offer.to_profile?.username}`}
+            </h1>
             <p className="text-xs text-muted-foreground">
               Status: <span className="font-bold capitalize text-primary">{statusLabel}</span>
             </p>
@@ -537,19 +555,27 @@ function OfferDetail() {
                 : "bg-muted text-muted-foreground"
             }`}
           >
-            {offer.status === "completed"
-              ? bothReceived
-                ? "Swap complete"
-                : iConfirmedReceived
-                  ? `Waiting on ${handle(other)} to confirm receipt`
-                  : "Confirm you received the items"
-              : !accepted
-                ? offer.status
-                : iConfirmedComplete
-                  ? `Waiting on ${handle(other)} to confirm completion`
-                  : confirmedProposal
-                    ? "Meeting confirmed"
-                    : "Negotiating — adjust items or propose a meetup"}
+            {isParticipant ? (
+              offer.status === "completed"
+                ? bothReceived
+                  ? "Swap complete"
+                  : iConfirmedReceived
+                    ? `Waiting on ${handle(other)} to confirm receipt`
+                    : "Confirm you received the items"
+                : !accepted
+                  ? offer.status
+                  : iConfirmedComplete
+                    ? `Waiting on ${handle(other)} to confirm completion`
+                    : confirmedProposal
+                      ? "Meeting confirmed"
+                      : "Negotiating — adjust items or propose a meetup"
+            ) : (
+              offer.status === "completed"
+                ? "Trade completed"
+                : offer.status === "accepted"
+                  ? `In Progress (${completeConfirmed.length}/2 confirmed)`
+                  : offer.status
+            )}
           </span>
         </div>
 
@@ -573,67 +599,91 @@ function OfferDetail() {
         )}
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,260px)]">
-          {/* You give */}
+          {/* Left panel (Offered items) */}
           <SidePanel
-            heading="You give"
-            images={giveImgs}
-            owner={giveOwner}
-            onAdd={accepted ? () => setAddOpen(true) : undefined}
-            onRemove={accepted ? removeImg : undefined}
+            heading={isParticipant ? "You give" : `@${offer.from_profile?.username || "Sender"}'s Offered Items`}
+            images={isParticipant ? giveImgs : senderImgs}
+            owner={isParticipant ? giveOwner : offer.from_profile}
+            onAdd={isParticipant && accepted ? () => setAddOpen(true) : undefined}
+            onRemove={isParticipant && accepted ? removeImg : undefined}
           />
-
-
-
 
           {/* Chat */}
           <div className="flex min-w-0 flex-col overflow-hidden rounded-3xl border-2 border-primary/20 bg-card shadow-card h-[70vh] min-h-[420px] lg:h-[640px]">
             <div className="flex items-center gap-3 border-b border-border p-3">
-              <div
-                className="grid h-9 w-9 place-items-center overflow-hidden rounded-full text-white font-bold"
-                style={{ backgroundColor: other?.avatar_color }}
-              >
-                {(other as any)?.avatar_url ? (
-                  <img src={(other as any).avatar_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  (other?.display_name || other?.username)?.[0]?.toUpperCase()
-                )}
-              </div>
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <Link
-                  to="/profile/$username"
-                  params={{ username: other?.username || "" }}
-                  className="text-sm font-bold truncate hover:text-primary transition"
-                >
-                  {handle(other)}
-                </Link>
-                {(() => {
-                  const partnerBadge = extractProfileBadge((other as any)?.bio);
-                  if (!partnerBadge) return null;
-                  return (
-                    <div
-                      className="inline-flex items-center gap-1 rounded-full bg-black/85 backdrop-blur-md border border-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-xs shrink-0"
-                      style={
-                        partnerBadge.glowColor
-                          ? {
-                              borderColor: partnerBadge.glowColor,
-                              boxShadow: `0 0 10px ${partnerBadge.glowColor}aa`,
-                            }
-                          : undefined
-                      }
-                      title={`${partnerBadge.name} - Awarded Profile Badge`}
+              {isParticipant ? (
+                <>
+                  <div
+                    className="grid h-9 w-9 place-items-center overflow-hidden rounded-full text-white font-bold"
+                    style={{ backgroundColor: other?.avatar_color }}
+                  >
+                    {(other as any)?.avatar_url ? (
+                      <img src={(other as any).avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      (other?.display_name || other?.username)?.[0]?.toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <Link
+                      to="/profile/$username"
+                      params={{ username: other?.username || "" }}
+                      className="text-sm font-bold truncate hover:text-primary transition"
                     >
-                      {partnerBadge.imageUrl && (
-                        <img
-                          src={partnerBadge.imageUrl}
-                          alt=""
-                          className="h-3 w-3 rounded-full object-cover shrink-0"
-                        />
-                      )}
-                      <span>{partnerBadge.name}</span>
+                      {handle(other)}
+                    </Link>
+                    {(() => {
+                      const partnerBadge = extractProfileBadge((other as any)?.bio);
+                      if (!partnerBadge) return null;
+                      return (
+                        <div
+                          className="inline-flex items-center gap-1 rounded-full bg-black/85 backdrop-blur-md border border-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-xs shrink-0"
+                          style={
+                            partnerBadge.glowColor
+                              ? {
+                                  borderColor: partnerBadge.glowColor,
+                                  boxShadow: `0 0 10px ${partnerBadge.glowColor}aa`,
+                                }
+                              : undefined
+                          }
+                          title={`${partnerBadge.name} - Awarded Profile Badge`}
+                        >
+                          {partnerBadge.imageUrl && (
+                            <img
+                              src={partnerBadge.imageUrl}
+                              alt=""
+                              className="h-3 w-3 rounded-full object-cover shrink-0"
+                            />
+                          )}
+                          <span>{partnerBadge.name}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <div className="flex items-center -space-x-2 shrink-0">
+                    <div
+                      className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white border-2 border-background"
+                      style={{ backgroundColor: offer.from_profile?.avatar_color ?? "#059669" }}
+                    >
+                      {(offer.from_profile?.display_name || offer.from_profile?.username || "?")[0].toUpperCase()}
                     </div>
-                  );
-                })()}
-              </div>
+                    <div
+                      className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white border-2 border-background"
+                      style={{ backgroundColor: offer.to_profile?.avatar_color ?? "#3b82f6" }}
+                    >
+                      {(offer.to_profile?.display_name || offer.to_profile?.username || "?")[0].toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold truncate text-xs sm:text-sm text-foreground">
+                      @{offer.from_profile?.username} ⇄ @{offer.to_profile?.username}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Admin Trade Inspection</p>
+                  </div>
+                </div>
+              )}
               <span className="flex items-center gap-1 text-[10px] font-black uppercase text-primary">
                 <ArrowRightLeft className="h-3 w-3" /> {statusLabel}
               </span>
@@ -653,21 +703,37 @@ function OfferDetail() {
               </div>
             )}
 
-            <div
-              ref={scrollRef}
-              onClick={() => {
-                setActiveReactionMenuMsgId(null);
-                setShowExtraEmojisMsgId(null);
-              }}
-              className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-4"
-            >
-              {offer.message && (
-                <div className="text-center">
-                  <p className="inline-block rounded-2xl bg-primary-soft px-4 py-2 text-xs italic text-primary">
-                    Initial message: "{offer.message}"
-                  </p>
+            {!isParticipant ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-card/40">
+                <div className="h-16 w-16 rounded-3xl bg-primary/10 border-2 border-primary/20 text-primary flex items-center justify-center mb-4 shadow-sm">
+                  <ShieldCheck className="h-8 w-8" />
                 </div>
-              )}
+                <h3 className="font-display text-lg font-black text-foreground">
+                  Private Trade Chat
+                </h3>
+                <p className="mt-2 text-xs text-muted-foreground max-w-sm leading-relaxed">
+                  Chat messages and private negotiation texts are strictly confidential between the trading parties (<strong>@{offer.from_profile?.username}</strong> & <strong>@{offer.to_profile?.username}</strong>).
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-muted/80 px-3.5 py-1.5 text-[11px] font-bold text-muted-foreground border border-border/60">
+                  <span>🔒</span> Text chat is hidden from administrators
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={scrollRef}
+                onClick={() => {
+                  setActiveReactionMenuMsgId(null);
+                  setShowExtraEmojisMsgId(null);
+                }}
+                className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-4"
+              >
+                {offer.message && (
+                  <div className="text-center">
+                    <p className="inline-block rounded-2xl bg-primary-soft px-4 py-2 text-xs italic text-primary">
+                      Initial message: "{offer.message}"
+                    </p>
+                  </div>
+                )}
               {timeline.map((entry) =>
                 entry.kind === "msg" ? (
                   (() => {
@@ -1019,7 +1085,9 @@ function OfferDetail() {
                 <p className="py-8 text-center text-xs text-muted-foreground">Say hello and coordinate your swap.</p>
               )}
             </div>
+          )}
 
+          {isParticipant && (
             <div className="border-t border-border p-3">
               {/* Reply Banner */}
               {replyTo && (
@@ -1113,146 +1181,185 @@ function OfferDetail() {
                 </button>
               </form>
             </div>
+          )}
           </div>
 
-          {/* You get */}
+          {/* Right panel */}
           <div className="min-w-0 space-y-3">
-          <SidePanel
-            heading="You get"
-            images={getImgs}
-            owner={getOwner}
-            onViewInventory={() =>
-              setInventoryOf(
-                isTo
-                  ? { id: offer.from_user, label: handle(offer.from_profile) }
-                  : { id: offer.to_user, label: handle(offer.to_profile) },
-              )
-            }
-          />
-          {accepted && (
-            <ProposeMeetup
-              disabledReason={null}
-              label={acceptedProposal || pendingProposal ? "Propose a change" : "Propose meetup"}
-              onPropose={(p) =>
-                propose({ data: { offer_id: id, ...p } })
-                  .then(() => {
-                    invalidateAll();
-                    toast.success("Proposal sent");
-                  })
-                  .catch((e) => toast.error(e instanceof Error ? e.message : "Failed"))
+            <SidePanel
+              heading={isParticipant ? "You get" : `@${offer.to_profile?.username || "Recipient"}'s Items`}
+              images={isParticipant ? getImgs : [...listingImgs, ...ownerExtraImgs]}
+              owner={isParticipant ? getOwner : offer.listing?.owner ?? offer.to_profile}
+              onViewInventory={
+                isParticipant
+                  ? () =>
+                      setInventoryOf(
+                        isTo
+                          ? { id: offer.from_user, label: handle(offer.from_profile) }
+                          : { id: offer.to_user, label: handle(offer.to_profile) },
+                      )
+                  : undefined
               }
             />
-          )}
+            {isParticipant && accepted && (
+              <ProposeMeetup
+                disabledReason={null}
+                label={acceptedProposal || pendingProposal ? "Propose a change" : "Propose meetup"}
+                onPropose={(p) =>
+                  propose({ data: { offer_id: id, ...p } })
+                    .then(() => {
+                      invalidateAll();
+                      toast.success("Proposal sent");
+                    })
+                    .catch((e) => toast.error(e instanceof Error ? e.message : "Failed"))
+                }
+              />
+            )}
           </div>
 
         </div>
 
         {/* Actions */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {canAct && isTo && (
-            <>
+        {isParticipant ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {canAct && isTo && (
+              <>
+                <button
+                  onClick={() => (isMinor ? setGuardianAsk(true) : respondMut.mutate("accept"))}
+                  disabled={respondMut.isPending}
+                  className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground shadow-glow"
+                >
+                  <Check className="h-4 w-4" /> Accept
+                </button>
+                <button
+                  onClick={() => respondMut.mutate("waitlist")}
+                  disabled={respondMut.isPending}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-yellow-500/40 py-2.5 text-sm font-black uppercase text-yellow-700 hover:bg-yellow-50"
+                >
+                  <Hourglass className="h-4 w-4" /> Waitlist
+                </button>
+                <button
+                  onClick={() => respondMut.mutate("decline")}
+                  disabled={respondMut.isPending}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10"
+                >
+                  <X className="h-4 w-4" /> Decline
+                </button>
+              </>
+            )}
+            {(canAct || accepted) && !isTo && (
               <button
-                onClick={() => (isMinor ? setGuardianAsk(true) : respondMut.mutate("accept"))}
+                onClick={() => respondMut.mutate("withdraw")}
                 disabled={respondMut.isPending}
-                className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground shadow-glow"
+                className="flex items-center justify-center gap-2 rounded-full border-2 border-muted-foreground/30 py-2.5 text-sm font-black uppercase text-muted-foreground hover:bg-muted"
               >
-                <Check className="h-4 w-4" /> Accept
+                Withdraw
               </button>
-              <button
-                onClick={() => respondMut.mutate("waitlist")}
-                disabled={respondMut.isPending}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-yellow-500/40 py-2.5 text-sm font-black uppercase text-yellow-700 hover:bg-yellow-50"
-              >
-                <Hourglass className="h-4 w-4" /> Waitlist
-              </button>
-              <button
-                onClick={() => respondMut.mutate("decline")}
-                disabled={respondMut.isPending}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10"
-              >
-                <X className="h-4 w-4" /> Decline
-              </button>
-            </>
-          )}
-          {(canAct || accepted) && !isTo && (
-            <button
-              onClick={() => respondMut.mutate("withdraw")}
-              disabled={respondMut.isPending}
-              className="flex items-center justify-center gap-2 rounded-full border-2 border-muted-foreground/30 py-2.5 text-sm font-black uppercase text-muted-foreground hover:bg-muted"
-            >
-              Withdraw
-            </button>
-          )}
-          {offer.status === "waitlisted" && isTo && (
-            <>
-              <button
-                onClick={() => (isMinor ? setGuardianAsk(true) : respondMut.mutate("accept"))}
-                className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground"
-              >
-                <Check className="h-4 w-4" /> Accept now
-              </button>
-              <button
-                onClick={() => respondMut.mutate("decline")}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive"
-              >
-                <X className="h-4 w-4" /> Decline
-              </button>
-            </>
-          )}
+            )}
+            {offer.status === "waitlisted" && isTo && (
+              <>
+                <button
+                  onClick={() => (isMinor ? setGuardianAsk(true) : respondMut.mutate("accept"))}
+                  className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground"
+                >
+                  <Check className="h-4 w-4" /> Accept now
+                </button>
+                <button
+                  onClick={() => respondMut.mutate("decline")}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive"
+                >
+                  <X className="h-4 w-4" /> Decline
+                </button>
+              </>
+            )}
 
-          {accepted && (
-            <>
-              <button
-                onClick={() => completeMut.mutate()}
-                disabled={iConfirmedComplete || completeMut.isPending}
-                className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground disabled:opacity-50"
-              >
-                <Check className="h-4 w-4" />
-                {iConfirmedComplete ? "Completion confirmed" : "Mark trade completed"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setNotReceivedOpen(true)}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
-              >
-                <AlertTriangle className="h-4 w-4" /> Items not received
-              </button>
-            </>
-          )}
+            {accepted && (
+              <>
+                <button
+                  onClick={() => completeMut.mutate()}
+                  disabled={iConfirmedComplete || completeMut.isPending}
+                  className="flex items-center justify-center gap-2 rounded-full bg-gradient-primary py-2.5 text-sm font-black uppercase text-primary-foreground disabled:opacity-50"
+                >
+                  <Check className="h-4 w-4" />
+                  {iConfirmedComplete ? "Completion confirmed" : "Mark trade completed"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotReceivedOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
+                >
+                  <AlertTriangle className="h-4 w-4" /> Items not received
+                </button>
+              </>
+            )}
 
-          {offer.status === "completed" && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!iConfirmedReceived && !bothReceived) receivedMut.mutate();
-                }}
-                disabled={bothReceived || iConfirmedReceived || receivedMut.isPending}
-                className={`flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-black uppercase shadow-sm ${
-                  bothReceived
-                    ? "bg-emerald-600 text-white cursor-default"
-                    : "bg-gradient-primary text-primary-foreground disabled:opacity-50"
-                }`}
+            {offer.status === "completed" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!iConfirmedReceived && !bothReceived) receivedMut.mutate();
+                  }}
+                  disabled={bothReceived || iConfirmedReceived || receivedMut.isPending}
+                  className={`flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-black uppercase shadow-sm ${
+                    bothReceived
+                      ? "bg-emerald-600 text-white cursor-default"
+                      : "bg-gradient-primary text-primary-foreground disabled:opacity-50"
+                  }`}
+                >
+                  <Check className="h-4 w-4" />
+                  {bothReceived
+                    ? "Trade completed"
+                    : iConfirmedReceived
+                      ? "Receipt confirmed"
+                      : "I received the items"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotReceivedOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
+                >
+                  <AlertTriangle className="h-4 w-4" /> Items not received
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
+            <div>
+              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Moderator Inspection View
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Reviewing trade between @{offer.from_profile?.username} and @{offer.to_profile?.username}. Private messages and chat texts are hidden.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/60 hover:bg-muted text-foreground px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
               >
-                <Check className="h-4 w-4" />
-                {bothReceived
-                  ? "Trade completed"
-                  : iConfirmedReceived
-                    ? "Receipt confirmed"
-                    : "I received the items"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setNotReceivedOpen(true)}
-                className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
-              >
-                <AlertTriangle className="h-4 w-4" /> Items not received
-              </button>
-            </>
-          )}
-        </div>
+                ← Back to Admin
+              </Link>
+              {offer.status !== "completed" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Mark this trade for "${offer.listing?.title || "Trade"}" as completed?`)) {
+                      adminCompleteMut.mutate();
+                    }
+                  }}
+                  disabled={adminCompleteMut.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  <Check className="h-3.5 w-3.5" /> Mark Completed (Admin)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-        {(accepted || offer.status === "completed") && (
+        {isParticipant && (accepted || offer.status === "completed") && (
           <div className="mt-4 space-y-3">
             <p className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary-soft/40 p-4 text-center text-xs font-semibold text-muted-foreground">
               {offer.status === "completed"

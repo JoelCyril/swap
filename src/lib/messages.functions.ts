@@ -56,6 +56,23 @@ export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { offer_id: string }) => z.object({ offer_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // Direct privacy enforcement: ONLY trade participants can read messages
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: offer, error: offerError } = await supabaseAdmin
+      .from("offers")
+      .select("from_user, to_user")
+      .eq("id", data.offer_id)
+      .maybeSingle();
+
+    if (offerError || !offer) {
+      throw new Error("Offer not found");
+    }
+
+    if (offer.from_user !== context.userId && offer.to_user !== context.userId) {
+      // Caller is not a participant. Chat is strictly private to the 2 trading members.
+      return [];
+    }
+
     const { data: rows, error } = await context.supabase
       .from("messages")
       .select("*, sender:profiles!messages_sender_profile_fkey(*)")
@@ -84,6 +101,20 @@ export const sendMessage = createServerFn({ method: "POST" })
     // Validate all attachment URLs against allowed domains/patterns
     if (!data.attachment_urls.every(isAllowedAttachmentUrl)) {
       throw new Error("Invalid attachment URL");
+    }
+
+    // Direct privacy enforcement: ONLY trade participants can send messages
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: offer, error: offerError } = await supabaseAdmin
+      .from("offers")
+      .select("from_user, to_user")
+      .eq("id", data.offer_id)
+      .maybeSingle();
+
+    if (offerError || !offer) throw new Error("Offer not found");
+
+    if (offer.from_user !== context.userId && offer.to_user !== context.userId) {
+      throw new Error("Only trade participants can send messages");
     }
 
     const verdict = moderate(data.body || "", "chat");
@@ -115,15 +146,7 @@ export const sendMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const { data: offer, error: offerError } = await context.supabase
-      .from("offers")
-      .select("from_user, to_user")
-      .eq("id", data.offer_id)
-      .maybeSingle();
-
-    if (offerError) throw new Error(offerError.message);
-
-    const recipientId = offer?.from_user === context.userId ? offer.to_user : offer?.to_user === context.userId ? offer.from_user : null;
+    const recipientId = offer.from_user === context.userId ? offer.to_user : offer.from_user;
     if (recipientId) {
       const preview = data.body.trim() || "Sent an attachment";
       await notifyUser({

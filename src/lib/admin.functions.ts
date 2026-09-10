@@ -569,6 +569,14 @@ export const adminMarkTradeCompleted = createServerFn({ method: "POST" })
         .eq("id", offer.listing_id);
     }
 
+    // Safely snapshot items and remove them from both users' active inventories
+    try {
+      const { removeTradedItemsFromInventory } = await import("./offers.functions");
+      await removeTradedItemsFromInventory(data.offerId);
+    } catch (e) {
+      console.warn("Could not remove traded items from inventory:", e);
+    }
+
     const notifs = [
       {
         user_id: offer.from_user,

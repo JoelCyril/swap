@@ -340,14 +340,37 @@ export const getOffer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: offer, error } = await context.supabase
+    let { data: offer, error } = await context.supabase
       .from("offers")
       .select(
         "*, listing:listings(*, owner:profiles!listings_owner_profile_fkey(*)), from_profile:profiles!offers_from_profile_fkey(*), to_profile:profiles!offers_to_profile_fkey(*)",
       )
       .eq("id", data.id)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+
+    if (!offer) {
+      // Check if user is an admin viewing trade details
+      const { data: profile } = await context.supabase
+        .from("profiles")
+        .select("roles")
+        .eq("id", context.userId)
+        .maybeSingle();
+
+      if (profile?.roles?.includes("admin")) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: adminOffer, error: adminErr } = await supabaseAdmin
+          .from("offers")
+          .select(
+            "*, listing:listings(*, owner:profiles!listings_owner_profile_fkey(*)), from_profile:profiles!offers_from_profile_fkey(*), to_profile:profiles!offers_to_profile_fkey(*)",
+          )
+          .eq("id", data.id)
+          .maybeSingle();
+        if (adminErr) throw new Error(adminErr.message);
+        offer = adminOffer;
+      }
+    }
+
+    if (error && !offer) throw new Error(error.message);
     if (!offer) return null;
 
     const snapshotItems = extractTradedItemsSnapshot(offer.message);
@@ -421,8 +444,9 @@ export const getOffer = createServerFn({ method: "GET" })
         }
       : (offer as any).to_profile;
 
+    const isParticipant = context.userId === (offer as any).from_user || context.userId === (offer as any).to_user;
     const cashAmount = extractOfferCash(offer as any);
-    const cleanedMessage = cleanOfferMessage((offer as any).message);
+    const cleanedMessage = isParticipant ? cleanOfferMessage((offer as any).message) : "";
 
     return {
       ...offer,

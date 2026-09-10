@@ -642,15 +642,15 @@ export function AnalyticsPanel({
                     </div>
 
                     {/* Status & Actions */}
-                    <div className="flex flex-wrap sm:flex-col sm:items-end gap-2 shrink-0">
+                    <div className="flex flex-col sm:items-end justify-center gap-2 shrink-0 pt-2 sm:pt-0">
                       <div className="flex items-center gap-2">
                         {trade.status === "completed" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
-                            <CheckCircle2 className="h-3 w-3" /> Completed
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Completed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-black text-amber-700 dark:text-amber-300">
-                            <Clock className="h-3 w-3" /> Accepted ({trade.complete_count}/2 confirmed)
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                            <Clock className="h-3.5 w-3.5" /> Accepted ({trade.complete_count}/2 confirmed)
                           </span>
                         )}
                       </div>
@@ -659,9 +659,9 @@ export function AnalyticsPanel({
                         <Link
                           to="/offers/$id"
                           params={{ id: trade.id }}
-                          className="inline-flex items-center gap-1 rounded-xl border border-border/80 bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary/40 hover:text-primary transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary dark:text-primary-foreground px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
                         >
-                          <ExternalLink className="h-3 w-3" /> View Thread
+                          <ExternalLink className="h-3.5 w-3.5" /> View Trade
                         </Link>
                         {trade.status !== "completed" && (
                           <button
@@ -672,9 +672,9 @@ export function AnalyticsPanel({
                               }
                             }}
                             disabled={completeTradeMut.isPending}
-                            className="inline-flex items-center gap-1 rounded-xl bg-gradient-primary px-3 py-1.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-xs hover:scale-105 transition disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition disabled:opacity-50 cursor-pointer"
                           >
-                            <CheckCircle2 className="h-3 w-3" /> Mark Completed
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Mark Completed
                           </button>
                         )}
                       </div>
