@@ -74,7 +74,33 @@ export const listMyItems = createServerFn({ method: "GET" })
       .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map(formatItemOutput);
+
+    // Filter out any items that have been traded/completed in an offer
+    const { data: completedOffers } = await context.supabase
+      .from("offers")
+      .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
+      .eq("status", "completed")
+      .or(`from_user.eq.${context.userId},to_user.eq.${context.userId}`);
+
+    const swappedIds = new Set<string>();
+    for (const o of completedOffers ?? []) {
+      if (o.from_user === context.userId && Array.isArray(o.offered_item_ids)) {
+        const removed = Array.isArray(o.removed_item_ids) ? o.removed_item_ids : [];
+        for (const id of o.offered_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+      if (o.to_user === context.userId && Array.isArray(o.recipient_item_ids)) {
+        const removed = Array.isArray(o.removed_recipient_item_ids) ? o.removed_recipient_item_ids : [];
+        for (const id of o.recipient_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+    }
+
+    return (data ?? [])
+      .filter((it: any) => !swappedIds.has(it.id))
+      .map(formatItemOutput);
   });
 
 /** IDs of the signed-in user's inventory items that already have a live listing. */
@@ -92,17 +118,39 @@ export const listMyListedItemIds = createServerFn({ method: "GET" })
   });
 
 
-/** Item ids whose listing has been fully swapped. */
+/** Item ids whose listing or offer has been fully swapped. */
 export const listMySwappedItemIds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase
+    // 1. Listings completed
+    const { data: listings } = await context.supabase
       .from("listings")
       .select("item_id")
       .eq("owner_id", context.userId)
       .eq("status", "completed")
       .not("item_id", "is", null);
-    return (data ?? []).map((r) => r.item_id as string);
+    const fromListings = (listings ?? []).map((r: any) => r.item_id as string);
+
+    // 2. Completed offers where user was sender or recipient
+    const { data: completedOffers } = await context.supabase
+      .from("offers")
+      .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
+      .eq("status", "completed")
+      .or(`from_user.eq.${context.userId},to_user.eq.${context.userId}`);
+
+    const fromOffers: string[] = [];
+    for (const o of completedOffers ?? []) {
+      if (o.from_user === context.userId && Array.isArray(o.offered_item_ids)) {
+        const removed = Array.isArray(o.removed_item_ids) ? o.removed_item_ids : [];
+        fromOffers.push(...o.offered_item_ids.filter((id: string) => !removed.includes(id)));
+      }
+      if (o.to_user === context.userId && Array.isArray(o.recipient_item_ids)) {
+        const removed = Array.isArray(o.removed_recipient_item_ids) ? o.removed_recipient_item_ids : [];
+        fromOffers.push(...o.recipient_item_ids.filter((id: string) => !removed.includes(id)));
+      }
+    }
+
+    return Array.from(new Set([...fromListings, ...fromOffers]));
   });
 
 /** Public inventory of any user (used by the trade negotiation "View inventory" popup). */
@@ -116,7 +164,33 @@ export const listOwnerInventory = createServerFn({ method: "GET" })
       .eq("owner_id", data.owner_id)
       .eq("visibility", "public")
       .order("created_at", { ascending: false });
-    return (rows ?? []).map(formatItemOutput);
+
+    // Exclude traded items
+    const { data: completedOffers } = await supabase
+      .from("offers")
+      .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
+      .eq("status", "completed")
+      .or(`from_user.eq.${data.owner_id},to_user.eq.${data.owner_id}`);
+
+    const swappedIds = new Set<string>();
+    for (const o of completedOffers ?? []) {
+      if (o.from_user === data.owner_id && Array.isArray(o.offered_item_ids)) {
+        const removed = Array.isArray(o.removed_item_ids) ? o.removed_item_ids : [];
+        for (const id of o.offered_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+      if (o.to_user === data.owner_id && Array.isArray(o.recipient_item_ids)) {
+        const removed = Array.isArray(o.removed_recipient_item_ids) ? o.removed_recipient_item_ids : [];
+        for (const id of o.recipient_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+    }
+
+    return (rows ?? [])
+      .filter((it: any) => !swappedIds.has(it.id))
+      .map(formatItemOutput);
   });
 
 

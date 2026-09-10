@@ -196,8 +196,33 @@ export const getPublicProfile = createServerFn({ method: "GET" })
         }
       : null;
 
+    // Exclude traded items
+    const { data: completedOffers } = await supabase
+      .from("offers")
+      .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
+      .eq("status", "completed")
+      .or(`from_user.eq.${profile.id},to_user.eq.${profile.id}`);
+
+    const swappedIds = new Set<string>();
+    for (const o of completedOffers ?? []) {
+      if (o.from_user === profile.id && Array.isArray(o.offered_item_ids)) {
+        const removed = Array.isArray(o.removed_item_ids) ? o.removed_item_ids : [];
+        for (const id of o.offered_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+      if (o.to_user === profile.id && Array.isArray(o.recipient_item_ids)) {
+        const removed = Array.isArray(o.removed_recipient_item_ids) ? o.removed_recipient_item_ids : [];
+        for (const id of o.recipient_item_ids) {
+          if (!removed.includes(id)) swappedIds.add(id);
+        }
+      }
+    }
+
+    const unswappedItems = (items ?? []).filter((it: any) => !swappedIds.has(it.id));
+
     const repairedItems = await Promise.all(
-      (items ?? []).map(async (it) => ({
+      unswappedItems.map(async (it) => ({
         ...it,
         image_urls: await repairImageUrls(it.image_urls),
       })),

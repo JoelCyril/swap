@@ -58,14 +58,16 @@ function YourItemsPage() {
   const swapped = new Set(swappedIds ?? []);
 
   const q = search.trim().toLowerCase();
-  const visibleItems = (items ?? []).filter(
-    (i) =>
-      !q ||
-      i.name.toLowerCase().includes(q) ||
-      i.category.toLowerCase().includes(q) ||
-      i.condition.toLowerCase().includes(q) ||
-      (i.description ?? "").toLowerCase().includes(q),
-  );
+  const visibleItems = (items ?? [])
+    .filter((i) => !swapped.has(i.id))
+    .filter(
+      (i) =>
+        !q ||
+        i.name.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q) ||
+        i.condition.toLowerCase().includes(q) ||
+        (i.description ?? "").toLowerCase().includes(q),
+    );
 
   function openNew() {
     setEditingId(null);

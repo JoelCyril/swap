@@ -20,10 +20,105 @@ export function extractOfferCash(offer: { cash_amount?: number | null; message?:
   return null;
 }
 
-/** Helper to clean user visible message by stripping the [CASH:...] metadata tag */
+/** Helper to clean user visible message by stripping metadata tags like [CASH:...] and [TRADED_ITEMS:...] */
 export function cleanOfferMessage(message: string | null | undefined): string {
   if (!message) return "";
-  return message.replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "").trim();
+  return message
+    .replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "")
+    .replace(/\[TRADED_ITEMS:[\s\S]*?\]\s*/g, "")
+    .trim();
+}
+
+/** Helper to extract traded items snapshot stored when a swap was completed */
+export function extractTradedItemsSnapshot(message: string | null | undefined): any[] {
+  if (!message || typeof message !== "string") return [];
+  const match = message.match(/\[TRADED_ITEMS:([\s\S]*?)\](?:\s|$)/);
+  if (match && match[1]) {
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/**
+ * When a trade completes, snapshots all traded items into the offer record
+ * and removes them from both users' inventory, marking any associated listings as completed.
+ */
+export async function removeTradedItemsFromInventory(offerId: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Fetch the offer and its listing
+    const { data: offer } = await supabaseAdmin
+      .from("offers")
+      .select("*, listing:listings(*)")
+      .eq("id", offerId)
+      .maybeSingle();
+    if (!offer) return;
+
+    // 2. Identify all items in the trade from both users
+    const senderItemIds = ((offer.offered_item_ids || []) as string[]).filter(
+      (id: string) => !((offer.removed_item_ids || []) as string[]).includes(id),
+    );
+    const recipientExtraIds = ((offer.recipient_item_ids || []) as string[]).filter(
+      (id: string) => !((offer.removed_recipient_item_ids || []) as string[]).includes(id),
+    );
+    const listingItemId = !offer.listing_removed && (offer as any).listing?.item_id
+      ? ((offer as any).listing.item_id as string)
+      : null;
+
+    const allTradedItemIds = Array.from(
+      new Set([...senderItemIds, ...(listingItemId ? [listingItemId] : []), ...recipientExtraIds]),
+    ).filter(Boolean);
+
+    if (allTradedItemIds.length === 0) return;
+
+    // 3. Fetch item records to preserve snapshot in offer.message
+    const { data: items } = await supabaseAdmin
+      .from("items")
+      .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
+      .in("id", allTradedItemIds);
+
+    if (items && items.length > 0) {
+      const existingSnapshot = extractTradedItemsSnapshot(offer.message);
+      const combined = Array.from(
+        new Map([...existingSnapshot, ...items].map((it) => [it.id, it])).values(),
+      );
+      const cleanMsg = cleanOfferMessage(offer.message);
+      const cash = extractOfferCash(offer as any);
+      let newMsg = cleanMsg;
+      if (cash != null) {
+        newMsg = `[CASH:${cash}] ${newMsg}`.trim();
+      }
+      newMsg = `${newMsg} [TRADED_ITEMS:${JSON.stringify(combined)}]`.trim();
+
+      await supabaseAdmin
+        .from("offers")
+        .update({ message: newMsg })
+        .eq("id", offer.id);
+    }
+
+    // 4. Mark associated listings as completed and unlink item_id
+    await supabaseAdmin
+      .from("listings")
+      .update({ status: "completed" as const, item_id: null })
+      .in("item_id", allTradedItemIds);
+
+    // 5. Delete the traded items from items table so they are removed from both users' inventories
+    const { error: delErr } = await supabaseAdmin
+      .from("items")
+      .delete()
+      .in("id", allTradedItemIds);
+
+    if (delErr) {
+      console.error("Failed to delete traded items from inventory:", delErr);
+    }
+  } catch (err) {
+    console.error("Error in removeTradedItemsFromInventory:", err);
+  }
 }
 
 export const createOffer = createServerFn({ method: "POST" })
@@ -255,6 +350,9 @@ export const getOffer = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!offer) return null;
 
+    const snapshotItems = extractTradedItemsSnapshot(offer.message);
+    const snapshotMap = new Map(snapshotItems.map((it: any) => [it.id, it]));
+
     const fetchItems = async (ids: string[]): Promise<any[]> => {
       if (!ids.length) return [];
       const { data: rows, error } = await context.supabase
@@ -270,6 +368,14 @@ export const getOffer = createServerFn({ method: "GET" })
           .select("id, owner_id, name, category, condition, image_emoji, image_urls, description, visibility")
           .in("id", ids);
         if (adminRows) list = adminRows;
+      }
+
+      // If any items are missing (e.g. removed from inventory on completion), restore from snapshot
+      const foundIds = new Set(list.map((it) => it.id));
+      for (const id of ids) {
+        if (!foundIds.has(id) && snapshotMap.has(id)) {
+          list.push(snapshotMap.get(id));
+        }
       }
 
       return await Promise.all(
@@ -565,6 +671,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
 
     } else if (nextStatus === "completed") {
       await context.supabase.from("listings").update({ status: "completed" }).eq("id", offer.listing_id);
+      await removeTradedItemsFromInventory(data.id);
     }
 
     // Notify the offer-maker of outcome (except withdraw = sender's action)
@@ -631,6 +738,7 @@ export const confirmTradeCompletion = createServerFn({ method: "POST" })
 
     if (both) {
       await context.supabase.from("listings").update({ status: "completed" }).eq("id", offer.listing_id);
+      await removeTradedItemsFromInventory(data.id);
     }
 
     const other = isFrom ? offer.to_user : offer.from_user;
@@ -672,6 +780,10 @@ export const confirmItemsReceived = createServerFn({ method: "POST" })
       .update({ received_confirmed_by: next } as any)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    if (both) {
+      await removeTradedItemsFromInventory(data.id);
+    }
 
     const other = isFrom ? offer.to_user : offer.from_user;
     await notifyUser({
