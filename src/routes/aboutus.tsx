@@ -6,18 +6,18 @@ import { Navbar } from "@/components/layout/Navbar";
 export const Route = createFileRoute("/aboutus")({
   head: () => ({
     meta: [
-      { title: "About SWAP UAE | Local, sustainable swapping" },
-      { name: "description", content: "Meet SWAP UAE: a free, student-built platform that makes swapping and trading pre-owned items simple, local, and sustainable across the Emirates." },
-      { property: "og:title", content: "About SWAP UAE" },
+      { title: "Our Team: SwapUAE | Local, sustainable swapping" },
+      { name: "description", content: "Meet SwapUAE: a free, student-built platform that makes swapping and trading pre-owned items simple, local, and sustainable across the Emirates." },
+      { property: "og:title", content: "Our Team: SwapUAE" },
       { property: "og:description", content: "A free, local platform for swapping and trading pre-owned items across the UAE." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://swapuae.com/aboutus" },
       { property: "og:image", content: "https://swapuae.com/swap-logo.png" },
-      { name: "twitter:title", content: "About SWAP UAE" },
+      { name: "twitter:title", content: "Our Team: SwapUAE" },
       { name: "twitter:description", content: "A free, local platform for swapping and trading pre-owned items across the UAE." },
     ],
     links: [{ rel: "canonical", href: "https://swapuae.com/aboutus" }],
-    scripts: [{ type: "application/ld+json", children: JSON.stringify({ "@context": "https://schema.org", "@type": "AboutPage", name: "About SWAP UAE", url: "https://swapuae.com/aboutus", description: "SWAP UAE is a free, community-driven platform for trading, swapping, and exchanging pre-owned items across the Emirates.", mainEntity: { "@type": "Organization", name: "SWAP UAE", url: "https://swapuae.com", description: "A student-built UAE platform that makes local swapping and trading of pre-owned items simple and sustainable." } }) }],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify({ "@context": "https://schema.org", "@type": "AboutPage", name: "Our Team: SwapUAE", url: "https://swapuae.com/aboutus", description: "SwapUAE is a free, community-driven platform for trading, swapping, and exchanging pre-owned items across the Emirates.", mainEntity: { "@type": "Organization", name: "SwapUAE", url: "https://swapuae.com", description: "A student-built UAE platform that makes local swapping and trading of pre-owned items simple and sustainable." } }) }],
   }),
   component: AboutUsPage,
 });
@@ -29,12 +29,12 @@ function AboutUsPage() {
       <main className="flex-1">
         <article className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
           <header className="border-b border-border pb-10 sm:pb-14">
-            <p className="text-xs font-semibold tracking-[0.22em] text-primary uppercase">About SWAP UAE</p>
+            <p className="text-xs font-semibold tracking-[0.22em] text-primary uppercase">About SwapUAE</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
               More useful things, in more useful hands.
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              SWAP UAE is a homegrown platform for trading, swapping, and exchanging pre-owned items across the Emirates—entirely free and community-driven.
+              SwapUAE is a homegrown platform for trading, swapping, and exchanging pre-owned items across the Emirates—entirely free and community-driven.
             </p>
           </header>
 
@@ -42,7 +42,7 @@ function AboutUsPage() {
             <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">01 / Our story</p>
             <div className="space-y-5 text-base leading-relaxed text-foreground">
               <p>
-                We are a tight-knit team of student creators based in the UAE and currently studying at the Abu Dhabi Indian School. We started SWAP because we saw a gap for a straightforward, local place where people could pass on things they no longer use and find what they need without the clutter of traditional commercial marketplaces.
+                We are a tight-knit team of student creators based in the UAE and currently studying at the Abu Dhabi Indian School. We started SwapUAE because we saw a gap for a straightforward, local place where people could pass on things they no longer use and find what they need without the clutter of traditional commercial marketplaces.
               </p>
               <p>
                 What began as an ambitious idea among friends around a campfire became a platform built completely from scratch.
@@ -74,7 +74,7 @@ function AboutUsPage() {
           <section className="grid gap-8 border-b border-border py-10 sm:grid-cols-[10rem_1fr] sm:py-14">
             <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">03 / Looking ahead</p>
             <p className="max-w-2xl text-base leading-relaxed text-foreground">
-              As young developers and entrepreneurs growing up in the UAE, we believe the future of commerce is local, collaborative, and eco-friendly. We are constantly refining SWAP and adding features to serve our community better. Thank you for supporting a project built by local students and for helping us shape a more connected UAE.
+              As young developers and entrepreneurs growing up in the UAE, we believe the future of commerce is local, collaborative, and eco-friendly. We are constantly refining SwapUAE and adding features to serve our community better. Thank you for supporting a project built by local students and for helping us shape a more connected UAE.
             </p>
           </section>
 
