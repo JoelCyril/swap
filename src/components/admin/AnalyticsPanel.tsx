@@ -31,6 +31,7 @@ import {
   Mail,
   X,
   BarChart3,
+  Activity,
 } from "lucide-react";
 import { timeAgo, gradientForId, handle } from "@/lib/db-types";
 
@@ -84,6 +85,10 @@ type UserRow = {
   location: string;
   emirate: string | null;
   created_at: string;
+  last_active_at?: string | null;
+  is_active_24h?: boolean;
+  is_active_7d?: boolean;
+  is_active_30d?: boolean;
   total_listings: number;
   active_listings: number;
   inventory_items: number;
@@ -100,6 +105,9 @@ type UserRow = {
 type AnalyticsData = {
   summary: {
     total_users: number;
+    active_users_24h?: number;
+    active_users_7d?: number;
+    active_users_30d?: number;
     users_with_listings: number;
     users_without_listings: number;
     conversion_rate: number;
@@ -118,8 +126,8 @@ type AnalyticsData = {
   category_breakdown: Record<string, number>;
 };
 
-type MemberFilter = "all" | "with_listings" | "no_listings" | "with_trades" | "with_inventory";
-type SortField = "newest" | "listings" | "trades" | "inventory";
+type MemberFilter = "all" | "active" | "active_today" | "with_listings" | "no_listings" | "with_trades" | "with_inventory";
+type SortField = "newest" | "active" | "listings" | "trades" | "inventory";
 
 export function AnalyticsPanel({
   data,
@@ -200,6 +208,8 @@ export function AnalyticsPanel({
     return rawUsers
       .filter((u) => {
         // Tab Filter
+        if (filter === "active" && !u.is_active_7d) return false;
+        if (filter === "active_today" && !u.is_active_24h) return false;
         if (filter === "with_listings" && !u.has_listings) return false;
         if (filter === "no_listings" && u.has_listings) return false;
         if (filter === "with_trades" && !u.has_completed_trade) return false;
@@ -216,6 +226,11 @@ export function AnalyticsPanel({
         return true;
       })
       .sort((a, b) => {
+        if (sort === "active") {
+          const aTime = a.last_active_at ? new Date(a.last_active_at).getTime() : new Date(a.created_at).getTime();
+          const bTime = b.last_active_at ? new Date(b.last_active_at).getTime() : new Date(b.created_at).getTime();
+          return bTime - aTime;
+        }
         if (sort === "listings") return b.total_listings - a.total_listings;
         if (sort === "trades") return b.completed_trades - a.completed_trades;
         if (sort === "inventory") return b.inventory_items - a.inventory_items;
@@ -244,7 +259,7 @@ export function AnalyticsPanel({
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {/* Total Members */}
         <button
           type="button"
@@ -265,6 +280,32 @@ export function AnalyticsPanel({
           </div>
           <p className="mt-2 font-display text-2xl font-black text-foreground">{summary.total_users}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Click for join trend graph ↗</p>
+        </button>
+
+        {/* Active Users */}
+        <button
+          type="button"
+          onClick={() => {
+            setFilter(filter === "active" ? "all" : "active");
+          }}
+          className="group text-left rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 p-4 shadow-sm hover:border-emerald-500/60 hover:bg-emerald-500/15 hover:shadow-md transition-all cursor-pointer relative overflow-hidden focus:outline-none"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Active Users
+            </span>
+            <Activity className="h-4 w-4 text-emerald-600" />
+          </div>
+          <p className="mt-2 font-display text-2xl font-black text-emerald-800 dark:text-emerald-300">
+            {summary.active_users_7d ?? 0}
+          </p>
+          <p className="text-[11px] font-bold text-emerald-600/90 mt-0.5">
+            {summary.active_users_24h ?? 0} active in last 24h
+          </p>
         </button>
 
         {/* Members With Listings */}
@@ -447,6 +488,7 @@ export function AnalyticsPanel({
               className="rounded-full border border-primary/20 bg-card px-3 py-1.5 text-xs font-bold outline-none focus:border-primary"
             >
               <option value="newest">Newest Joined</option>
+              <option value="active">Most Recently Active</option>
               <option value="listings">Most Listings</option>
               <option value="trades">Most Trades Done</option>
               <option value="inventory">Most Inventory</option>
@@ -459,6 +501,8 @@ export function AnalyticsPanel({
           <div className="flex flex-wrap gap-1.5">
             {[
               ["all", `All Members (${rawUsers.length})`],
+              ["active", `⚡ Active This Week (${summary.active_users_7d ?? 0})`],
+              ["active_today", `🟢 Active Today (${summary.active_users_24h ?? 0})`],
               ["with_listings", `📦 Has Listings (${summary.users_with_listings})`],
               ["no_listings", `🆕 0 Listings Yet (${summary.users_without_listings})`],
               ["with_trades", `🤝 Completed Trades (${summary.users_with_trades})`],
@@ -524,6 +568,16 @@ export function AnalyticsPanel({
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-sm text-foreground truncate">{user.display_name}</p>
                       <span className="text-xs text-muted-foreground">@{user.username}</span>
+                      {user.is_active_24h ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Active today
+                        </span>
+                      ) : user.is_active_7d ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Active {timeAgo(user.last_active_at || user.created_at)}
+                        </span>
+                      ) : null}
                       {user.has_completed_trade && (
                         <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:text-blue-400">
                           {user.completed_trades} Trade{user.completed_trades > 1 ? "s" : ""}
@@ -533,6 +587,9 @@ export function AnalyticsPanel({
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                       <MapPin className="h-3 w-3 text-muted-foreground/70" /> {user.location} · Joined{" "}
                       {timeAgo(user.created_at)}
+                      {user.last_active_at && !user.is_active_7d && (
+                        <span> · Last active {timeAgo(user.last_active_at)}</span>
+                      )}
                     </p>
                   </div>
                 </div>

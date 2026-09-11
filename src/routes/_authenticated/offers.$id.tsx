@@ -327,9 +327,9 @@ function OfferDetail() {
       invalidateAll();
       setNotReceivedOpen(false);
       setComplaintText("");
-      toast.success(res?.message || "Trade cancelled. Listing returned to browse feed.");
+      toast.success(res?.message || "Trade declined. Listing returned to browse feed.");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to cancel trade"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to decline trade"),
   });
 
   const safetyMut = useMutation({
@@ -1268,7 +1268,7 @@ function OfferDetail() {
                   onClick={() => setNotReceivedOpen(true)}
                   className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
-                  <AlertTriangle className="h-4 w-4" /> Items not received
+                  <X className="h-4 w-4" /> Decline
                 </button>
               </>
             )}
@@ -1299,7 +1299,7 @@ function OfferDetail() {
                   onClick={() => setNotReceivedOpen(true)}
                   className="flex items-center justify-center gap-2 rounded-full border-2 border-destructive/30 py-2.5 text-sm font-black uppercase text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
-                  <AlertTriangle className="h-4 w-4" /> Items not received
+                  <X className="h-4 w-4" /> Decline
                 </button>
               </>
             )}
@@ -1906,8 +1906,8 @@ function ItemsNotReceivedModal({
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-display text-lg font-black text-foreground">Items Not Received</h3>
-              <p className="text-xs text-muted-foreground">Cancel trade & restore listing</p>
+              <h3 className="font-display text-lg font-black text-foreground">Decline Trade</h3>
+              <p className="text-xs text-muted-foreground">Decline trade & restore listing to feed</p>
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted-foreground hover:bg-muted">
@@ -1929,7 +1929,7 @@ function ItemsNotReceivedModal({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Confirming this will cancel the trade and <strong>immediately return the listing to the main listings page</strong> as active.
+          Confirming this will decline the trade and <strong>immediately return the listing to the main listings page</strong> as active.
         </p>
 
         <div>
@@ -1958,9 +1958,9 @@ function ItemsNotReceivedModal({
             type="button"
             onClick={onSubmit}
             disabled={isPending}
-            className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-destructive py-2.5 text-xs font-black uppercase tracking-wider text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-destructive py-2.5 text-xs font-black uppercase tracking-wider text-destructive-foreground hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
           >
-            {isPending ? "Cancelling…" : "Cancel Swap & Return Listing"}
+            {isPending ? "Declining…" : "Decline & Cancel Swap"}
           </button>
         </div>
       </div>

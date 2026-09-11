@@ -10,8 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutUsRouteImport } from './routes/aboutus'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AboutusRouteImport } from './routes/aboutus'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HelpRouteImport } from './routes/help'
@@ -42,13 +42,13 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutUsRoute = AboutUsRouteImport.update({
-  id: '/aboutus',
-  path: '/aboutus',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutusRoute = AboutusRouteImport.update({
+  id: '/aboutus',
+  path: '/aboutus',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnnouncementsRoute = AnnouncementsRouteImport.update({
@@ -179,7 +179,7 @@ const AuthenticatedOffersArchiveRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/aboutus': typeof AboutUsRoute
+  '/aboutus': typeof AboutusRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -207,7 +207,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/aboutus': typeof AboutUsRoute
+  '/aboutus': typeof AboutusRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -237,7 +237,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/aboutus': typeof AboutUsRoute
+  '/aboutus': typeof AboutusRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
   '/help': typeof HelpRoute
@@ -354,7 +354,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AboutUsRoute: typeof AboutUsRoute
+  AboutusRoute: typeof AboutusRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
   AuthRoute: typeof AuthRoute
   HelpRoute: typeof HelpRoute
@@ -377,18 +377,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/aboutus': {
-      id: '/aboutus'
-      path: '/aboutus'
-      fullPath: '/aboutus'
-      preLoaderRoute: typeof AboutUsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aboutus': {
+      id: '/aboutus'
+      path: '/aboutus'
+      fullPath: '/aboutus'
+      preLoaderRoute: typeof AboutusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/announcements': {
@@ -600,7 +600,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AboutUsRoute: AboutUsRoute,
+  AboutusRoute: AboutusRoute,
   AnnouncementsRoute: AnnouncementsRoute,
   AuthRoute: AuthRoute,
   HelpRoute: HelpRoute,

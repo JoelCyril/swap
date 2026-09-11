@@ -321,6 +321,27 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       }
     }
 
+    // 6. Fetch auth users to get last_sign_in_at timestamps for active user tracking
+    const lastSignInByUser = new Map<string, string>();
+    try {
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+      for (const u of authUsers?.users ?? []) {
+        if (u.last_sign_in_at) {
+          lastSignInByUser.set(u.id, u.last_sign_in_at);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not list auth users for last_sign_in_at", e);
+    }
+
+    const nowMs = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
     const allProfiles = profiles ?? [];
     const allListings = listings ?? [];
     const allItems = items ?? [];
@@ -419,6 +440,28 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         lastTradeAt: null,
       };
 
+      const rawActiveTimestamps = [
+        lastSignInByUser.get(p.id),
+        p.updated_at,
+        listingStats.lastListingAt,
+        tradeStats.lastTradeAt,
+        p.created_at,
+      ].filter(Boolean) as string[];
+
+      let lastActiveAt = p.created_at;
+      let maxTime = new Date(p.created_at).getTime();
+      for (const t of rawActiveTimestamps) {
+        const time = new Date(t).getTime();
+        if (!isNaN(time) && time > maxTime) {
+          maxTime = time;
+          lastActiveAt = t;
+        }
+      }
+
+      const isActive24h = (nowMs - maxTime) <= oneDayMs;
+      const isActive7d = (nowMs - maxTime) <= sevenDaysMs;
+      const isActive30d = (nowMs - maxTime) <= thirtyDaysMs;
+
       return {
         id: p.id,
         username: p.username || "anonymous",
@@ -428,6 +471,10 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         location: p.location || "UAE",
         emirate: p.emirate || null,
         created_at: p.created_at,
+        last_active_at: lastActiveAt,
+        is_active_24h: isActive24h,
+        is_active_7d: isActive7d,
+        is_active_30d: isActive30d,
         total_listings: listingStats.total,
         active_listings: listingStats.active,
         inventory_items: inventoryCount,
@@ -594,9 +641,16 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       };
     });
 
+    const activeUsers24h = userRows.filter((u) => u.is_active_24h).length;
+    const activeUsers7d = userRows.filter((u) => u.is_active_7d).length;
+    const activeUsers30d = userRows.filter((u) => u.is_active_30d).length;
+
     return {
       summary: {
         total_users: totalUsers,
+        active_users_24h: activeUsers24h,
+        active_users_7d: activeUsers7d,
+        active_users_30d: activeUsers30d,
         users_with_listings: usersWithListingsCount,
         users_without_listings: usersWithoutListingsCount,
         conversion_rate: totalUsers > 0 ? Math.round((usersWithListingsCount / totalUsers) * 100) : 0,
