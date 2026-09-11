@@ -45,7 +45,7 @@ function AboutUsPage() {
                 We are a tight-knit team of student creators based in the UAE and currently studying at the Abu Dhabi Indian School. We started SWAP because we saw a gap for a straightforward, local place where people could pass on things they no longer use and find what they need without the clutter of traditional commercial marketplaces.
               </p>
               <p>
-                What began as an ambitious idea among friends around a campfire became a platform built completely from scratch. We handle every layer ourselves—from the interface and design to backend logic and security—so using SWAP feels fast, reliable, and simple.
+                What began as an ambitious idea among friends around a campfire became a platform built completely from scratch.
               </p>
             </div>
           </section>
