@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 
-export const Route = createFileRoute("/AboutUs")({
+export const Route = createFileRoute("/aboutus")({
   head: () => ({
     meta: [
       { title: "About SWAP UAE | Local, sustainable swapping" },
@@ -10,13 +10,13 @@ export const Route = createFileRoute("/AboutUs")({
       { property: "og:title", content: "About SWAP UAE" },
       { property: "og:description", content: "A free, local platform for swapping and trading pre-owned items across the UAE." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://swapuae.com/AboutUs" },
+      { property: "og:url", content: "https://swapuae.com/aboutus" },
       { property: "og:image", content: "https://swapuae.com/swap-logo.png" },
       { name: "twitter:title", content: "About SWAP UAE" },
       { name: "twitter:description", content: "A free, local platform for swapping and trading pre-owned items across the UAE." },
     ],
-    links: [{ rel: "canonical", href: "https://swapuae.com/AboutUs" }],
-    scripts: [{ type: "application/ld+json", children: JSON.stringify({ "@context": "https://schema.org", "@type": "AboutPage", name: "About SWAP UAE", url: "https://swapuae.com/AboutUs", description: "SWAP UAE is a free, community-driven platform for trading, swapping, and exchanging pre-owned items across the Emirates.", mainEntity: { "@type": "Organization", name: "SWAP UAE", url: "https://swapuae.com", description: "A student-built UAE platform that makes local swapping and trading of pre-owned items simple and sustainable." } }) }],
+    links: [{ rel: "canonical", href: "https://swapuae.com/aboutus" }],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify({ "@context": "https://schema.org", "@type": "AboutPage", name: "About SWAP UAE", url: "https://swapuae.com/aboutus", description: "SWAP UAE is a free, community-driven platform for trading, swapping, and exchanging pre-owned items across the Emirates.", mainEntity: { "@type": "Organization", name: "SWAP UAE", url: "https://swapuae.com", description: "A student-built UAE platform that makes local swapping and trading of pre-owned items simple and sustainable." } }) }],
   }),
   component: AboutUsPage,
 });

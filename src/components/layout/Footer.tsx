@@ -15,6 +15,9 @@ export function Footer() {
           <Link to="/listings" className="hover:text-primary transition">
             Browse
           </Link>
+          <Link to="/aboutus" className="hover:text-primary transition">
+            About Us
+          </Link>
           <Link to="/terms" className="hover:text-primary transition font-semibold">
             Terms&Conditions
           </Link>
