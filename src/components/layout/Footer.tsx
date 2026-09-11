@@ -16,7 +16,7 @@ export function Footer() {
             Browse
           </Link>
           <Link to="/aboutus" className="hover:text-primary transition">
-            About Us
+            About
           </Link>
           <Link to="/terms" className="hover:text-primary transition font-semibold">
             Terms&Conditions
