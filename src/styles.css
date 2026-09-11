@@ -161,8 +161,8 @@
   }
 
   /* Universal dark mode text fields across all pages */
-  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]),
-  .dark textarea:not([data-keep-light]),
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]):not(.bg-transparent),
+  .dark textarea:not([data-keep-light]):not(.bg-transparent),
   .dark select:not([data-keep-light]) {
     background-color: var(--color-background) !important;
     color: var(--color-foreground) !important;
@@ -175,8 +175,8 @@
     opacity: 0.8 !important;
   }
 
-  .dark input:focus:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]),
-  .dark textarea:focus:not([data-keep-light]),
+  .dark input:focus:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="range"]):not([type="file"]):not([data-keep-light]):not(.bg-transparent),
+  .dark textarea:focus:not([data-keep-light]):not(.bg-transparent),
   .dark select:focus:not([data-keep-light]) {
     border-color: var(--color-primary) !important;
     outline: none;
@@ -187,19 +187,15 @@
     color: var(--color-foreground) !important;
   }
 
-  .dark div:has(> input.bg-transparent) {
-    background-color: var(--color-background) !important;
-    border-color: var(--color-border) !important;
-  }
-
-
-  .bg-background {
+  .min-h-screen.bg-background,
+  body > div.bg-background {
     position: relative;
     overflow-x: clip;
     max-width: 100%;
   }
 
-  .bg-background::before {
+  .min-h-screen.bg-background::before,
+  body > div.bg-background::before {
     content: "";
     position: absolute;
     inset: 0;

@@ -426,12 +426,13 @@ export function AdminUserMessagePanel({
                 </div>
               ) : (
                 /* Search / Autocomplete Box */
-                <div className="relative">
-                  <div className="flex items-center gap-2 rounded-2xl border-2 border-primary/25 bg-background px-4 py-3 focus-within:border-primary focus-within:shadow-sm transition">
-                    <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-muted-foreground text-sm font-bold">@</span>
+                <div className="relative max-w-lg">
+                  <div className="flex items-center gap-2.5 rounded-2xl border-2 border-primary/30 bg-muted/30 dark:bg-card px-4 py-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition shadow-xs">
+                    <Search className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-muted-foreground text-sm font-bold select-none">@</span>
                     <input
                       type="text"
+                      data-keep-light
                       value={userQuery}
                       onFocus={() => setShowDropdown(true)}
                       onChange={(e) => {
@@ -439,13 +440,13 @@ export function AdminUserMessagePanel({
                         setShowDropdown(true);
                       }}
                       placeholder="Type username or name (e.g. atul, ayesha, naira)..."
-                      className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
+                      className="flex-1 min-w-0 bg-transparent text-sm text-foreground outline-none border-0 p-0 focus:outline-none focus:ring-0 placeholder:text-muted-foreground/70"
                     />
                     {userQuery && (
                       <button
                         type="button"
                         onClick={() => setUserQuery("")}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="text-muted-foreground hover:text-foreground p-1 transition cursor-pointer"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -553,7 +554,7 @@ export function AdminUserMessagePanel({
                   onChange={(e) => setDirectTitle(e.target.value)}
                   placeholder="e.g. Notice from SWAP Moderation Team"
                   maxLength={120}
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
 
@@ -570,7 +571,7 @@ export function AdminUserMessagePanel({
                   onChange={(e) => setDirectBody(e.target.value)}
                   placeholder="Write the message the member will see in their notification center…"
                   maxLength={2000}
-                  className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
 
@@ -583,7 +584,7 @@ export function AdminUserMessagePanel({
                   value={directLink}
                   onChange={(e) => setDirectLink(e.target.value)}
                   placeholder="e.g. /my-listings or /offers"
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
                 />
                 <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   <span className="text-[11px] text-muted-foreground mr-1">Insert link:</span>
@@ -812,7 +813,7 @@ export function AdminUserMessagePanel({
                   onChange={(e) => setBroadcastTitle(e.target.value)}
                   placeholder="e.g. Official Announcement: Ramadan Trading Specials"
                   maxLength={120}
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
 
@@ -829,7 +830,7 @@ export function AdminUserMessagePanel({
                   onChange={(e) => setBroadcastBody(e.target.value)}
                   placeholder="Write the announcement message that will appear in users' notifications…"
                   maxLength={2000}
-                  className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
 
@@ -842,7 +843,7 @@ export function AdminUserMessagePanel({
                   value={broadcastLink}
                   onChange={(e) => setBroadcastLink(e.target.value)}
                   placeholder="e.g. /announcements or /my-listings?add=true"
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
                 />
                 <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   <span className="text-[11px] text-muted-foreground mr-1">Insert link:</span>
@@ -965,7 +966,7 @@ export function AdminUserMessagePanel({
                 onChange={(e) => setEmailSubject(e.target.value)}
                 placeholder="e.g. List your first item on SWAP — Trade easily across UAE 📦"
                 maxLength={120}
-                className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
               />
             </div>
 
@@ -980,7 +981,7 @@ export function AdminUserMessagePanel({
                 onChange={(e) => setEmailHeading(e.target.value)}
                 placeholder="e.g. Turn your unused items into something you love"
                 maxLength={120}
-                className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
               />
             </div>
 
@@ -995,7 +996,7 @@ export function AdminUserMessagePanel({
                 onChange={(e) => setEmailMessage(e.target.value)}
                 placeholder="Write your email body..."
                 maxLength={3000}
-                className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
+                className="w-full resize-none rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition"
               />
             </div>
 
@@ -1010,7 +1011,7 @@ export function AdminUserMessagePanel({
                   value={emailButtonText}
                   onChange={(e) => setEmailButtonText(e.target.value)}
                   placeholder="e.g. List an Item Now"
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
               <div>
@@ -1022,7 +1023,7 @@ export function AdminUserMessagePanel({
                   value={emailButtonLink}
                   onChange={(e) => setEmailButtonLink(e.target.value)}
                   placeholder="e.g. /my-listings?add=true"
-                  className="w-full rounded-2xl border-2 border-primary/20 bg-background px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
+                  className="w-full rounded-2xl border-2 border-primary/20 bg-muted/20 dark:bg-muted/30 px-4 py-2 text-sm text-foreground outline-none focus:border-primary transition"
                 />
               </div>
             </div>
