@@ -65,7 +65,7 @@ function OffersArchivePage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-10 space-y-6 sm:space-y-8">
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-10 space-y-6 sm:space-y-8 min-w-0 overflow-x-hidden">
         {/* Navigation Breadcrumb */}
         <Link
           to="/offers"
@@ -123,7 +123,7 @@ function OffersArchivePage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 w-full min-w-0">
             {archivedOffers.map((o: any) => {
               const incoming = o.to_user === myId;
               const other = incoming ? o.from_profile : o.to_profile;
@@ -131,11 +131,11 @@ function OffersArchivePage() {
               const statusClass = STATUS_COLORS[o.status] ?? "bg-muted text-muted-foreground border-border";
 
               return (
-                <div key={o.id} className="relative group">
+                <div key={o.id} className="relative group w-full min-w-0">
                   <Link
                     to="/offers/$id"
                     params={{ id: o.id }}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border-2 border-border/80 bg-card/80 p-3.5 hover:border-primary hover:shadow-card hover:bg-card transition sm:flex sm:gap-4 sm:p-4"
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border-2 border-border/80 bg-card/80 p-3.5 hover:border-primary hover:shadow-card hover:bg-card transition sm:flex sm:gap-4 sm:p-4 w-full min-w-0 overflow-hidden"
                   >
                     {/* Item Image or Gradient */}
                     {listing?.image_urls?.[0] ? (
@@ -155,7 +155,7 @@ function OffersArchivePage() {
                     )}
 
                     {/* Details */}
-                    <div className="min-w-0 flex-1 pr-14 sm:pr-24">
+                    <div className="min-w-0 flex-1 pr-14 sm:pr-24 overflow-hidden">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-display text-base font-bold truncate sm:text-lg text-foreground">
                           {listing?.title ?? "Listing unavailable"}

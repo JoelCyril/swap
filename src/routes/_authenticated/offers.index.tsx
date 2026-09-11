@@ -67,7 +67,7 @@ function OffersPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-10 space-y-8 sm:space-y-10">
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-10 space-y-8 sm:space-y-10 min-w-0 overflow-x-hidden">
         {/* Page Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-6">
           <div className="min-w-0">
@@ -93,30 +93,30 @@ function OffersPage() {
         </div>
 
         {/* Incoming Offers */}
-        <section className="min-w-0">
+        <section className="min-w-0 w-full">
           <div className="flex items-center gap-2 mb-4">
             <h2 className="font-display text-lg font-black sm:text-2xl">Incoming</h2>
             <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-black text-primary">
               {incoming.length}
             </span>
           </div>
-          <OfferList offers={incoming} incoming onClear={handleArchive} isLoading={isLoading} />
+          <OfferList offers={incoming} incoming myId={myId} onClear={handleArchive} isLoading={isLoading} />
         </section>
 
         {/* Outgoing Offers */}
-        <section className="min-w-0">
+        <section className="min-w-0 w-full">
           <div className="flex items-center gap-2 mb-4">
             <h2 className="font-display text-lg font-black sm:text-2xl">Outgoing</h2>
             <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-black text-primary">
               {outgoing.length}
             </span>
           </div>
-          <OfferList offers={outgoing} onClear={handleArchive} isLoading={isLoading} />
+          <OfferList offers={outgoing} myId={myId} onClear={handleArchive} isLoading={isLoading} />
         </section>
 
         {/* Completed Swaps */}
         {completedSwaps.length > 0 && (
-          <section className="min-w-0">
+          <section className="min-w-0 w-full">
             <div className="flex items-center gap-2 mb-4">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -126,7 +126,7 @@ function OffersPage() {
                 {completedSwaps.length}
               </span>
             </div>
-            <OfferList offers={completedSwaps} isCompleted onClear={handleArchive} isLoading={isLoading} />
+            <OfferList offers={completedSwaps} isCompleted myId={myId} onClear={handleArchive} isLoading={isLoading} />
           </section>
         )}
       </main>
@@ -141,12 +141,14 @@ function OfferList({
   isCompleted = false,
   onClear,
   isLoading = false,
+  myId = null,
 }: {
   offers: any[];
   incoming?: boolean;
   isCompleted?: boolean;
   onClear: (id: string) => void;
   isLoading?: boolean;
+  myId?: string | null;
 }) {
   if (isLoading) {
     return (
@@ -170,18 +172,25 @@ function OfferList({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3 w-full min-w-0">
       {offers.map((o) => {
-        const other = incoming ? o.from_profile : o.to_profile;
+        const other =
+          myId && o.to_user === myId
+            ? o.from_profile
+            : myId && o.from_user === myId
+              ? o.to_profile
+              : incoming
+                ? o.from_profile
+                : o.to_profile;
         const listing = o.listing ?? null;
         const cleanMsg = cleanOfferMessage(o.message);
 
         return (
-          <div key={o.id} className="relative group">
+          <div key={o.id} className="relative group w-full min-w-0">
             <Link
               to="/offers/$id"
               params={{ id: o.id }}
-              className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border-2 border-primary/20 bg-card p-3 hover:border-primary hover:shadow-card transition sm:flex sm:gap-4 sm:p-4"
+              className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border-2 border-primary/20 bg-card p-3 hover:border-primary hover:shadow-card transition sm:flex sm:gap-4 sm:p-4 w-full min-w-0 overflow-hidden"
             >
               {listing?.image_urls?.[0] ? (
                 <img
@@ -199,7 +208,7 @@ function OfferList({
                 </div>
               )}
 
-              <div className="min-w-0 flex-1 pr-8 sm:pr-0">
+              <div className="min-w-0 flex-1 pr-8 sm:pr-2 overflow-hidden">
                 <p className="font-display text-base font-bold truncate sm:text-lg text-foreground">
                   {listing?.title ?? "Listing unavailable"}
                 </p>

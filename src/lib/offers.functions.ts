@@ -22,28 +22,48 @@ export function extractOfferCash(offer: { cash_amount?: number | null; message?:
 
 /** Helper to clean user visible message by stripping metadata tags like [CASH:...], [TRADED_ITEMS:...], and raw JSON item snapshots */
 export function cleanOfferMessage(message: string | null | undefined): string {
-  if (!message) return "";
-  return message
-    .replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "")
-    .replace(/\[TRADED_ITEMS:[\s\S]*?\]\s*/g, "")
-    .replace(/,?\s*\[\{"id":[\s\S]*$/g, "")
-    .replace(/\[\{"id":[\s\S]*$/g, "")
-    .replace(/\[\{.*?\}\]/g, "")
-    .trim();
+  if (!message || typeof message !== "string") return "";
+  let text = message;
+  // Discard [TRADED_ITEMS:... snapshot completely
+  const tradedItemsIdx = text.indexOf("[TRADED_ITEMS:");
+  if (tradedItemsIdx !== -1) {
+    text = text.substring(0, tradedItemsIdx);
+  }
+  // Strip cash tag [CASH:100]
+  text = text.replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "");
+  // Discard any raw JSON array or object remainder (handles corrupted/partial JSON snapshots)
+  const jsonRemainderIdx = text.search(/(?:,|;|\]|\})\s*\[?\{"id":/);
+  if (jsonRemainderIdx !== -1) {
+    text = text.substring(0, jsonRemainderIdx);
+  }
+  const plainJsonIdx = text.search(/\[?\{"id":/);
+  if (plainJsonIdx !== -1) {
+    text = text.substring(0, plainJsonIdx);
+  }
+  return text.replace(/\[\{.*?\}\]/g, "").trim();
 }
 
 /** Helper to extract traded items snapshot stored when a swap was completed */
 export function extractTradedItemsSnapshot(message: string | null | undefined): any[] {
   if (!message || typeof message !== "string") return [];
-  const match = message.match(/\[TRADED_ITEMS:([\s\S]*?)\](?:\s|$)/);
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1]);
-    } catch {
-      return [];
+  const startIdx = message.indexOf("[TRADED_ITEMS:");
+  if (startIdx === -1) return [];
+  const jsonStart = startIdx + "[TRADED_ITEMS:".length;
+  const lastBracket = message.lastIndexOf("]]");
+  const raw = lastBracket !== -1 ? message.substring(jsonStart, lastBracket + 1) : message.substring(jsonStart);
+  try {
+    return JSON.parse(raw.trim());
+  } catch {
+    const match = message.match(/\[TRADED_ITEMS:([\s\S]*)\]\]?/);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        return [];
+      }
     }
+    return [];
   }
-  return [];
 }
 
 /**
