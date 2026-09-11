@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSmartTradeMatches, type SmartMatch } from "@/lib/ai.functions";
 import { supabase, getStoredSessionSync } from "@/integrations/supabase/client";
-import { Sparkles, ArrowRightLeft, MapPin, ChevronRight, Package, ArrowRight, EyeOff, Eye, X } from "lucide-react";
+import { Sparkles, ArrowRightLeft, MapPin, ChevronRight, Package, ArrowRight, EyeOff, Eye, X, Shuffle } from "lucide-react";
 
 export function SmartMatchesSection() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export function SmartMatchesSection() {
 
   const getMatches = useServerFn(getSmartTradeMatches);
 
-  const { data: matches = [], isLoading } = useQuery({
+  const { data: matches = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["smart-trade-matches", userId],
     queryFn: () => getMatches(),
     enabled: !!userId,
@@ -81,12 +81,23 @@ export function SmartMatchesSection() {
 
         <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-auto shrink-0 flex-wrap">
           {matches.length > 0 && (
-            <Link
-              to="/smart-matches"
-              className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition shadow-2xs inline-flex items-center gap-1"
-            >
-              View all ({matches.length}) <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-primary transition shadow-2xs cursor-pointer disabled:opacity-50"
+                title="Shuffle trade recommendations"
+              >
+                <Shuffle className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} /> Shuffle
+              </button>
+              <Link
+                to="/smart-matches"
+                className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition shadow-2xs inline-flex items-center gap-1"
+              >
+                View all ({matches.length}) <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </>
           )}
           <Link
             to="/my-listings"
@@ -172,11 +183,6 @@ export function SmartMatchesSection() {
                       <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.my_item.name}>
                         {m.my_item.name}
                       </p>
-                      {m.my_item.estimated_aed && (
-                        <span className="text-[9px] font-mono font-bold text-muted-foreground block">
-                          ~{m.my_item.estimated_aed} AED
-                        </span>
-                      )}
                     </div>
 
                     {/* Swap Arrow */}
@@ -204,11 +210,6 @@ export function SmartMatchesSection() {
                       <p className="mt-1 text-[11px] font-bold truncate text-foreground" title={m.matched_listing.title}>
                         {m.matched_listing.title}
                       </p>
-                      {m.matched_listing.estimated_aed && (
-                        <span className="text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
-                          ~{m.matched_listing.estimated_aed} AED
-                        </span>
-                      )}
                     </div>
                   </div>
 

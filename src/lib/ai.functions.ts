@@ -179,26 +179,23 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
         const myCategory = myItem.category.toLowerCase();
         const myName = myItem.name.toLowerCase();
 
-        let reason = `Balanced value tier: ~${myAed} AED vs ~${listingAed} AED.`;
+        let reason = `Compatible value tier in ${myItem.category}.`;
 
         // Direct looking-for keyword bonus
         if (lookingFor && (lookingFor.includes(myCategory) || lookingFor.includes(myName))) {
           matchScore += 8;
-          reason = `Trader is specifically seeking "${myItem.name}". Values align closely (~${myAed} vs ~${listingAed} AED).`;
+          reason = `Trader is specifically seeking "${myItem.name}". Direct 2-way match.`;
         } else if (lookingFor.includes("open") || lookingFor.includes("any")) {
           matchScore += 3;
-          reason = `Trader is open to offers. Equitable value swap (~${myAed} vs ~${listingAed} AED).`;
-        }
-
-        // Category affinity bonus
-        if (myItem.category === listing.category) {
+          reason = `Trader is open to offers on "${listing.title}". Well-balanced swap.`;
+        } else if (myItem.category === listing.category) {
           matchScore += 4;
-          if (!lookingFor.includes(myName)) {
-            reason = `Both items in ${myItem.category} with equitable market value (~${myAed} vs ~${listingAed} AED).`;
-          }
+          reason = `Both items are in ${myItem.category} with equitable trade value.`;
         }
 
-        matchScore = Math.min(98, Math.max(60, matchScore));
+        // Add slight random jitter (0 to 3 points) so close matches can rotate positions on refresh
+        const jitter = Math.floor(Math.random() * 4);
+        matchScore = Math.min(98, Math.max(60, matchScore + jitter));
 
         if (!bestMatchForThisItem || matchScore > bestMatchForThisItem.score) {
           bestMatchForThisItem = { listing, score: matchScore, reason, listingAed };
@@ -213,7 +210,6 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
             category: myItem.category,
             condition: myItem.condition,
             image_url: myItem.image_url,
-            estimated_aed: myAed,
           },
           matched_listing: {
             id: bestMatchForThisItem.listing.id,
@@ -224,7 +220,6 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
             location: bestMatchForThisItem.listing.location,
             emirate: bestMatchForThisItem.listing.emirate,
             image_url: bestMatchForThisItem.listing.image_urls?.[0],
-            estimated_aed: bestMatchForThisItem.listingAed,
             owner: (bestMatchForThisItem.listing.owner as any) || {
               id: bestMatchForThisItem.listing.owner_id,
               username: "trader",
@@ -237,5 +232,6 @@ export const getSmartTradeMatches = createServerFn({ method: "GET" })
       }
     }
 
-    return matches.sort((a, b) => b.match_score - a.match_score);
+    // Rotate and shuffle order slightly so users see varied fresh trades instead of always the exact same cards
+    return matches.sort((a, b) => (b.match_score + (Math.random() * 4 - 2)) - (a.match_score + (Math.random() * 4 - 2)));
   });

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { getSmartTradeMatches, type SmartMatch } from "@/lib/ai.functions";
-import { Sparkles, ArrowRightLeft, MapPin, Package, ArrowRight, ArrowLeft, Plus } from "lucide-react";
+import { Sparkles, ArrowRightLeft, MapPin, Package, ArrowRight, ArrowLeft, Plus, Shuffle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/smart-matches")({
   head: () => ({
@@ -75,6 +75,16 @@ function SmartMatchesPage() {
               <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-black text-primary">
                 {matches.length} Match{matches.length === 1 ? "" : "es"} Found
               </span>
+              {matches.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 hover:bg-primary/20 px-3 py-1 text-xs font-bold text-primary transition cursor-pointer"
+                  title="Shuffle & rotate suggestions"
+                >
+                  <Shuffle className="h-3.5 w-3.5" /> Shuffle
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -99,33 +109,27 @@ function SmartMatchesPage() {
               <Link
                 to="/my-listings"
                 search={{ add: true }}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow transition hover:scale-105"
+                className="rounded-full bg-gradient-primary px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow"
               >
-                <Plus className="h-4 w-4" /> Add Inventory Item
-              </Link>
-              <Link
-                to="/listings"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-primary/30 bg-card px-5 py-2.5 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/10 transition"
-              >
-                Browse All Listings
+                + Add item to inventory
               </Link>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {matches.map((m: SmartMatch, idx: number) => (
               <article
                 key={idx}
-                className="group relative flex flex-col justify-between rounded-3xl border-2 border-primary/20 bg-card p-4 sm:p-5 shadow-card transition-all hover:border-primary hover:shadow-card-hover"
+                className="group relative flex flex-col justify-between rounded-3xl border-2 border-primary/20 bg-card p-4 sm:p-5 shadow-card transition hover:border-primary hover:shadow-card-hover"
               >
                 <div>
                   {/* Score & Emirate Header */}
-                  <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-3 text-xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3 text-xs">
                     <span className="inline-flex items-center gap-1 font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full text-xs">
                       <Sparkles className="h-3.5 w-3.5" /> {m.match_score}% Match
                     </span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-semibold">
-                      <MapPin className="h-3.5 w-3.5 text-primary/70 shrink-0" /> {m.matched_listing.emirate}
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" /> {m.matched_listing.emirate}
                     </span>
                   </div>
 
@@ -151,11 +155,6 @@ function SmartMatchesPage() {
                       <p className="mt-1.5 text-xs font-bold truncate text-foreground" title={m.my_item.name}>
                         {m.my_item.name}
                       </p>
-                      {m.my_item.estimated_aed && (
-                        <span className="text-[10px] font-mono font-bold text-muted-foreground mt-0.5 block">
-                          ~{m.my_item.estimated_aed} AED
-                        </span>
-                      )}
                     </div>
 
                     {/* Swap Arrow */}
@@ -183,11 +182,6 @@ function SmartMatchesPage() {
                       <p className="mt-1.5 text-xs font-bold truncate text-foreground" title={m.matched_listing.title}>
                         {m.matched_listing.title}
                       </p>
-                      {m.matched_listing.estimated_aed && (
-                        <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-0.5 block">
-                          ~{m.matched_listing.estimated_aed} AED
-                        </span>
-                      )}
                     </div>
                   </div>
 
