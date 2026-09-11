@@ -32,6 +32,7 @@ import {
   X,
   BarChart3,
   Activity,
+  Send,
 } from "lucide-react";
 import { timeAgo, gradientForId, handle } from "@/lib/db-types";
 
@@ -138,12 +139,14 @@ export function AnalyticsPanel({
   isLoading,
   onEmailNoListings,
   onSendUserEmail,
+  onMessageUser,
   sendingUserId,
 }: {
   data: AnalyticsData | undefined;
   isLoading: boolean;
   onEmailNoListings?: () => void;
   onSendUserEmail?: (user: UserRow) => void;
+  onMessageUser?: (user: UserRow) => void;
   sendingUserId?: string | null;
 }) {
   const [filter, setFilter] = useState<MemberFilter>("all");
@@ -664,6 +667,18 @@ export function AnalyticsPanel({
                       </button>
                     );
                   })()}
+
+                  {/* Message User Button */}
+                  {onMessageUser && (
+                    <button
+                      type="button"
+                      onClick={() => onMessageUser(user)}
+                      title={`Send direct notification to @${user.username}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition cursor-pointer active:scale-95 shadow-sm"
+                    >
+                      <Send className="h-3 w-3" /> Message
+                    </button>
+                  )}
 
                   {/* Profile Link */}
                   <Link

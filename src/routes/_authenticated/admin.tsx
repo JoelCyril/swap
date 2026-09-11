@@ -26,6 +26,7 @@ import { gradientForId, timeAgo } from "@/lib/db-types";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import { AdminBadgesPanel } from "@/components/admin/AdminBadgesPanel";
 import { AdminProfileBadgesPanel } from "@/components/admin/AdminProfileBadgesPanel";
+import { AdminUserMessagePanel } from "@/components/admin/AdminUserMessagePanel";
 import {
   ShieldCheck,
   Trash2,
@@ -68,7 +69,18 @@ function AdminPage() {
   const redeem = useServerFn(redeemAdminCode);
   const [code, setCode] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"analytics" | "badges" | "flagged" | "withheld" | "banned" | "inquiries" | "broadcast">("analytics");
+  const [tab, setTab] = useState<
+    | "analytics"
+    | "user-message"
+    | "badges"
+    | "profile-badges"
+    | "broadcast"
+    | "flagged"
+    | "withheld"
+    | "banned"
+    | "inquiries"
+  >("analytics");
+  const [selectedUserForMessage, setSelectedUserForMessage] = useState<any>(null);
   const analyticsFn = useServerFn(getModeratorAnalytics);
   const withheldFn = useServerFn(listWithheldListings);
   const reviewFn = useServerFn(reviewWithheldListing);
@@ -265,9 +277,10 @@ function AdminPage() {
               {(
                 [
                   ["analytics", "Analytics & Members", (analytics?.users ?? []).length, BarChart3],
+                  ["user-message", "Message a User", "Direct", Send],
                   ["badges", "Listing Badges", (badges ?? []).length, Award],
                   ["profile-badges", "Profile Badges", "Studio", Sparkles],
-                  ["broadcast", "Send Notification", "New", Bell],
+                  ["broadcast", "Broadcast All", "Broadcast", Bell],
                   ["flagged", "Flagged listings", (flagged ?? []).length, Flag],
                   ["withheld", "Withheld listings", (withheld ?? []).length, EyeOff],
                   ["banned", "Banned users", (banned ?? []).length, Ban],
@@ -302,6 +315,17 @@ function AdminPage() {
                   setTab("broadcast");
                   setChannelMode("email");
                 }}
+                onMessageUser={(user) => {
+                  setSelectedUserForMessage(user);
+                  setTab("user-message");
+                }}
+              />
+            )}
+
+            {tab === "user-message" && (
+              <AdminUserMessagePanel
+                users={analytics?.users ?? []}
+                initialUser={selectedUserForMessage}
               />
             )}
 

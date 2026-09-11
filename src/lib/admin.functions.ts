@@ -759,7 +759,7 @@ export const adminSendNotification = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        target: z.enum(["all", "user"]),
+        target: z.enum(["all", "user", "no_listings"]),
         username: z.string().optional(),
         title: z.string().min(1, "Title is required").max(120),
         body: z.string().min(1, "Message body is required").max(2000),
@@ -849,6 +849,178 @@ export const adminSendNotification = createServerFn({ method: "POST" })
     }
 
     return { count: userIds.length, message: `Broadcast notification sent to ${userIds.length} users` };
+  });
+
+/** Send a specific targeted in-app notification (and optional email) to a specific individual user. */
+export const adminSendDirectNotification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid("Invalid user ID").optional(),
+        username: z.string().optional(),
+        title: z.string().trim().min(1, "Title is required").max(120),
+        body: z.string().trim().min(1, "Message body is required").max(2000),
+        link: z.string().trim().optional(),
+        sendEmail: z.boolean().optional().default(false),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let profile: any = null;
+    if (data.userId) {
+      const { data: p, error: pErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, avatar_color")
+        .eq("id", data.userId)
+        .maybeSingle();
+      if (pErr || !p) throw new Error("Recipient profile not found");
+      profile = p;
+    } else if (data.username) {
+      const cleanUser = data.username.replace(/^@/, "").trim().toLowerCase();
+      const { data: p, error: pErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, avatar_color")
+        .ilike("username", cleanUser)
+        .maybeSingle();
+      if (pErr || !p) throw new Error(`User @${cleanUser} not found`);
+      profile = p;
+    } else {
+      throw new Error("Please select or specify a user");
+    }
+
+    const actionLink = data.link?.trim() || "/notifications";
+
+    // Insert into notifications
+    const { error: notifErr } = await supabaseAdmin.from("notifications").insert({
+      user_id: profile.id,
+      type: "admin_message",
+      title: data.title.trim(),
+      body: data.body.trim(),
+      link: actionLink,
+      read: false,
+    });
+    if (notifErr) throw new Error(notifErr.message);
+
+    let emailSent = false;
+    if (data.sendEmail) {
+      try {
+        const { sendEmail, absoluteUrl } = await import("./email.server");
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+        const recipientEmail = authUser?.user?.email;
+
+        if (recipientEmail && recipientEmail.includes("@")) {
+          const emailSubject = `Notice from SWAP: ${data.title.trim()}`;
+          const fullLink = actionLink.startsWith("http") ? actionLink : absoluteUrl(actionLink);
+          const safeTitle = escapeHtml(data.title.trim());
+          const safeBody = escapeHtml(data.body.trim()).replace(/\n/g, "<br/>");
+          const safeUser = escapeHtml(profile.display_name || profile.username || "Trader");
+
+          const emailHtml = `
+<!doctype html>
+<html>
+  <body style="margin:0; padding:0; background:#f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#111827;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background:#ffffff; border-radius:24px; border:1px solid #e5e7eb; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+            <tr>
+              <td style="background:#ff8845; padding:24px 32px; text-align:center;">
+                <h1 style="margin:0; font-size:24px; font-weight:900; color:#ffffff; letter-spacing:1px;">SWAP UAE</h1>
+                <p style="margin:4px 0 0 0; font-size:12px; font-weight:700; color:rgba(255,255,255,0.9); text-transform:uppercase; letter-spacing:0.5px;">Official Moderator Message</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 32px 24px 32px;">
+                <p style="margin:0 0 16px 0; font-size:16px; font-weight:700; color:#111827;">
+                  Hi @${safeUser},
+                </p>
+                <div style="background:#fff8ef; border-left:4px solid #ff8845; border-radius:12px; padding:16px 20px; margin:0 0 24px 0;">
+                  <h2 style="margin:0 0 8px 0; font-size:18px; font-weight:800; color:#111827;">${safeTitle}</h2>
+                  <p style="margin:0; font-size:14px; line-height:1.6; color:#374151;">${safeBody}</p>
+                </div>
+                ${
+                  actionLink
+                    ? `<div style="text-align:center; margin:28px 0 16px 0;">
+                        <a href="${fullLink}" style="display:inline-block; background:#ff8845; color:#ffffff; text-decoration:none; font-size:14px; font-weight:800; padding:14px 28px; border-radius:999px; box-shadow:0 4px 10px rgba(255,136,69,0.35);">
+                          Open in SWAP →
+                        </a>
+                      </div>`
+                    : ""
+                }
+                <p style="margin:20px 0 0 0; font-size:12px; line-height:1.5; color:#6b7280; text-align:center;">
+                  This is an official direct communication from the SWAP Moderation Team for your account @${profile.username}.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f3f4f6; padding:16px 32px; text-align:center; font-size:11px; color:#9ca3af; border-top:1px solid #e5e7eb;">
+                SWAP UAE • The UAE's Community Barter Marketplace
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+          `;
+
+          const emailText = `Hi @${profile.username},\n\n${data.title.trim()}\n\n${data.body.trim()}\n\nOpen in SWAP: ${fullLink}\n\nSWAP Moderation Team`;
+
+          await sendEmail({
+            to: recipientEmail,
+            subject: emailSubject,
+            html: emailHtml,
+            text: emailText,
+          });
+          emailSent = true;
+        }
+      } catch (err) {
+        console.warn("[adminSendDirectNotification] Optional email failed:", err);
+      }
+    }
+
+    return {
+      ok: true,
+      recipient: profile.username,
+      emailSent,
+      message: `Notification delivered to @${profile.username}${emailSent ? " (and sent via email)" : ""}`,
+    };
+  });
+
+/** List recent admin direct messages/notifications sent to individual users with read receipts. */
+export const adminListSentNotifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: notifs, error: nErr } = await supabaseAdmin
+      .from("notifications")
+      .select("id, user_id, type, title, body, link, read, created_at")
+      .in("type", ["admin_message", "admin_direct"])
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (nErr) throw new Error(nErr.message);
+
+    const userIds = [...new Set((notifs ?? []).map((n) => n.user_id))];
+    const { data: profiles } = userIds.length
+      ? await supabaseAdmin
+          .from("profiles")
+          .select("id, username, display_name, avatar_url, avatar_color, emirate, location")
+          .in("id", userIds)
+      : { data: [] as any[] };
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    return (notifs ?? []).map((n) => ({
+      ...n,
+      recipient: profileMap.get(n.user_id) ?? null,
+    }));
   });
 
 function escapeHtml(value: string) {
