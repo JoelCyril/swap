@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { listMyOffers } from "@/lib/offers.functions";
+import { listMyOffers, cleanOfferMessage } from "@/lib/offers.functions";
 import { useClearedOffers } from "@/lib/use-cleared-offers";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
 import { ArrowLeft, ArrowRight, RotateCcw, Package, Archive, CheckCircle2, Trash2 } from "lucide-react";
@@ -37,7 +37,13 @@ function OffersArchivePage() {
 
   const myId = data?.viewer_id ?? null;
   const allOffers = data?.offers ?? [];
-  const archivedOffers = allOffers.filter((o: any) => cleared.includes(o.id));
+  const archivedOffers = allOffers.filter(
+    (o: any) =>
+      cleared.includes(o.id) ||
+      o.status === "declined" ||
+      o.status === "withdrawn" ||
+      ((o.status === "completed" || o.listing?.status === "completed") && cleared.includes(o.id))
+  );
 
   const handleRestoreOne = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -159,29 +165,34 @@ function OffersArchivePage() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {incoming ? "Incoming from" : "Sent to"} <span className="font-semibold text-foreground">@{handle(other)}</span> · {timeAgo(o.created_at)}
+                        {incoming ? "Incoming from" : "Sent to"} <span className="font-semibold text-foreground">{handle(other)}</span> · {timeAgo(o.created_at)}
                       </p>
-                      {o.message && (
-                        <p className="mt-1 text-xs text-foreground/75 italic line-clamp-1">
-                          "{o.message}"
-                        </p>
-                      )}
+                      {(() => {
+                        const cleanMsg = cleanOfferMessage(o.message);
+                        return cleanMsg ? (
+                          <p className="mt-1 text-xs text-foreground/75 italic line-clamp-1">
+                            "{cleanMsg}"
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
 
                     <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block group-hover:translate-x-0.5 transition" />
                   </Link>
 
-                  {/* Restore Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleRestoreOne(o.id, e)}
-                    aria-label="Restore offer to active list"
-                    title="Restore to active list"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-card px-3 py-1.5 text-xs font-bold text-primary shadow-sm hover:bg-primary/10 hover:border-primary transition cursor-pointer active:scale-95"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Restore</span>
-                  </button>
+                  {/* Restore Button (only if offer was dismissed to cleared list) */}
+                  {cleared.includes(o.id) && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleRestoreOne(o.id, e)}
+                      aria-label="Restore offer to active list"
+                      title="Restore to active list"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-card px-3 py-1.5 text-xs font-bold text-primary shadow-sm hover:bg-primary/10 hover:border-primary transition cursor-pointer active:scale-95"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Restore</span>
+                    </button>
+                  )}
                 </div>
               );
             })}

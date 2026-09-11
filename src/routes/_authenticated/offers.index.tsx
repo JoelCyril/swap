@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { listMyOffers } from "@/lib/offers.functions";
+import { listMyOffers, cleanOfferMessage } from "@/lib/offers.functions";
 import { useClearedOffers } from "@/lib/use-cleared-offers";
 import { gradientForId, timeAgo, handle } from "@/lib/db-types";
-import { ArrowRight, X, Package, Archive } from "lucide-react";
+import { ArrowRight, X, Package, Archive, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/offers/")({
@@ -36,9 +36,26 @@ function OffersPage() {
   const { cleared, clear } = useClearedOffers();
   const myId = data?.viewer_id ?? null;
   const all = data?.offers ?? [];
-  const offers = all.filter((o: any) => !cleared.includes(o.id));
-  const incoming = offers.filter((o: any) => o.to_user === myId);
-  const outgoing = offers.filter((o: any) => o.from_user === myId);
+
+  // An active offer is in progress (pending or accepted) and not completed/removed
+  const isOfferActive = (o: any) =>
+    (o.status === "pending" || o.status === "accepted") &&
+    o.listing?.status !== "completed" &&
+    o.listing?.status !== "removed";
+
+  const incoming = all.filter((o: any) => isOfferActive(o) && o.to_user === myId && !cleared.includes(o.id));
+  const outgoing = all.filter((o: any) => isOfferActive(o) && o.from_user === myId && !cleared.includes(o.id));
+  const completedSwaps = all.filter(
+    (o: any) => (o.status === "completed" || o.listing?.status === "completed") && !cleared.includes(o.id)
+  );
+
+  const totalArchivedCount = all.filter(
+    (o: any) =>
+      cleared.includes(o.id) ||
+      o.status === "declined" ||
+      o.status === "withdrawn" ||
+      ((o.status === "completed" || o.listing?.status === "completed") && cleared.includes(o.id))
+  ).length;
 
   const handleArchive = (id: string) => {
     clear(id);
@@ -67,9 +84,9 @@ function OffersPage() {
           >
             <Archive className="h-4 w-4 text-primary" />
             <span>Archived Offers</span>
-            {cleared.length > 0 && (
+            {totalArchivedCount > 0 && (
               <span className="ml-0.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-black text-primary">
-                {cleared.length}
+                {totalArchivedCount}
               </span>
             )}
           </Link>
@@ -96,6 +113,22 @@ function OffersPage() {
           </div>
           <OfferList offers={outgoing} onClear={handleArchive} isLoading={isLoading} />
         </section>
+
+        {/* Completed Swaps */}
+        {completedSwaps.length > 0 && (
+          <section className="min-w-0">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <h2 className="font-display text-lg font-black sm:text-2xl">Completed Trades</h2>
+              </div>
+              <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 text-xs font-black">
+                {completedSwaps.length}
+              </span>
+            </div>
+            <OfferList offers={completedSwaps} isCompleted onClear={handleArchive} isLoading={isLoading} />
+          </section>
+        )}
       </main>
       <Footer />
     </div>
@@ -105,11 +138,13 @@ function OffersPage() {
 function OfferList({
   offers,
   incoming = false,
+  isCompleted = false,
   onClear,
   isLoading = false,
 }: {
   offers: any[];
   incoming?: boolean;
+  isCompleted?: boolean;
   onClear: (id: string) => void;
   isLoading?: boolean;
 }) {
@@ -125,7 +160,11 @@ function OfferList({
   if (offers.length === 0) {
     return (
       <div className="rounded-3xl border-2 border-dashed border-primary/30 bg-card p-8 text-center text-muted-foreground text-sm">
-        {incoming ? "No active incoming offers." : "You have no active outgoing offers."}
+        {isCompleted
+          ? "No completed trades yet."
+          : incoming
+            ? "No active incoming offers."
+            : "You have no active outgoing offers."}
       </div>
     );
   }
@@ -135,6 +174,8 @@ function OfferList({
       {offers.map((o) => {
         const other = incoming ? o.from_profile : o.to_profile;
         const listing = o.listing ?? null;
+        const cleanMsg = cleanOfferMessage(o.message);
+
         return (
           <div key={o.id} className="relative group">
             <Link
@@ -163,9 +204,10 @@ function OfferList({
                   {listing?.title ?? "Listing unavailable"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {incoming ? "From" : "To"} <span className="font-semibold text-foreground">@{handle(other)}</span> · {timeAgo(o.created_at)}
+                  {isCompleted ? "Completed trade with " : incoming ? "From " : "To "}
+                  <span className="font-semibold text-foreground">{handle(other)}</span> · {timeAgo(o.created_at)}
                 </p>
-                {o.message && <p className="mt-1 text-xs text-foreground/75 truncate italic">"{o.message}"</p>}
+                {cleanMsg && <p className="mt-1 text-xs text-foreground/75 truncate italic">"{cleanMsg}"</p>}
                 <span
                   className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider sm:hidden ${
                     STATUS_COLORS[o.status] ?? "bg-muted"
@@ -192,8 +234,8 @@ function OfferList({
                 e.stopPropagation();
                 onClear(o.id);
               }}
-              aria-label="Archive this offer"
-              title="Archive offer"
+              aria-label={isCompleted ? "Archive this completed trade" : "Archive this offer"}
+              title={isCompleted ? "Archive completed trade" : "Archive offer"}
               className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-sm transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95"
             >
               <X className="h-3.5 w-3.5" />

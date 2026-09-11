@@ -20,12 +20,15 @@ export function extractOfferCash(offer: { cash_amount?: number | null; message?:
   return null;
 }
 
-/** Helper to clean user visible message by stripping metadata tags like [CASH:...] and [TRADED_ITEMS:...] */
+/** Helper to clean user visible message by stripping metadata tags like [CASH:...], [TRADED_ITEMS:...], and raw JSON item snapshots */
 export function cleanOfferMessage(message: string | null | undefined): string {
   if (!message) return "";
   return message
     .replace(/\[CASH:[0-9]+(?:\.[0-9]+)?\]\s*/g, "")
     .replace(/\[TRADED_ITEMS:[\s\S]*?\]\s*/g, "")
+    .replace(/,?\s*\[\{"id":[\s\S]*$/g, "")
+    .replace(/\[\{"id":[\s\S]*$/g, "")
+    .replace(/\[\{.*?\}\]/g, "")
     .trim();
 }
 
