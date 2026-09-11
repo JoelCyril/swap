@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://yourwebsite.com/</loc>
+    <loc>https://swapuae.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/aboutus</loc>
+    <loc>https://swapuae.com/aboutus</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/announcements</loc>
+    <loc>https://swapuae.com/announcements</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/help</loc>
+    <loc>https://swapuae.com/help</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/listings</loc>
+    <loc>https://swapuae.com/listings</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/terms</loc>
+    <loc>https://swapuae.com/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://yourwebsite.com/wanted</loc>
+    <loc>https://swapuae.com/wanted</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
