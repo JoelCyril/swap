@@ -86,6 +86,8 @@ type UserRow = {
   emirate: string | null;
   created_at: string;
   last_active_at?: string | null;
+  is_active_today?: boolean;
+  is_active_yesterday?: boolean;
   is_active_24h?: boolean;
   is_active_7d?: boolean;
   is_active_30d?: boolean;
@@ -105,6 +107,8 @@ type UserRow = {
 type AnalyticsData = {
   summary: {
     total_users: number;
+    active_users_today?: number;
+    active_users_yesterday?: number;
     active_users_24h?: number;
     active_users_7d?: number;
     active_users_30d?: number;
@@ -126,7 +130,7 @@ type AnalyticsData = {
   category_breakdown: Record<string, number>;
 };
 
-type MemberFilter = "all" | "active" | "active_today" | "with_listings" | "no_listings" | "with_trades" | "with_inventory";
+type MemberFilter = "all" | "active" | "active_today" | "active_yesterday" | "with_listings" | "no_listings" | "with_trades" | "with_inventory";
 type SortField = "newest" | "active" | "listings" | "trades" | "inventory";
 
 export function AnalyticsPanel({
@@ -209,7 +213,8 @@ export function AnalyticsPanel({
       .filter((u) => {
         // Tab Filter
         if (filter === "active" && !u.is_active_7d) return false;
-        if (filter === "active_today" && !u.is_active_24h) return false;
+        if (filter === "active_today" && !u.is_active_today) return false;
+        if (filter === "active_yesterday" && !u.is_active_yesterday) return false;
         if (filter === "with_listings" && !u.has_listings) return false;
         if (filter === "no_listings" && u.has_listings) return false;
         if (filter === "with_trades" && !u.has_completed_trade) return false;
@@ -304,7 +309,7 @@ export function AnalyticsPanel({
             {summary.active_users_7d ?? 0}
           </p>
           <p className="text-[11px] font-bold text-emerald-600/90 mt-0.5">
-            {summary.active_users_24h ?? 0} active in last 24h
+            {summary.active_users_today ?? 0} active today ({summary.active_users_yesterday ?? 0} yesterday)
           </p>
         </button>
 
@@ -501,8 +506,9 @@ export function AnalyticsPanel({
           <div className="flex flex-wrap gap-1.5">
             {[
               ["all", `All Members (${rawUsers.length})`],
+              ["active_today", `🟢 Active Today (${summary.active_users_today ?? 0})`],
+              ["active_yesterday", `Active Yesterday (${summary.active_users_yesterday ?? 0})`],
               ["active", `⚡ Active This Week (${summary.active_users_7d ?? 0})`],
-              ["active_today", `🟢 Active Today (${summary.active_users_24h ?? 0})`],
               ["with_listings", `📦 Has Listings (${summary.users_with_listings})`],
               ["no_listings", `🆕 0 Listings Yet (${summary.users_without_listings})`],
               ["with_trades", `🤝 Completed Trades (${summary.users_with_trades})`],
@@ -568,13 +574,17 @@ export function AnalyticsPanel({
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-sm text-foreground truncate">{user.display_name}</p>
                       <span className="text-xs text-muted-foreground">@{user.username}</span>
-                      {user.is_active_24h ? (
+                      {user.is_active_today ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Active today
                         </span>
+                      ) : user.is_active_yesterday ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Active yesterday
+                        </span>
                       ) : user.is_active_7d ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                           Active {timeAgo(user.last_active_at || user.created_at)}
                         </span>
                       ) : null}
@@ -587,7 +597,7 @@ export function AnalyticsPanel({
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                       <MapPin className="h-3 w-3 text-muted-foreground/70" /> {user.location} · Joined{" "}
                       {timeAgo(user.created_at)}
-                      {user.last_active_at && !user.is_active_7d && (
+                      {user.last_active_at && !user.is_active_today && !user.is_active_yesterday && (
                         <span> · Last active {timeAgo(user.last_active_at)}</span>
                       )}
                     </p>

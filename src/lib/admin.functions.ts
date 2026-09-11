@@ -440,17 +440,16 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         lastTradeAt: null,
       };
 
-      const rawActiveTimestamps = [
+      // Only real user actions: auth sign-in, new listing posted, or trade created/updated
+      const userActionTimestamps = [
         lastSignInByUser.get(p.id),
-        p.updated_at,
         listingStats.lastListingAt,
         tradeStats.lastTradeAt,
-        p.created_at,
       ].filter(Boolean) as string[];
 
-      let lastActiveAt = p.created_at;
-      let maxTime = new Date(p.created_at).getTime();
-      for (const t of rawActiveTimestamps) {
+      let lastActiveAt: string | null = null;
+      let maxTime = 0;
+      for (const t of userActionTimestamps) {
         const time = new Date(t).getTime();
         if (!isNaN(time) && time > maxTime) {
           maxTime = time;
@@ -458,9 +457,16 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         }
       }
 
-      const isActive24h = (nowMs - maxTime) <= oneDayMs;
-      const isActive7d = (nowMs - maxTime) <= sevenDaysMs;
-      const isActive30d = (nowMs - maxTime) <= thirtyDaysMs;
+      const uaeTodayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+      const uaeYesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+      const userDateStr = lastActiveAt
+        ? new Date(lastActiveAt).toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" })
+        : null;
+
+      const isActiveToday = userDateStr === uaeTodayStr;
+      const isActiveYesterday = userDateStr === uaeYesterdayStr;
+      const isActive7d = lastActiveAt ? nowMs - maxTime <= sevenDaysMs : false;
+      const isActive30d = lastActiveAt ? nowMs - maxTime <= thirtyDaysMs : false;
 
       return {
         id: p.id,
@@ -472,7 +478,9 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         emirate: p.emirate || null,
         created_at: p.created_at,
         last_active_at: lastActiveAt,
-        is_active_24h: isActive24h,
+        is_active_today: isActiveToday,
+        is_active_yesterday: isActiveYesterday,
+        is_active_24h: isActiveToday,
         is_active_7d: isActive7d,
         is_active_30d: isActive30d,
         total_listings: listingStats.total,
@@ -641,14 +649,17 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
       };
     });
 
-    const activeUsers24h = userRows.filter((u) => u.is_active_24h).length;
+    const activeUsersToday = userRows.filter((u) => u.is_active_today).length;
+    const activeUsersYesterday = userRows.filter((u) => u.is_active_yesterday).length;
     const activeUsers7d = userRows.filter((u) => u.is_active_7d).length;
     const activeUsers30d = userRows.filter((u) => u.is_active_30d).length;
 
     return {
       summary: {
         total_users: totalUsers,
-        active_users_24h: activeUsers24h,
+        active_users_today: activeUsersToday,
+        active_users_yesterday: activeUsersYesterday,
+        active_users_24h: activeUsersToday,
         active_users_7d: activeUsers7d,
         active_users_30d: activeUsers30d,
         users_with_listings: usersWithListingsCount,
