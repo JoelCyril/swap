@@ -103,9 +103,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: "SWAP" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "Swap" },
-      { property: "og:title", content: "Swap" },
-      { name: "twitter:title", content: "Swap" },
+      { title: "Swap UAE" },
+      { property: "og:title", content: "Swap UAE" },
+      { name: "twitter:title", content: "Swap UAE" },
       { name: "description", content: "SWAP is a web app for item trading, enabling users to barter goods directly without cash transactions." },
       { property: "og:description", content: "SWAP is a web app for item trading, enabling users to barter goods directly without cash transactions." },
       { name: "twitter:description", content: "SWAP is a web app for item trading, enabling users to barter goods directly without cash transactions." },
@@ -131,6 +131,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "SWAP UAE",
+          "url": "https://swapuae.com",
+          "founder": [
+            { "@type": "Person", "name": "Atul Ajit Nair" },
+            { "@type": "Person", "name": "Abdul Raafay Amaan" },
+            { "@type": "Person", "name": "Haron Emmanuel" },
+            { "@type": "Person", "name": "Aqeel Muhammed Shamim" }
+          ]
+        }),
+      },
     ],
   }),
   shellComponent: RootShell,
