@@ -63,7 +63,7 @@ export function Navbar() {
     queryKey: ["notifications", session?.user.id],
     queryFn: () => listNotifs(),
     enabled: !!session,
-    refetchInterval: 30000,
+    staleTime: 60 * 1000,
   });
   const unreadCount = (notifs ?? []).filter((n: any) => !n.read).length;
 
@@ -89,7 +89,7 @@ export function Navbar() {
   const { data: announcements } = useQuery({
     queryKey: ["announcements-nav"],
     queryFn: () => annFn(),
-    refetchInterval: 60000,
+    staleTime: 10 * 60 * 1000,
   });
   const [annSeen, setAnnSeen] = useState(0);
   useEffect(() => {

@@ -14,7 +14,7 @@ export function WantedSidebarWidget({ signedIn }: { signedIn?: boolean }) {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["wanted-requests-sidebar"],
     queryFn: () => listFn({ data: {} }),
-    refetchInterval: 30_000,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Unique requests only (no duplicate repetitions)

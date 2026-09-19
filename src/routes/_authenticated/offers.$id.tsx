@@ -158,13 +158,13 @@ function OfferDetail() {
       });
     },
     enabled: isParticipant,
-    refetchInterval: isParticipant ? 4000 : false,
+    staleTime: 30 * 1000,
   });
   const { data: proposals } = useQuery({
     queryKey: ["meetup-proposals", id],
     queryFn: () => listProposals({ data: { offer_id: id } }),
     enabled: offer?.status === "accepted" || offer?.status === "completed",
-    refetchInterval: 5000,
+    staleTime: 30 * 1000,
   });
 
   useEffect(() => {

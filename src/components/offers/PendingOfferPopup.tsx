@@ -29,7 +29,7 @@ export function PendingOfferPopup() {
     queryKey: ["pending-incoming-offers", userId],
     queryFn: () => getPendingOffers(),
     enabled: !!userId,
-    refetchInterval: 15000,
+    staleTime: 60 * 1000,
   });
 
   // Realtime subscription for instant updates on incoming offers

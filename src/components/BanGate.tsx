@@ -20,7 +20,7 @@ export function BanGate({ children }: { children: React.ReactNode }) {
     queryKey: ["my-ban", userId],
     queryFn: () => fn(),
     enabled: !!userId,
-    refetchInterval: 60000,
+    staleTime: 10 * 60 * 1000,
   });
 
   if (!ban) return <>{children}</>;

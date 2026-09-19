@@ -36,7 +36,7 @@ export function InquiryUpdates({
     queryFn: () => fn(),
     enabled: signedIn && hasSession,
     retry: false,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60 * 1000,
   });
 
   const items = data ?? [];
