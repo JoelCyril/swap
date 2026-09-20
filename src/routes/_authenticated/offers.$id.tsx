@@ -18,7 +18,7 @@ import { adminMarkTradeCompleted } from "@/lib/admin.functions";
 
 
 
-import { listOwnerInventory } from "@/lib/items.functions";
+import { listOwnerInventory, listMyItems } from "@/lib/items.functions";
 import {
   listMessages,
   sendMessage,
@@ -1810,10 +1810,10 @@ function AddItemsModal({
   onClose: () => void;
   onSave: (ids: string[]) => void;
 }) {
-  const fn = useServerFn(listOwnerInventory);
-  const { data } = useQuery({
-    queryKey: ["owner-inventory", ownerId],
-    queryFn: () => fn({ data: { owner_id: ownerId } }),
+  const fn = useServerFn(listMyItems);
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-items"],
+    queryFn: () => fn(),
   });
   const [ids, setIds] = useState<string[]>(selected);
   const rows = useMemo(() => (data ?? []) as any[], [data]);
@@ -1834,7 +1834,12 @@ function AddItemsModal({
         Tick items from your inventory to add them to your side of the trade, or untick to take them out.
       </p>
       <div className="space-y-2">
-        {rows.map((it) => {
+        {isLoading && (
+          <p className="py-6 text-center text-sm font-semibold text-muted-foreground animate-pulse">
+            Loading your inventory…
+          </p>
+        )}
+        {!isLoading && rows.map((it) => {
           const on = ids.includes(it.id);
           return (
             <label
@@ -1862,7 +1867,21 @@ function AddItemsModal({
             </label>
           );
         })}
-        {rows.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No items available.</p>}
+        {!isLoading && rows.length === 0 && (
+          <div className="py-6 text-center space-y-2">
+            <p className="text-sm font-semibold text-muted-foreground">No items available in your inventory.</p>
+            <p className="text-xs text-muted-foreground">
+              Add items to your inventory to include them in this trade.
+            </p>
+            <Link
+              to="/my-listings"
+              search={{ add: true }}
+              className="inline-block mt-2 text-xs font-bold text-primary hover:underline"
+            >
+              + Add item to inventory
+            </Link>
+          </div>
+        )}
       </div>
       <div className="mt-4 flex gap-2">
         <button onClick={onClose} className="flex-1 rounded-full border-2 border-primary/30 py-2.5 text-xs font-black uppercase text-primary">

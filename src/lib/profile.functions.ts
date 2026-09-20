@@ -9,7 +9,7 @@ import { repairImageUrl, repairImageUrls } from "./image-url-repair.server";
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
-  const key = (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY)!;
+  const key = (process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY)!;
   return createClient<Database>(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     global: {
@@ -168,20 +168,20 @@ export const searchProfiles = createServerFn({ method: "GET" })
 export const getPublicProfile = createServerFn({ method: "GET" })
   .inputValidator((d: { username: string }) => z.object({ username: z.string().max(80) }).parse(d))
   .handler(async ({ data }) => {
-    const supabase = publicClient();
-    const { data: profile } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("id, username, display_name, avatar_color, avatar_url, banner_url, location, bio, created_at")
       .eq("username", data.username)
       .maybeSingle();
     if (!profile) return { profile: null, isAdmin: false, items: [] };
-    const { data: adminRow } = await supabase
+    const { data: adminRow } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", profile.id)
       .eq("role", "admin")
       .maybeSingle();
-    const { data: items } = await supabase
+    const { data: items } = await supabaseAdmin
       .from("items")
       .select("id, name, category, condition, image_emoji, image_urls, description")
       .eq("owner_id", profile.id)
@@ -197,7 +197,7 @@ export const getPublicProfile = createServerFn({ method: "GET" })
       : null;
 
     // Exclude traded items
-    const { data: completedOffers } = await supabase
+    const { data: completedOffers } = await supabaseAdmin
       .from("offers")
       .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
       .eq("status", "completed")

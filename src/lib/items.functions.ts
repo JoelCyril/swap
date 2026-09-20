@@ -25,7 +25,7 @@ function formatItemOutput(it: any) {
 
 function publicClient() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!;
-  const key = (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY)!;
+  const key = (process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY)!;
   return createClient<Database>(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     global: {
@@ -195,16 +195,55 @@ export const listMySwappedItemIds = createServerFn({ method: "GET" })
 export const listOwnerInventory = createServerFn({ method: "GET" })
   .inputValidator((d: { owner_id: string }) => z.object({ owner_id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    const supabase = publicClient();
-    const { data: rows } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error: rErr } = await supabaseAdmin
       .from("items")
       .select("*")
       .eq("owner_id", data.owner_id)
       .eq("visibility", "public")
       .order("created_at", { ascending: false });
+    if (rErr) throw new Error(rErr.message);
 
-    // Exclude traded items
-    const { data: completedOffers } = await supabase
+    let itemsList = [...(rows ?? [])];
+
+    // Self-healing: backfill any active/reserved listings that might not yet have an item record
+    const { data: activeListings } = await supabaseAdmin
+      .from("listings")
+      .select("id, title, description, category, condition, image_urls, image_emoji, item_id")
+      .eq("owner_id", data.owner_id)
+      .in("status", ["active", "reserved"]);
+
+    const existingIds = new Set(itemsList.map((it: any) => it.id));
+    for (const l of activeListings ?? []) {
+      if (!l.item_id || !existingIds.has(l.item_id)) {
+        const { data: created, error: createErr } = await supabaseAdmin
+          .from("items")
+          .insert({
+            owner_id: data.owner_id,
+            name: l.title,
+            description: l.description || "",
+            category: l.category,
+            condition: l.condition,
+            image_urls: l.image_urls || [],
+            image_emoji: l.image_emoji || "📦",
+            visibility: "public",
+          })
+          .select()
+          .single();
+
+        if (!createErr && created) {
+          await supabaseAdmin
+            .from("listings")
+            .update({ item_id: created.id })
+            .eq("id", l.id);
+          itemsList.unshift(created);
+          existingIds.add(created.id);
+        }
+      }
+    }
+
+    // Exclude traded items from completed offers
+    const { data: completedOffers } = await supabaseAdmin
       .from("offers")
       .select("offered_item_ids, recipient_item_ids, from_user, to_user, removed_item_ids, removed_recipient_item_ids")
       .eq("status", "completed")
@@ -226,7 +265,7 @@ export const listOwnerInventory = createServerFn({ method: "GET" })
       }
     }
 
-    return (rows ?? [])
+    return itemsList
       .filter((it: any) => !swappedIds.has(it.id))
       .map(formatItemOutput);
   });
@@ -236,8 +275,8 @@ export const listOwnerInventory = createServerFn({ method: "GET" })
 export const getPublicItem = createServerFn({ method: "GET" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    const supabase = publicClient();
-    const { data: item } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: item } = await supabaseAdmin
       .from("items")
       .select("*, owner:profiles!items_owner_profile_fkey(id, username, display_name, avatar_color, avatar_url)")
       .eq("id", data.id)
