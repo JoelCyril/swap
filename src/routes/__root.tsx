@@ -17,6 +17,7 @@ import { TosGate } from "@/components/TosGate";
 import { BanGate } from "@/components/BanGate";
 import { Toaster } from "@/components/ui/sonner";
 import { WantedPopupToast } from "@/components/wanted/WantedPopupToast";
+import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 
 
 function NotFoundComponent() {
@@ -256,6 +257,7 @@ function RootComponent() {
       {/* Outside the gates so confirmation toasts always render. */}
       <Toaster position="top-center" richColors closeButton style={{ zIndex: 100000 }} />
       <WantedPopupToast />
+      <AuthPromptModal />
     </QueryClientProvider>
   );
 }
