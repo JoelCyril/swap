@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 import { EMIRATES, CONDITIONS, type ItemCondition } from "@/lib/db-types";
 import { InquiryUpdates } from "@/components/support/InquiryUpdates";
+import { ReferralSidebarTab } from "@/components/referrals/ReferralSidebarTab";
 
 export type SortKey = "shuffle" | "newest" | "oldest";
 
@@ -31,6 +32,7 @@ export function FilterSidebar(props: Props) {
           <FilterPanel {...props} />
         </div>
         <InquiryUpdates signedIn={props.signedIn} placement="sidebar" />
+        <ReferralSidebarTab signedIn={props.signedIn} />
       </div>
     </aside>
   );
@@ -65,6 +67,8 @@ export function MobileFilters(props: Props) {
           >
             <div className="flex flex-col gap-4">
               <FilterPanel {...props} />
+              <InquiryUpdates signedIn={props.signedIn} placement="sidebar" />
+              <ReferralSidebarTab signedIn={props.signedIn} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
