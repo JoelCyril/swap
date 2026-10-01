@@ -9,6 +9,9 @@ import {
 } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
 
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { claimReferral } from "@/lib/referrals.functions";
 import appCss from "../styles.css?url";
 import { TosGate } from "@/components/TosGate";
 import { BanGate } from "@/components/BanGate";
@@ -199,6 +202,14 @@ function RootShell({ children }: { children: ReactNode }) {
                     }
                   } catch (err) {}
                 }, true);
+
+                // Capture referral link parameter (?ref=username) into localStorage
+                try {
+                  var refMatch = window.location.search.match(/[?&]ref=([a-zA-Z0-9_]+)/i);
+                  if (refMatch && refMatch[1]) {
+                    localStorage.setItem('swap_ref', refMatch[1].toLowerCase());
+                  }
+                } catch (err) {}
               })();
             `,
           }}
@@ -214,6 +225,25 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const claimRef = useServerFn(claimReferral);
+
+  useEffect(() => {
+    try {
+      const storedRef = localStorage.getItem("swap_ref");
+      if (!storedRef) return;
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) {
+          claimRef({ data: { referrerUsername: storedRef } })
+            .catch(() => {})
+            .finally(() => {
+              try {
+                localStorage.removeItem("swap_ref");
+              } catch {}
+            });
+        }
+      });
+    } catch {}
+  }, [claimRef]);
 
   return (
     <QueryClientProvider client={queryClient}>

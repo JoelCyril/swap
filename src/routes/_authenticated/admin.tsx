@@ -24,6 +24,7 @@ import { gradientForId, timeAgo } from "@/lib/db-types";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import { AdminBadgesPanel } from "@/components/admin/AdminBadgesPanel";
 import { AdminProfileBadgesPanel } from "@/components/admin/AdminProfileBadgesPanel";
+import { AdminReferralsPanel } from "@/components/admin/AdminReferralsPanel";
 import {
   AdminUserMessagePanel,
   type CommunicationMode,
@@ -45,6 +46,7 @@ import {
   BarChart3,
   Send,
   Award,
+  Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,10 +71,10 @@ function AdminPage() {
   const [code, setCode] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // 4 Primary Pillars Navigation
-  const [mainTab, setMainTab] = useState<"analytics" | "communications" | "moderation" | "badges">(
-    "analytics",
-  );
+  // 5 Primary Pillars Navigation
+  const [mainTab, setMainTab] = useState<
+    "analytics" | "communications" | "moderation" | "badges" | "referrals"
+  >("analytics");
 
   // Sub-tabs
   const [moderationTab, setModerationTab] = useState<"flagged" | "withheld" | "banned" | "inquiries">(
@@ -232,8 +234,8 @@ function AdminPage() {
 
         {isAdmin && (
           <>
-            {/* 4-Pillar Symmetrical Primary Navigation */}
-            <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+            {/* 5-Pillar Symmetrical Primary Navigation */}
+            <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
               {[
                 {
                   id: "analytics" as const,
@@ -268,6 +270,13 @@ function AdminPage() {
                   sublabel: "Profile & item badges",
                   icon: Sparkles,
                   badgeText: `${totalBadgesCount} Badges`,
+                },
+                {
+                  id: "referrals" as const,
+                  label: "Referrals Hub",
+                  sublabel: "Leaderboard & invites",
+                  icon: Gift,
+                  badgeText: "Leaderboard",
                 },
               ].map((item) => {
                 const isActive = mainTab === item.id;
@@ -635,6 +644,9 @@ function AdminPage() {
                 {badgesTab === "listing-badges" && <AdminBadgesPanel />}
               </div>
             )}
+
+            {/* TAB 5: REFERRALS HUB */}
+            {mainTab === "referrals" && <AdminReferralsPanel />}
           </>
         )}
 

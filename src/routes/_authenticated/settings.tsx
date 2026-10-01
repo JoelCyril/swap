@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,10 +27,16 @@ import {
   FileText,
   ArrowRight,
   X,
+  Gift,
+  Copy,
+  Check,
+  Share2,
+  Users,
 } from "lucide-react";
 import { ImageCropper } from "@/components/ImageCropper";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "@tanstack/react-router";
+import { timeAgo } from "@/lib/db-types";
+import { getMyReferralStats } from "@/lib/referrals.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -44,10 +50,11 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-type TabKey = "profile" | "notifications" | "privacy" | "terms";
+type TabKey = "profile" | "referrals" | "notifications" | "privacy" | "terms";
 
-const TABS: { key: TabKey; label: string; icon: typeof UserCircle }[] = [
+const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: "profile", label: "Profile", icon: UserCircle },
+  { key: "referrals", label: "Refer a Friend", icon: Gift },
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "privacy", label: "Account Privacy", icon: Lock },
   { key: "terms", label: "Terms of Conditions", icon: FileText },
@@ -93,6 +100,7 @@ function SettingsPage() {
           {/* Content */}
           <section className="min-w-0 flex-1">
             {tab === "profile" && <ProfileTab />}
+            {tab === "referrals" && <ReferralsTab />}
             {tab === "notifications" && <NotificationsTab />}
             {tab === "privacy" && <PrivacyTab />}
             {tab === "terms" && <TermsTab />}
@@ -726,6 +734,169 @@ function TermsTab() {
           >
             Read full terms <ArrowRight className="h-4 w-4" />
           </Link>
+        </Card>
+      </div>
+    </>
+  );
+}
+
+/* ------------------------------ Referrals ------------------------------ */
+
+function ReferralsTab() {
+  const getStats = useServerFn(getMyReferralStats);
+  const me = useServerFn(getMyProfile);
+  const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => me() });
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["my-referrals"],
+    queryFn: () => getStats(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [copied, setCopied] = useState(false);
+  const username = profile?.username || stats?.referralCode || "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://swap.ae";
+  const refLink = `${origin}?ref=${username}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(refLink);
+    setCopied(true);
+    toast.success("Referral link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Join me on SWAP — trade books, gadgets, games, and more with neighbours across the UAE without spending cash! Check it out: ${refLink}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+  };
+
+  const total = stats?.totalReferrals || 0;
+  const list = stats?.referrals || [];
+
+  return (
+    <>
+      <h1 className="font-display text-3xl font-black sm:text-4xl">Refer a Friend</h1>
+      <p className="mt-2 text-muted-foreground">
+        Invite friends and neighbours to SWAP and build your community trading network.
+      </p>
+
+      <div className="mt-6 space-y-6">
+        <Card title="Your Personal Invite Link">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Share your unique link. When someone visits SWAP and signs up with it, they're automatically credited to your referral network!
+          </p>
+
+          <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex-1 rounded-2xl border-2 border-primary/20 bg-muted/50 px-4 py-3 font-mono text-xs sm:text-sm text-foreground overflow-x-auto select-all break-all">
+              {refLink}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-95 transition cursor-pointer shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Copied" : "Copy Link"}
+            </button>
+            <button
+              type="button"
+              onClick={handleWhatsApp}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#25D366]/40 bg-[#25D366]/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-[#128C7E] dark:text-[#25D366] hover:bg-[#25D366]/20 transition cursor-pointer shrink-0"
+            >
+              <Share2 className="h-4 w-4" /> WhatsApp
+            </button>
+          </div>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Friends Joined
+              </span>
+              <Gift className="h-5 w-5 text-primary" />
+            </div>
+            <p className="mt-2 font-display text-4xl font-black text-foreground">
+              {isLoading ? "…" : total}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              People who joined SWAP via your invite link
+            </p>
+          </div>
+
+          <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Community Status
+              </span>
+              <Users className="h-5 w-5 text-primary" />
+            </div>
+            <p className="mt-2 font-display text-2xl font-black text-primary">
+              {total >= 10 ? "Super Ambassador 🌟" : total >= 3 ? "Community Scout 🚀" : "Member 🌱"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {total >= 3
+                ? "Keep sharing to climb the community leaderboard!"
+                : "Invite 3+ friends to unlock Community Scout status."}
+            </p>
+          </div>
+        </div>
+
+        {/* Invited List */}
+        <Card title="Friends Who Joined">
+          {isLoading && (
+            <p className="py-6 text-center text-sm font-semibold text-muted-foreground animate-pulse">
+              Loading referrals…
+            </p>
+          )}
+
+          {!isLoading && list.length === 0 && (
+            <div className="py-8 text-center space-y-2">
+              <Gift className="mx-auto h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-muted-foreground">No referrals yet</p>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Share your link in your WhatsApp groups, family chats, or social media to see your friends show up here!
+              </p>
+            </div>
+          )}
+
+          {!isLoading && list.length > 0 && (
+            <div className="divide-y divide-border/60">
+              {list.map((ref) => (
+                <div key={ref.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="grid h-10 w-10 place-items-center overflow-hidden rounded-full font-bold text-white text-sm shrink-0"
+                      style={{ backgroundColor: ref.avatar_color || "#f97316" }}
+                    >
+                      {ref.avatar_url ? (
+                        <img src={ref.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        (ref.display_name || ref.username || "U")[0]?.toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to="/profile/$username"
+                        params={{ username: ref.username }}
+                        className="text-sm font-bold text-foreground hover:text-primary transition truncate block"
+                      >
+                        @{ref.username}
+                      </Link>
+                      <p className="text-[11px] text-muted-foreground">
+                        Joined {timeAgo(ref.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary shrink-0">
+                    Joined
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </>
