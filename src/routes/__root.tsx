@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,10 @@ import { BanGate } from "@/components/BanGate";
 import { Toaster } from "@/components/ui/sonner";
 import { WantedPopupToast } from "@/components/wanted/WantedPopupToast";
 import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
+import { MaintenancePage } from "@/components/maintenance/MaintenancePage";
+
+// System Maintenance Mode: Set to true to show under maintenance page across the entire site
+export const IS_MAINTENANCE_MODE = true;
 
 
 function NotFoundComponent() {
@@ -61,6 +65,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       window.location.reload();
     }
   }, [message]);
+
+  if (IS_MAINTENANCE_MODE) {
+    return <MaintenancePage />;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -227,8 +235,26 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const claimRef = useServerFn(claimReferral);
+  const [bypassed, setBypassed] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (
+          params.get("bypass") === "admin" ||
+          params.get("admin") === "true" ||
+          localStorage.getItem("swap_maintenance_bypass") === "true"
+        ) {
+          localStorage.setItem("swap_maintenance_bypass", "true");
+          setBypassed(true);
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (IS_MAINTENANCE_MODE && !bypassed) return;
     try {
       const storedRef = localStorage.getItem("swap_ref");
       if (!storedRef) return;
@@ -244,7 +270,11 @@ function RootComponent() {
         }
       });
     } catch {}
-  }, [claimRef]);
+  }, [claimRef, bypassed]);
+
+  if (IS_MAINTENANCE_MODE && !bypassed) {
+    return <MaintenancePage />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

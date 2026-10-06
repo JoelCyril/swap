@@ -36,3 +36,5 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+supabase_storage_backup/
+supabase_db_backup/
