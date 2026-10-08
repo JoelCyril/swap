@@ -19,12 +19,12 @@ export function MaintenancePage() {
       </div>
 
       <div className="relative z-10 w-full max-w-md text-center flex flex-col items-center">
-        {/* Helmet Logo Picture */}
+        {/* Helmet Logo Picture (Transparent PNG) */}
         <div className="mb-6 relative">
           <img
-            src="/maintenance.jpg"
+            src="/maintenance.png"
             alt="SWAP Under Maintenance"
-            className="h-44 w-44 sm:h-52 sm:w-52 object-contain drop-shadow-md rounded-3xl"
+            className="h-44 w-44 sm:h-52 sm:w-52 object-contain select-none"
           />
         </div>
 
