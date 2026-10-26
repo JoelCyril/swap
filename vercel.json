@@ -24,7 +24,7 @@
   "rewrites": [
     {
       "source": "/media/:bucket/:path*",
-      "destination": "https://ramwgcdselnqtcadkaok.supabase.co/storage/v1/object/public/:bucket/:path*"
+      "destination": "https://supabase.swapuae.com/storage/v1/object/public/:bucket/:path*"
     }
   ],
   "headers": [

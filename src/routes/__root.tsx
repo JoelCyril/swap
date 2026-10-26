@@ -21,7 +21,7 @@ import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { MaintenancePage } from "@/components/maintenance/MaintenancePage";
 
 // System Maintenance Mode: Set to true to show under maintenance page across the entire site
-export const IS_MAINTENANCE_MODE = true;
+export const IS_MAINTENANCE_MODE = false;
 
 
 function NotFoundComponent() {
