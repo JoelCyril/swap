@@ -30,8 +30,8 @@ function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
   const envProcess = typeof process !== 'undefined' ? process.env : undefined;
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || envProcess?.VITE_SUPABASE_URL || envProcess?.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || envProcess?.VITE_SUPABASE_PUBLISHABLE_KEY || envProcess?.SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || envProcess?.VITE_SUPABASE_URL || envProcess?.SUPABASE_URL || "https://supabase.swapuae.com";
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || envProcess?.VITE_SUPABASE_PUBLISHABLE_KEY || envProcess?.SUPABASE_PUBLISHABLE_KEY || envProcess?.SUPABASE_ANON_KEY || envProcess?.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkzMDQzMDAwLCJleHAiOjE5NTA3MjMwMDB9.i-1ZRQo2D0rxqOf00AI37ohD14Jqo8HJwTAuiMs0tWg";
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
