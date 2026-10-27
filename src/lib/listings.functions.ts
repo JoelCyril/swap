@@ -95,7 +95,10 @@ export const listListings = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false });
       if (data.category) q = q.eq("category", data.category as never);
       const { data: fetchedRows, error } = await q;
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("[listListings] PostgREST query error:", error.message || error);
+        throw new Error(error.message);
+      }
       rows = fetchedRows ?? [];
 
       // If querying Accessories, filter out any rows that have the Cosmetics/Products fallback tag

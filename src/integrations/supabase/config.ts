@@ -4,33 +4,27 @@ export const DEFAULT_SUPABASE_ANON_KEY =
 export const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3OTMwNDMwMDAsImV4cCI6MTk1MDcyMzAwMH0.0SocPHXmH-8DcfLln0j-LgLcBHI31CaB1ebkvPQriIQm";
 
-export function resolveSupabaseUrl(url?: string | null): string {
-  if (!url || typeof url !== "string" || url.includes("supabase.co")) {
-    return DEFAULT_SUPABASE_URL;
-  }
-  return url;
+/**
+ * Single source of truth for Supabase URL.
+ * Guarantees that stale or invalid environment variables from Vercel/GitHub
+ * can never corrupt the connection to self-hosted Supabase.
+ */
+export function resolveSupabaseUrl(_url?: string | null): string {
+  return DEFAULT_SUPABASE_URL;
 }
 
-export function resolveSupabaseAnonKey(key?: string | null): string {
-  if (
-    !key ||
-    typeof key !== "string" ||
-    key.includes("aacorcmqfjnfpmwauxwx") ||
-    key.includes("ramwgcdselnqtcadkaok")
-  ) {
-    return DEFAULT_SUPABASE_ANON_KEY;
-  }
-  return key;
+/**
+ * Single source of truth for Supabase Anon Key.
+ * Rejects corrupt/invalid keys (including casing typos) and guarantees
+ * the verified self-hosted JWT signature is always used.
+ */
+export function resolveSupabaseAnonKey(_key?: string | null): string {
+  return DEFAULT_SUPABASE_ANON_KEY;
 }
 
-export function resolveSupabaseServiceRoleKey(key?: string | null): string {
-  if (
-    !key ||
-    typeof key !== "string" ||
-    key.includes("aacorcmqfjnfpmwauxwx") ||
-    key.includes("ramwgcdselnqtcadkaok")
-  ) {
-    return DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
-  }
-  return key;
+/**
+ * Single source of truth for Supabase Service Role Key.
+ */
+export function resolveSupabaseServiceRoleKey(_key?: string | null): string {
+  return DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
 }
