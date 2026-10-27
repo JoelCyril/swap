@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveSupabaseUrl, resolveSupabaseAnonKey } from "@/integrations/supabase/config";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -15,8 +16,8 @@ const schema = z.object({
 export const submitInquiry = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => schema.parse(d))
   .handler(async ({ data }) => {
-    const url = process.env["SUPABASE_URL"]!;
-    const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
+    const url = resolveSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
+    const key = resolveSupabaseAnonKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
     const supabase = createClient<Database>(url, key, {
       auth: { persistSession: false },
       global: {

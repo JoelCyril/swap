@@ -44,3 +44,6 @@ passwords*.txt
 passwrods*.txt
 pass.rtf
 *password*.txt
+
+# Scratch
+scratch/

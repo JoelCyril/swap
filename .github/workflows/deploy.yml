@@ -24,10 +24,10 @@ jobs:
 
       - name: Build application
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://aacorcmqfjnfpmwauxwx.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhY29yY21xZmpuZnBtd2F1eHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg4OTU2MzYsImV4cCI6MjA1NDQ3MTYzNn0.Vd3cWw1P_e_NnLSmZc-u4-6Yw9F1-0GjY4b1w8P-Y4A' }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://aacorcmqfjnfpmwauxwx.supabase.co' }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhY29yY21xZmpuZnBtd2F1eHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg4OTU2MzYsImV4cCI6MjA1NDQ3MTYzNn0.Vd3cWw1P_e_NnLSmZc-u4-6Yw9F1-0GjY4b1w8P-Y4A' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://supabase.swapuae.com' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkzMDQzMDAwLCJleHAiOjE5NTA3MjMwMDB9.i-1ZRQo2D0rxqOf00AI37ohD14Jqo8HJwTAuiMs0tWg' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://supabase.swapuae.com' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkzMDQzMDAwLCJleHAiOjE5NTA3MjMwMDB9.i-1ZRQo2D0rxqOf00AI37ohD14Jqo8HJwTAuiMs0tWg' }}
         run: npm run build
 
       - name: Deploy to Vercel Production

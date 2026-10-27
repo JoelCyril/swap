@@ -14,7 +14,7 @@ function isAllowedAttachmentUrl(value: string) {
     if (url.protocol !== "https:") return false;
 
     const isSupabaseStorage =
-      url.hostname.includes("supabase.co") &&
+      (url.hostname.includes("supabase.co") || url.hostname.includes("supabase.swapuae.com")) &&
       url.pathname.includes("/storage/v1/object/");
 
     const isProxiedMedia =
