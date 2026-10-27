@@ -58,15 +58,16 @@ function withSecurityHeaders(response: Response): Response {
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https:",
         "media-src 'self' blob: https:",
-        "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+        "connect-src 'self' https://supabase.swapuae.com wss://supabase.swapuae.com https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://*.googleapis.com",
+        "frame-src 'self' https://accounts.google.com",
         "font-src 'self' data:",
         "frame-ancestors 'none'",
         "base-uri 'self'",
-        "form-action 'self'",
+        "form-action 'self' https://accounts.google.com https://supabase.swapuae.com",
       ].join("; "),
     );
   }
