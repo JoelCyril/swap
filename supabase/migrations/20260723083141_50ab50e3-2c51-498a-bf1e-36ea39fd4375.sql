@@ -1,4 +1,3 @@
-
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -26,6 +25,11 @@ WHERE NOT EXISTS (SELECT 1 FROM public.user_roles r WHERE r.user_id = u.id AND r
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
 ALTER TABLE public.listings ADD COLUMN IF NOT EXISTS image_urls text[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.items ADD COLUMN IF NOT EXISTS image_urls text[] NOT NULL DEFAULT '{}';
+
+-- Ensure storage buckets exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true), ('listing-images', 'listing-images', true)
+ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Public read avatars" ON storage.objects;
 CREATE POLICY "Public read avatars" ON storage.objects

@@ -38,3 +38,9 @@ dist-ssr
 .env*
 supabase_storage_backup/
 supabase_db_backup/
+
+# Credentials & Passwords
+passwords*.txt
+passwrods*.txt
+pass.rtf
+*password*.txt
