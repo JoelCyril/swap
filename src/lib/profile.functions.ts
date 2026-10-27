@@ -99,10 +99,25 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         .limit(1);
       const taken = (rows ?? [])[0];
       if (taken && taken.id !== context.userId) {
-        throw new Error("That username is already taken — pick another one.");
+        // Check if taken is an unclaimed legacy profile
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        let hasActiveAuth = false;
+        try {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(taken.id);
+          hasActiveAuth = !!authUser?.user;
+        } catch {}
+
+        if (!hasActiveAuth) {
+          // Unclaimed legacy profile! Merge it and transfer all listings/items!
+          const { mergeOrphanedProfile } = await import("./profile.server");
+          await mergeOrphanedProfile(context.userId, taken.id);
+        } else {
+          throw new Error("That username is already taken — pick another one.");
+        }
+      } else {
+        publicFields.username = uname;
+        publicFields.display_name = uname;
       }
-      publicFields.username = uname;
-      publicFields.display_name = uname;
     }
 
     if (Object.keys(publicFields).length > 0) {
