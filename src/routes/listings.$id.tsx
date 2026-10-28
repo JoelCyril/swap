@@ -53,12 +53,25 @@ function ListingDetailPage() {
   const [message, setMessage] = useState("");
   const [activePhoto, setActivePhoto] = useState(0);
   const [viewCount, setViewCount] = useState<number | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photoErrors, setPhotoErrors] = useState<Record<number, boolean>>({});
+  const [ownerAvatar, setOwnerAvatar] = useState("");
+  const [avatarError, setAvatarError] = useState(false);
   const offerPanelRef = useRef<HTMLDivElement>(null);
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ["listing", id],
     queryFn: () => get({ data: { id } }),
   });
+
+  useEffect(() => {
+    setPhotoUrls(listing?.image_urls ?? []);
+  }, [listing?.image_urls]);
+
+  useEffect(() => {
+    setOwnerAvatar(listing?.owner?.avatar_url || "");
+    setAvatarError(false);
+  }, [listing?.owner?.avatar_url]);
 
   // Track listing view on mount
   useEffect(() => {
@@ -236,19 +249,6 @@ function ListingDetailPage() {
   const isFav = savedIds.includes(id);
   const isOwner = !!myUserId && myUserId === listing.owner_id;
   const owner = listing.owner;
-  const rawPhotos: string[] = listing.image_urls ?? [];
-  const [photoUrls, setPhotoUrls] = useState<string[]>(rawPhotos);
-  const [photoErrors, setPhotoErrors] = useState<Record<number, boolean>>({});
-  const [ownerAvatar, setOwnerAvatar] = useState(owner?.avatar_url || "");
-  const [avatarError, setAvatarError] = useState(false);
-
-  useEffect(() => {
-    setPhotoUrls(rawPhotos);
-  }, [listing?.image_urls]);
-
-  useEffect(() => {
-    setOwnerAvatar(owner?.avatar_url || "");
-  }, [owner?.avatar_url]);
 
   function handlePhotoError(index: number) {
     const cur = photoUrls[index];
@@ -600,7 +600,8 @@ function ListingDetailPage() {
                             type="button"
                             onClick={() => {
                               const next = new Set(selected);
-                              on ? next.delete(it.id) : next.add(it.id);
+                              if (on) next.delete(it.id);
+                              else next.add(it.id);
                               setSelected(next);
                             }}
                             className={`flex w-full items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition ${

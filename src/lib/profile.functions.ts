@@ -33,7 +33,10 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .eq("id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const profile = data ?? (await ensureProfile(context.userId));
+    const profile =
+      !data || !data.username || data.username.startsWith("user")
+        ? await ensureProfile(context.userId)
+        : data;
     const { data: roles } = await context.supabase
       .from("user_roles")
       .select("role")

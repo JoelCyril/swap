@@ -67,7 +67,24 @@ function ProfilePage() {
   const [followPending, setFollowPending] = useState(false);
   const blockedIds = useBlockedIds();
 
+  const [avatarSrc, setAvatarSrc] = useState("");
+  const [avatarError, setAvatarError] = useState(false);
 
+  useEffect(() => {
+    setAvatarSrc(data?.profile?.avatar_url || "");
+    setAvatarError(false);
+  }, [data?.profile?.avatar_url]);
+
+  function handleAvatarError() {
+    if (avatarSrc && avatarSrc.includes("/media/")) {
+      const direct = avatarSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== avatarSrc) {
+        setAvatarSrc(direct);
+        return;
+      }
+    }
+    setAvatarError(true);
+  }
 
   if (isLoading) {
     return (
@@ -94,25 +111,6 @@ function ProfilePage() {
   const isFollowing = (followedIds ?? []).includes(owner.id);
   const profileBadge = extractProfileBadge(owner.bio);
   const displayBio = cleanBioText(owner.bio);
-
-  const [avatarSrc, setAvatarSrc] = useState(owner.avatar_url || "");
-  const [avatarError, setAvatarError] = useState(false);
-
-  useEffect(() => {
-    setAvatarSrc(owner.avatar_url || "");
-    setAvatarError(false);
-  }, [owner.avatar_url]);
-
-  function handleAvatarError() {
-    if (avatarSrc && avatarSrc.includes("/media/")) {
-      const direct = avatarSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
-      if (direct !== avatarSrc) {
-        setAvatarSrc(direct);
-        return;
-      }
-    }
-    setAvatarError(true);
-  }
 
   async function toggleFollow() {
     if (!viewerId) {

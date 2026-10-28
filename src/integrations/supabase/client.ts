@@ -68,9 +68,29 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
 export function getStoredSessionSync(): any | null {
   if (typeof window === "undefined") return null;
   try {
+    // 1. Prioritize active self-hosted project storage key
+    const primaryRaw = localStorage.getItem("sb-supabase-auth-token");
+    if (primaryRaw) {
+      const parsed = JSON.parse(primaryRaw);
+      if (parsed && (parsed.access_token || parsed.user)) {
+        return parsed;
+      }
+    }
+
+    // 2. Clean up known stale cloud tokens to prevent session hijacking/corruption
+    for (const staleKey of [
+      "sb-ramwgcdselnqtcadkaok-auth-token",
+      "sb-aacorcmqfjnfpmwauxwx-auth-token",
+    ]) {
+      try {
+        localStorage.removeItem(staleKey);
+      } catch {}
+    }
+
+    // 3. Fallback to any sb-*-auth-token only if primary is not present
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token") && key !== "sb-supabase-auth-token") {
         const raw = localStorage.getItem(key);
         if (raw) {
           const parsed = JSON.parse(raw);

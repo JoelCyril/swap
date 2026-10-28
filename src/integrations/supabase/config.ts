@@ -2,7 +2,7 @@ export const DEFAULT_SUPABASE_URL = "https://supabase.swapuae.com";
 export const DEFAULT_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkzMDQzMDAwLCJleHAiOjE5NTA3MjMwMDB9.i-1ZRQo2D0rxqOf00AI37ohD14Jqo8HJwTAuiMs0tWg";
 export const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3OTMwNDMwMDAsImV4cCI6MTk1MDcyMzAwMH0.0SocPHXmH-8DcfLln0j-LgLcBHI31CaB1ebkvPQriIQm";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3OTMwNDMwMDAsImV4cCI6MTk1MDcyMzAwMH0.0SocPHXmH-8DcfLln0j-LgLcBH3lCaB1ebkvPQriIqM";
 
 /**
  * Single source of truth for Supabase URL.

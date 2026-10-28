@@ -26,15 +26,22 @@ export function Navbar() {
   const updateProfile = useServerFn(updateMyProfile);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (s) queryClient.invalidateQueries({ queryKey: ["me"] });
+    });
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setSession(data.session);
+      if (data.session) {
+        setSession(data.session);
+        queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
     });
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key && e.key.startsWith("sb-") && e.key.endsWith("-auth-token")) {
         const sync = getStoredSessionSync();
         setSession(sync);
+        if (sync) queryClient.invalidateQueries({ queryKey: ["me"] });
       }
     };
     window.addEventListener("storage", handleStorage);
@@ -43,7 +50,7 @@ export function Navbar() {
       sub.subscription.unsubscribe();
       window.removeEventListener("storage", handleStorage);
     };
-  }, []);
+  }, [queryClient]);
 
   const getProfile = useServerFn(getMyProfile);
   const { data: me } = useQuery({
