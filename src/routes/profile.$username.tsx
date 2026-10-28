@@ -95,6 +95,25 @@ function ProfilePage() {
   const profileBadge = extractProfileBadge(owner.bio);
   const displayBio = cleanBioText(owner.bio);
 
+  const [avatarSrc, setAvatarSrc] = useState(owner.avatar_url || "");
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarSrc(owner.avatar_url || "");
+    setAvatarError(false);
+  }, [owner.avatar_url]);
+
+  function handleAvatarError() {
+    if (avatarSrc && avatarSrc.includes("/media/")) {
+      const direct = avatarSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== avatarSrc) {
+        setAvatarSrc(direct);
+        return;
+      }
+    }
+    setAvatarError(true);
+  }
+
   async function toggleFollow() {
     if (!viewerId) {
       window.location.assign("/auth");
@@ -151,8 +170,13 @@ function ProfilePage() {
             className="grid h-24 w-24 sm:h-32 sm:w-32 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-white/90 text-3xl font-black text-white shadow-glow"
             style={{ backgroundColor: owner.avatar_url ? "transparent" : owner.avatar_color }}
           >
-            {owner.avatar_url ? (
-              <img src={owner.avatar_url} alt="" className="h-full w-full object-cover" />
+            {avatarSrc && !avatarError ? (
+              <img
+                src={avatarSrc}
+                alt=""
+                onError={handleAvatarError}
+                className="h-full w-full object-cover"
+              />
             ) : (
               owner.display_name?.split(" ").map((s) => s[0]).join("").slice(0, 2)
             )}

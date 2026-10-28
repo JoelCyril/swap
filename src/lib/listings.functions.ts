@@ -113,6 +113,12 @@ export const listListings = createServerFn({ method: "GET" })
         return {
           ...resolved,
           image_urls: await repairImageUrls(resolved.image_urls),
+          owner: resolved.owner
+            ? {
+                ...resolved.owner,
+                avatar_url: await repairImageUrl(resolved.owner.avatar_url, "avatars"),
+              }
+            : resolved.owner,
         };
       }),
     );
@@ -165,6 +171,12 @@ export const getListing = createServerFn({ method: "GET" })
     return {
       ...resolved,
       image_urls: await repairImageUrls(resolved.image_urls),
+      owner: resolved.owner
+        ? {
+            ...resolved.owner,
+            avatar_url: await repairImageUrl(resolved.owner.avatar_url, "avatars"),
+          }
+        : resolved.owner,
     };
   });
 
@@ -198,6 +210,12 @@ export const listListingsByUsername = createServerFn({ method: "GET" })
         return {
           ...resolved,
           image_urls: await repairImageUrls(resolved.image_urls),
+          owner: resolved.owner
+            ? {
+                ...resolved.owner,
+                avatar_url: await repairImageUrl(resolved.owner.avatar_url, "avatars"),
+              }
+            : resolved.owner,
         };
       }),
     );

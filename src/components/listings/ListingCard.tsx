@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bookmark, Flag, ArrowRightLeft, MapPin, Package } from "lucide-react";
 import { emirateOf, gradientForId, timeAgo, handle, type ListingWithOwner } from "@/lib/db-types";
@@ -34,6 +34,43 @@ export function ListingCard({
   const [offerOpen, setOfferOpen] = useState(false);
   const navigate = useNavigate();
   const flag = useServerFn(flagListing);
+
+  const [imgSrc, setImgSrc] = useState(listing.image_urls?.[0] || "");
+  const [imgFailed, setImgFailed] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(listing.owner?.avatar_url || "");
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(listing.image_urls?.[0] || "");
+    setImgFailed(false);
+  }, [listing.image_urls]);
+
+  useEffect(() => {
+    setAvatarSrc(listing.owner?.avatar_url || "");
+    setAvatarFailed(false);
+  }, [listing.owner?.avatar_url]);
+
+  function handleImageError() {
+    if (imgSrc && imgSrc.includes("/media/")) {
+      const directUrl = imgSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (directUrl !== imgSrc) {
+        setImgSrc(directUrl);
+        return;
+      }
+    }
+    setImgFailed(true);
+  }
+
+  function handleAvatarError() {
+    if (avatarSrc && avatarSrc.includes("/media/")) {
+      const directUrl = avatarSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (directUrl !== avatarSrc) {
+        setAvatarSrc(directUrl);
+        return;
+      }
+    }
+    setAvatarFailed(true);
+  }
 
   const owner = listing.owner;
   const initials =
@@ -164,11 +201,12 @@ export function ListingCard({
             Collector's
           </div>
         )}
-        {listing.image_urls && listing.image_urls.length > 0 ? (
+        {imgSrc && !imgFailed ? (
           <img
-            src={listing.image_urls[0]}
+            src={imgSrc}
             alt={listing.title}
             loading="lazy"
+            onError={handleImageError}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -183,10 +221,15 @@ export function ListingCard({
             onClick={(e) => e.stopPropagation()}
             aria-label={`View ${owner.display_name}'s profile`}
             className="absolute bottom-2 right-2 grid h-10 w-10 place-items-center rounded-full border-2 border-white text-xs font-bold text-white shadow-lg transition hover:scale-110 z-10 overflow-hidden"
-            style={{ backgroundColor: owner.avatar_url ? "transparent" : owner.avatar_color }}
+            style={{ backgroundColor: avatarSrc && !avatarFailed ? "transparent" : owner.avatar_color }}
           >
-            {owner.avatar_url ? (
-              <img src={owner.avatar_url} alt="" className="h-full w-full object-cover" />
+            {avatarSrc && !avatarFailed ? (
+              <img
+                src={avatarSrc}
+                alt=""
+                onError={handleAvatarError}
+                className="h-full w-full object-cover"
+              />
             ) : (
               initials
             )}

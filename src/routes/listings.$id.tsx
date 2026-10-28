@@ -236,7 +236,48 @@ function ListingDetailPage() {
   const isFav = savedIds.includes(id);
   const isOwner = !!myUserId && myUserId === listing.owner_id;
   const owner = listing.owner;
-  const photos: string[] = listing.image_urls ?? [];
+  const rawPhotos: string[] = listing.image_urls ?? [];
+  const [photoUrls, setPhotoUrls] = useState<string[]>(rawPhotos);
+  const [photoErrors, setPhotoErrors] = useState<Record<number, boolean>>({});
+  const [ownerAvatar, setOwnerAvatar] = useState(owner?.avatar_url || "");
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setPhotoUrls(rawPhotos);
+  }, [listing?.image_urls]);
+
+  useEffect(() => {
+    setOwnerAvatar(owner?.avatar_url || "");
+  }, [owner?.avatar_url]);
+
+  function handlePhotoError(index: number) {
+    const cur = photoUrls[index];
+    if (cur && cur.includes("/media/")) {
+      const direct = cur.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== cur) {
+        setPhotoUrls((prev) => {
+          const next = [...prev];
+          next[index] = direct;
+          return next;
+        });
+        return;
+      }
+    }
+    setPhotoErrors((prev) => ({ ...prev, [index]: true }));
+  }
+
+  function handleOwnerAvatarError() {
+    if (ownerAvatar && ownerAvatar.includes("/media/")) {
+      const direct = ownerAvatar.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== ownerAvatar) {
+        setOwnerAvatar(direct);
+        return;
+      }
+    }
+    setAvatarError(true);
+  }
+
+  const photos = photoUrls;
   const customBadge = extractListingBadge(listing.moderation_note);
   const customGlowStyle = getListingGlowStyle(customBadge?.glowColor);
 
@@ -268,8 +309,13 @@ function ListingDetailPage() {
                 </div>
               )}
 
-              {photos.length > 0 ? (
-                <img src={photos[Math.min(activePhoto, photos.length - 1)]} alt={listing.title} className="absolute inset-0 h-full w-full object-cover" />
+              {photos.length > 0 && !photoErrors[Math.min(activePhoto, photos.length - 1)] ? (
+                <img
+                  src={photos[Math.min(activePhoto, photos.length - 1)]}
+                  alt={listing.title}
+                  onError={() => handlePhotoError(Math.min(activePhoto, photos.length - 1))}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
               ) : (
                 <div className="absolute inset-0 grid place-items-center">
                   <Package className="h-24 w-24 text-primary/40 sm:h-32 sm:w-32" />
@@ -438,8 +484,13 @@ function ListingDetailPage() {
                   className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-white text-lg font-black text-white shadow"
                   style={{ backgroundColor: owner.avatar_url ? "transparent" : owner.avatar_color }}
                 >
-                  {owner.avatar_url ? (
-                    <img src={owner.avatar_url} alt={owner.display_name} className="h-full w-full object-cover" />
+                  {ownerAvatar && !avatarError ? (
+                    <img
+                      src={ownerAvatar}
+                      alt={owner.display_name}
+                      onError={handleOwnerAvatarError}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     owner.display_name?.[0]?.toUpperCase()
                   )}

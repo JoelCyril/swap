@@ -25,7 +25,13 @@ export const Route = createFileRoute("/items/$id")({
 
 function normalizeUrl(url: string | null | undefined, bucket: "listing-images" | "avatars" = "listing-images"): string {
   if (!url || typeof url !== "string") return "";
-  if (url.includes(`/media/${bucket}/`)) return url;
+  if (url.includes(`/media/${bucket}/`)) {
+    if (!url.includes("v=")) {
+      const sep = url.includes("?") ? "&" : "?";
+      return `${url}${sep}v=v2`;
+    }
+    return url;
+  }
   const signMarker = `/storage/v1/object/sign/${bucket}/`;
   const publicMarker = `/storage/v1/object/public/${bucket}/`;
   let rawPath: string | null = null;
