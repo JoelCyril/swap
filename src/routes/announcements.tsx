@@ -192,7 +192,22 @@ function AnnouncementsPage() {
                     style={{ backgroundColor: p.author?.avatar_url ? "transparent" : p.author?.avatar_color ?? "#888" }}
                   >
                     {p.author?.avatar_url ? (
-                      <img src={p.author.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={p.author.avatar_url}
+                        alt=""
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (t.src && t.src.includes("/media/")) {
+                            const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                            if (direct !== t.src) {
+                              t.src = direct;
+                              return;
+                            }
+                          }
+                          t.style.display = "none";
+                        }}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       p.author?.display_name?.[0]?.toUpperCase() ?? "S"
                     )}

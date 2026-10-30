@@ -562,6 +562,17 @@ export function AnalyticsPanel({
                     <img
                       src={user.avatar_url}
                       alt={user.display_name}
+                      onError={(e) => {
+                        const t = e.currentTarget;
+                        if (t.src && t.src.includes("/media/")) {
+                          const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                          if (direct !== t.src) {
+                            t.src = direct;
+                            return;
+                          }
+                        }
+                        t.style.display = "none";
+                      }}
                       className="h-11 w-11 rounded-full object-cover shrink-0 border border-border"
                     />
                   ) : (

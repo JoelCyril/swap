@@ -134,7 +134,22 @@ export function AdminReferralsPanel() {
                 style={{ backgroundColor: topReferrer.avatar_color || "#f59e0b" }}
               >
                 {topReferrer.avatar_url ? (
-                  <img src={topReferrer.avatar_url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={topReferrer.avatar_url}
+                    alt=""
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      if (t.src && t.src.includes("/media/")) {
+                        const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                        if (direct !== t.src) {
+                          t.src = direct;
+                          return;
+                        }
+                      }
+                      t.style.display = "none";
+                    }}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   (topReferrer.display_name || topReferrer.username || "U")[0]?.toUpperCase()
                 )}
@@ -254,7 +269,22 @@ export function AdminReferralsPanel() {
                             style={{ backgroundColor: item.avatar_color || "#f97316" }}
                           >
                             {item.avatar_url ? (
-                              <img src={item.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <img
+                                src={item.avatar_url}
+                                alt=""
+                                onError={(e) => {
+                                  const t = e.currentTarget;
+                                  if (t.src && t.src.includes("/media/")) {
+                                    const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                                    if (direct !== t.src) {
+                                      t.src = direct;
+                                      return;
+                                    }
+                                  }
+                                  t.style.display = "none";
+                                }}
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
                               (item.display_name || item.username || "U")[0]?.toUpperCase()
                             )}

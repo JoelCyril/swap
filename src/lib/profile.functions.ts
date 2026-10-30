@@ -33,10 +33,25 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .eq("id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const profile =
+    let profile =
       !data || !data.username || data.username.startsWith("user")
         ? await ensureProfile(context.userId)
         : data;
+
+    if (profile && !profile.avatar_url) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+        const meta = (userRes?.user?.user_metadata ?? {}) as Record<string, string | undefined>;
+        const metaAvatar = meta.avatar_url || meta.picture;
+        if (metaAvatar && typeof metaAvatar === "string") {
+          await supabaseAdmin.from("profiles").update({ avatar_url: metaAvatar }).eq("id", context.userId);
+          profile = { ...profile, avatar_url: metaAvatar };
+        }
+      } catch (e) {
+        console.warn("Could not sync OAuth avatar:", e);
+      }
+    }
     const { data: roles } = await context.supabase
       .from("user_roles")
       .select("role")

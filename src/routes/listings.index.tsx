@@ -313,7 +313,22 @@ function ListingsPage() {
                       style={{ backgroundColor: p.avatar_url ? "transparent" : p.avatar_color }}
                     >
                       {p.avatar_url ? (
-                        <img src={p.avatar_url} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={p.avatar_url}
+                          alt=""
+                          onError={(e) => {
+                            const t = e.currentTarget;
+                            if (t.src && t.src.includes("/media/")) {
+                              const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                              if (direct !== t.src) {
+                                t.src = direct;
+                                return;
+                              }
+                            }
+                            t.style.display = "none";
+                          }}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         p.username?.[0]?.toUpperCase()
                       )}

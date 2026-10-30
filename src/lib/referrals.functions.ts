@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { toCachedImageUrl } from "./image-url-repair.server";
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -146,7 +147,7 @@ export const getMyReferralStats = createServerFn({ method: "GET" })
             id: r.id,
             username: p?.username || "user",
             display_name: p?.display_name || p?.username || "User",
-            avatar_url: p?.avatar_url || null,
+            avatar_url: toCachedImageUrl(p?.avatar_url, "avatars") || null,
             avatar_color: p?.avatar_color || null,
             created_at: r.created_at,
             status: r.status,
@@ -309,7 +310,7 @@ export const getAdminReferralsLeaderboard = createServerFn({ method: "GET" })
           userId: referrerId,
           username: p?.username || "unknown",
           display_name: p?.display_name || p?.username || "User",
-          avatar_url: p?.avatar_url || null,
+          avatar_url: toCachedImageUrl(p?.avatar_url, "avatars") || null,
           avatar_color: p?.avatar_color || null,
           totalReferrals: stats.total,
           activeCount: stats.active,

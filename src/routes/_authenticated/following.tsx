@@ -50,7 +50,26 @@ function FollowingPage() {
                   className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-black text-white"
                   style={{ backgroundColor: person.avatar_url ? "transparent" : person.avatar_color }}
                 >
-                  {person.avatar_url ? <img src={person.avatar_url} alt="" className="h-full w-full object-cover" /> : person.display_name[0]?.toUpperCase()}
+                  {person.avatar_url ? (
+                    <img
+                      src={person.avatar_url}
+                      alt=""
+                      onError={(e) => {
+                        const t = e.currentTarget;
+                        if (t.src && t.src.includes("/media/")) {
+                          const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                          if (direct !== t.src) {
+                            t.src = direct;
+                            return;
+                          }
+                        }
+                        t.style.display = "none";
+                      }}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    person.display_name[0]?.toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-bold">@{person.username}</p>

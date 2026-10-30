@@ -20,13 +20,34 @@ Avatar.displayName = AvatarPrimitive.Root.displayName;
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
-    {...props}
-  />
-));
+>(({ className, src, onError, ...props }, ref) => {
+  const [currentSrc, setCurrentSrc] = React.useState(src);
+
+  React.useEffect(() => {
+    setCurrentSrc(src);
+  }, [src]);
+
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    if (currentSrc && currentSrc.includes("/media/")) {
+      const direct = currentSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== currentSrc) {
+        setCurrentSrc(direct);
+        return;
+      }
+    }
+    onError?.(e);
+  };
+
+  return (
+    <AvatarPrimitive.Image
+      ref={ref}
+      src={currentSrc}
+      onError={handleError}
+      className={cn("aspect-square h-full w-full", className)}
+      {...props}
+    />
+  );
+});
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
 const AvatarFallback = React.forwardRef<

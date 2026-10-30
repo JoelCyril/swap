@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureProfile } from "./profile.server";
 import { publicClient } from "./announcements.server";
+import { toCachedImageUrl } from "./image-url-repair.server";
 
 
 export const listAnnouncements = createServerFn({ method: "GET" }).handler(async () => {
@@ -13,7 +14,14 @@ export const listAnnouncements = createServerFn({ method: "GET" }).handler(async
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
-  return (data ?? []).filter((a) => !a.body?.startsWith('{"kind":"wanted_request"'));
+  return (data ?? [])
+    .filter((a) => !a.body?.startsWith('{"kind":"wanted_request"'))
+    .map((a: any) => ({
+      ...a,
+      author: a.author
+        ? { ...a.author, avatar_url: toCachedImageUrl(a.author.avatar_url, "avatars") }
+        : null,
+    }));
 });
 
 export const createAnnouncement = createServerFn({ method: "POST" })

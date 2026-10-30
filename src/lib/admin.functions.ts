@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyUser } from "./notifications.server";
+import { toCachedImageUrl } from "./image-url-repair.server";
 import {
   extractListingBadge,
   formatNoteWithBadge,
@@ -194,10 +195,13 @@ export const listBannedUsers = createServerFn({ method: "GET" })
           .select("id, username, display_name, avatar_url, avatar_color")
           .in("id", ids)
       : { data: [] as any[] };
-    return active.map((b: any) => ({
-      ...b,
-      profile: (profiles ?? []).find((p: any) => p.id === b.user_id) ?? null,
-    }));
+    return active.map((b: any) => {
+      const p = (profiles ?? []).find((pr: any) => pr.id === b.user_id) ?? null;
+      return {
+        ...b,
+        profile: p ? { ...p, avatar_url: toCachedImageUrl(p.avatar_url, "avatars") } : null,
+      };
+    });
   });
 
 /** Support inquiries submitted from the Help page. */
@@ -472,7 +476,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
         id: p.id,
         username: p.username || "anonymous",
         display_name: p.display_name || p.username || "User",
-        avatar_url: p.avatar_url,
+        avatar_url: toCachedImageUrl(p.avatar_url, "avatars"),
         avatar_color: p.avatar_color,
         location: p.location || "UAE",
         emirate: p.emirate || null,
@@ -545,7 +549,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
             id: o.from_user,
             username: fromProf?.username ?? "unknown",
             display_name: fromProf?.display_name ?? fromProf?.username ?? "User",
-            avatar_url: fromProf?.avatar_url ?? null,
+            avatar_url: toCachedImageUrl(fromProf?.avatar_url, "avatars") ?? null,
             avatar_color: fromProf?.avatar_color ?? "#6366f1",
             has_confirmed_complete: completeBy.includes(o.from_user),
             has_confirmed_received: receivedBy.includes(o.from_user),
@@ -554,7 +558,7 @@ export const getModeratorAnalytics = createServerFn({ method: "GET" })
             id: o.to_user,
             username: toProf?.username ?? "unknown",
             display_name: toProf?.display_name ?? toProf?.username ?? "User",
-            avatar_url: toProf?.avatar_url ?? null,
+            avatar_url: toCachedImageUrl(toProf?.avatar_url, "avatars") ?? null,
             avatar_color: toProf?.avatar_color ?? "#6366f1",
             has_confirmed_complete: completeBy.includes(o.to_user),
             has_confirmed_received: receivedBy.includes(o.to_user),
@@ -1017,10 +1021,13 @@ export const adminListSentNotifications = createServerFn({ method: "GET" })
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-    return (notifs ?? []).map((n) => ({
-      ...n,
-      recipient: profileMap.get(n.user_id) ?? null,
-    }));
+    return (notifs ?? []).map((n) => {
+      const p = profileMap.get(n.user_id) ?? null;
+      return {
+        ...n,
+        recipient: p ? { ...p, avatar_url: toCachedImageUrl(p.avatar_url, "avatars") } : null,
+      };
+    });
   });
 
 function escapeHtml(value: string) {
@@ -1598,6 +1605,7 @@ export const adminSearchUsersForBadge = createServerFn({ method: "GET" })
 
     return (users ?? []).map((u: any) => ({
       ...u,
+      avatar_url: toCachedImageUrl(u.avatar_url, "avatars"),
       customBadge: extractProfileBadge(u.bio),
     }));
   });

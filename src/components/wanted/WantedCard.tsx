@@ -65,7 +65,22 @@ export function WantedCard({ request, myId, onFulfill, onDelete }: WantedCardPro
             style={{ backgroundColor: request.user.avatar_url ? "transparent" : request.user.avatar_color || "#ea580c" }}
           >
             {request.user.avatar_url ? (
-              <img src={request.user.avatar_url} alt="" className="h-full w-full object-cover" />
+              <img
+                src={request.user.avatar_url}
+                alt=""
+                onError={(e) => {
+                  const t = e.currentTarget;
+                  if (t.src && t.src.includes("/media/")) {
+                    const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                    if (direct !== t.src) {
+                      t.src = direct;
+                      return;
+                    }
+                  }
+                  t.style.display = "none";
+                }}
+                className="h-full w-full object-cover"
+              />
             ) : (
               request.user.username[0]?.toUpperCase()
             )}

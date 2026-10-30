@@ -102,14 +102,21 @@ export async function ensureProfile(userId: string) {
     .eq("id", userId)
     .maybeSingle();
 
-  // If user already has a complete custom profile, return it
-  if (existing && existing.username && !existing.username.startsWith("user") && existing.username !== "joeltcyril") {
-    return existing;
-  }
-
   const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(userId);
   const user = userRes?.user;
   const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
+  const metaAvatar = meta.avatar_url || meta.picture;
+
+  // If user already has a complete custom profile, return it (syncing avatar if missing)
+  if (existing) {
+    if (!existing.avatar_url && metaAvatar) {
+      await supabaseAdmin.from("profiles").update({ avatar_url: metaAvatar }).eq("id", userId);
+      existing.avatar_url = metaAvatar;
+    }
+    if (existing.username && !existing.username.startsWith("user") && existing.username !== "joeltcyril") {
+      return existing;
+    }
+  }
 
   let base = slugify(meta.username || (user?.email ?? "").split("@")[0] || "user");
   if (!base) base = "user";
@@ -165,6 +172,7 @@ export async function ensureProfile(userId: string) {
       id: userId,
       username,
       display_name: meta.display_name || meta.full_name || username,
+      avatar_url: metaAvatar || null,
       avatar_color: "oklch(0.75 0.15 55)",
     })
     .select()

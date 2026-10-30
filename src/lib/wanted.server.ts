@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { type ItemCategory, type Emirate } from "./db-types";
+import { toCachedImageUrl } from "./image-url-repair.server";
 
 export interface WantedRequestItem {
   id: string;
@@ -76,7 +77,7 @@ export async function fetchWantedRequests(params?: {
             id: row.author_id,
             username: author?.username || "trader",
             display_name: author?.display_name || author?.username || "Trader",
-            avatar_url: author?.avatar_url,
+            avatar_url: toCachedImageUrl(author?.avatar_url, "avatars"),
             avatar_color: author?.avatar_color || "#ea580c",
           },
         });
@@ -165,7 +166,7 @@ export async function insertWantedRequest(
       id: row.author_id,
       username: author?.username || "trader",
       display_name: author?.display_name || author?.username || "Trader",
-      avatar_url: author?.avatar_url,
+      avatar_url: toCachedImageUrl(author?.avatar_url, "avatars"),
       avatar_color: author?.avatar_color || "#ea580c",
     },
   };
@@ -247,7 +248,7 @@ export async function updateWantedRequest(
       id: row.author_id,
       username: author?.username || "trader",
       display_name: author?.display_name || author?.username || "Trader",
-      avatar_url: author?.avatar_url,
+      avatar_url: toCachedImageUrl(author?.avatar_url, "avatars"),
       avatar_color: author?.avatar_color || "#ea580c",
     },
   };
@@ -315,7 +316,7 @@ export async function fetchWantedRequestById(id: string): Promise<WantedRequestI
         id: row.author_id,
         username: author?.username || "trader",
         display_name: author?.display_name || author?.username || "Trader",
-        avatar_url: author?.avatar_url,
+        avatar_url: toCachedImageUrl(author?.avatar_url, "avatars"),
         avatar_color: author?.avatar_color || "#ea580c",
       },
     };

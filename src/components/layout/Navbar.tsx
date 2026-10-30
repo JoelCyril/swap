@@ -152,6 +152,24 @@ export function Navbar() {
   }
 
   const avatarUrl = me?.profile?.avatar_url;
+  const [avatarSrc, setAvatarSrc] = useState(avatarUrl || "");
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setAvatarSrc(avatarUrl || "");
+    setAvatarFailed(false);
+  }, [avatarUrl]);
+
+  function handleAvatarError() {
+    if (avatarSrc && avatarSrc.includes("/media/")) {
+      const direct = avatarSrc.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+      if (direct !== avatarSrc) {
+        setAvatarSrc(direct);
+        return;
+      }
+    }
+    setAvatarFailed(true);
+  }
 
 
   return (
@@ -300,11 +318,11 @@ export function Navbar() {
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
               className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-primary shadow-md hover:scale-105 transition"
-              style={{ backgroundColor: avatarUrl ? "transparent" : me?.profile?.avatar_color ?? "white" }}
+              style={{ backgroundColor: avatarSrc && !avatarFailed ? "transparent" : me?.profile?.avatar_color ?? "white" }}
               aria-label="Account menu"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              {avatarSrc && !avatarFailed ? (
+                <img src={avatarSrc} alt="" onError={handleAvatarError} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-sm font-black text-white drop-shadow">
                   {me?.profile?.display_name?.[0]?.toUpperCase() ?? <User className="h-4 w-4" />}

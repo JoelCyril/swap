@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { toCachedImageUrl } from "./image-url-repair.server";
 
 const followInput = z.object({ user_id: z.string().uuid() });
 
@@ -49,5 +50,15 @@ export const listMyFollowing = createServerFn({ method: "GET" })
       .eq("follower_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).flatMap((row) => (row.profile ? [{ ...row.profile, followed_at: row.created_at }] : []));
+    return (data ?? []).flatMap((row) =>
+      row.profile
+        ? [
+            {
+              ...row.profile,
+              avatar_url: toCachedImageUrl(row.profile.avatar_url, "avatars"),
+              followed_at: row.created_at,
+            },
+          ]
+        : [],
+    );
   });

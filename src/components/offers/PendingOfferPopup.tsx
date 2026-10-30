@@ -141,7 +141,22 @@ export function PendingOfferPopup() {
               style={{ backgroundColor: avatarUrl ? "transparent" : fromUser?.avatar_color ?? "#ff8845" }}
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  onError={(e) => {
+                    const t = e.currentTarget;
+                    if (t.src && t.src.includes("/media/")) {
+                      const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                      if (direct !== t.src) {
+                        t.src = direct;
+                        return;
+                      }
+                    }
+                    t.style.display = "none";
+                  }}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 fromUser?.display_name?.[0]?.toUpperCase() ?? "U"
               )}

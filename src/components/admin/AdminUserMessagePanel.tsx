@@ -387,6 +387,17 @@ export function AdminUserMessagePanel({
                       <img
                         src={selectedUser.avatar_url}
                         alt={selectedUser.username}
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (t.src && t.src.includes("/media/")) {
+                            const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                            if (direct !== t.src) {
+                              t.src = direct;
+                              return;
+                            }
+                          }
+                          t.style.display = "none";
+                        }}
                         className="h-12 w-12 rounded-full object-cover border-2 border-primary/30 shrink-0"
                       />
                     ) : (
@@ -470,6 +481,17 @@ export function AdminUserMessagePanel({
                             <img
                               src={u.avatar_url}
                               alt={u.username}
+                              onError={(e) => {
+                                const t = e.currentTarget;
+                                if (t.src && t.src.includes("/media/")) {
+                                  const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                                  if (direct !== t.src) {
+                                    t.src = direct;
+                                    return;
+                                  }
+                                }
+                                t.style.display = "none";
+                              }}
                               className="h-8 w-8 rounded-full object-cover shrink-0"
                             />
                           ) : (
@@ -1123,6 +1145,17 @@ export function AdminUserMessagePanel({
                       <img
                         src={recipient.avatar_url}
                         alt={recipient.username}
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (t.src && t.src.includes("/media/")) {
+                            const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                            if (direct !== t.src) {
+                              t.src = direct;
+                              return;
+                            }
+                          }
+                          t.style.display = "none";
+                        }}
                         className="h-9 w-9 rounded-full object-cover shrink-0 border border-border"
                       />
                     ) : (

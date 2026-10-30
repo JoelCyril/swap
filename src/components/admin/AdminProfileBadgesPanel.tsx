@@ -562,7 +562,22 @@ export function AdminProfileBadgesPanel() {
                           style={{ backgroundColor: u.avatar_url ? "transparent" : u.avatar_color || "#3b82f6" }}
                         >
                           {u.avatar_url ? (
-                            <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                            <img
+                              src={u.avatar_url}
+                              alt=""
+                              onError={(e) => {
+                                const t = e.currentTarget;
+                                if (t.src && t.src.includes("/media/")) {
+                                  const direct = t.src.replace("https://swapuae.com/media/", "https://supabase.swapuae.com/storage/v1/object/public/");
+                                  if (direct !== t.src) {
+                                    t.src = direct;
+                                    return;
+                                  }
+                                }
+                                t.style.display = "none";
+                              }}
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
                             (u.display_name || u.username)?.[0]?.toUpperCase() || <User className="h-5 w-5" />
                           )}
