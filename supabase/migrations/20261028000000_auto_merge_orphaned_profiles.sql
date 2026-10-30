@@ -73,8 +73,8 @@ BEGIN
     emirate = v_old_profile.emirate,
     bio = v_old_profile.bio,
     interests = v_old_profile.interests,
-    tos_accepted_at = v_old_profile.tos_accepted_at,
-    age_confirmed = v_old_profile.age_confirmed
+    tos_accepted_at = COALESCE(v_old_profile.tos_accepted_at, now()),
+    age_confirmed = COALESCE(v_old_profile.age_confirmed, 18)
   WHERE id = p_new_id;
 
   -- 8. Delete old profile row
@@ -108,7 +108,7 @@ BEGIN
     '[^a-z0-9_]', '', 'g'
   ));
 
-  -- 1. Try to find an orphaned profile matching email prefix or Google name
+  -- 1. Try to find an orphaned profile matching email prefix, Google name, or name tokens
   SELECT p.id INTO candidate_id
   FROM public.profiles p
   WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.id)
@@ -118,11 +118,22 @@ BEGIN
       OR (google_name <> '' AND EXISTS (
         SELECT 1 FROM public.profile_private pp 
         WHERE pp.id = p.id 
-          AND lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g')) = google_name
+          AND (
+            lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g')) = google_name
+            OR (length(lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g'))) >= 4 AND google_name LIKE '%' || lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g')) || '%')
+            OR (length(google_name) >= 4 AND lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g')) LIKE '%' || google_name || '%')
+          )
       ))
+      OR (length(p.username) >= 4 AND user_email_prefix LIKE '%' || p.username || '%')
+      OR (length(user_email_prefix) >= 4 AND p.username LIKE '%' || user_email_prefix || '%')
     )
   ORDER BY 
-    CASE WHEN p.username = user_email_prefix THEN 1 ELSE 2 END,
+    CASE 
+      WHEN p.username = user_email_prefix THEN 1
+      WHEN google_name <> '' AND EXISTS (SELECT 1 FROM public.profile_private pp WHERE pp.id = p.id AND lower(regexp_replace(pp.full_name, '[^a-z0-9_]', '', 'g')) = google_name) THEN 2
+      WHEN length(p.username) >= 4 AND user_email_prefix LIKE '%' || p.username || '%' THEN 3
+      ELSE 4
+    END,
     (SELECT count(*) FROM public.listings l WHERE l.owner_id = p.id) DESC
   LIMIT 1;
 

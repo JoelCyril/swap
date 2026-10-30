@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getTermsStatus, acceptTerms, checkUsername } from "@/lib/terms.functions";
-import { ScrollText, AlertTriangle, UserRound } from "lucide-react";
+import { ScrollText, AlertTriangle, UserRound, Sparkles } from "lucide-react";
 import { EMIRATES } from "@/lib/db-types";
 import { toast } from "sonner";
 
@@ -29,6 +29,7 @@ export function TosGate({ children }: { children: React.ReactNode }) {
   const [age, setAge] = useState("");
   const [username, setUsername] = useState("");
   const [taken, setTaken] = useState<boolean | null>(null);
+  const [isLegacyClaim, setIsLegacyClaim] = useState<boolean>(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [profile, setProfile] = useState({
     full_name: "",
@@ -58,13 +59,24 @@ export function TosGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!unameValid || !userId) {
       setTaken(null);
+      setIsLegacyClaim(false);
       return;
     }
     let cancel = false;
     const t = setTimeout(() => {
       checkFn({ data: { username: uname } })
-        .then((r) => !cancel && setTaken(!r.available))
-        .catch(() => !cancel && setTaken(null));
+        .then((r) => {
+          if (!cancel) {
+            setTaken(!r.available);
+            setIsLegacyClaim(Boolean(r.isLegacyClaim));
+          }
+        })
+        .catch(() => {
+          if (!cancel) {
+            setTaken(null);
+            setIsLegacyClaim(false);
+          }
+        });
     }, 350);
     return () => {
       cancel = true;
@@ -87,7 +99,9 @@ export function TosGate({ children }: { children: React.ReactNode }) {
         },
       }),
     onSuccess: () => {
-      toast.success("Welcome to SWAP", { description: `Your username is @${uname}` });
+      toast.success(isLegacyClaim ? "Account restored! Welcome back to SWAP" : "Welcome to SWAP", {
+        description: `Your username is @${uname}`,
+      });
       qc.invalidateQueries({ queryKey: ["terms-status", userId] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
@@ -108,10 +122,10 @@ export function TosGate({ children }: { children: React.ReactNode }) {
       <div className="grid min-h-screen place-items-center bg-background px-4 py-8">
         <div className="w-full max-w-lg rounded-3xl border-2 border-primary/20 bg-card p-6 shadow-card sm:p-8">
           <h1 className="font-display text-2xl font-black flex items-center gap-2 sm:text-3xl">
-            <UserRound className="h-6 w-6 text-primary" /> Set up your profile
+            <UserRound className="h-6 w-6 text-primary" /> {isLegacyClaim ? "Confirm your profile" : "Set up your profile"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            You're @{uname}. Tell neighbours a little about you — you can change all of this later in Settings.
+            You're @{uname}. {isLegacyClaim ? "Review your profile info — you can edit anything now or later in Settings." : "Tell neighbours a little about you — you can change all of this later in Settings."}
           </p>
 
           <div className="mt-5 space-y-4">
@@ -175,13 +189,13 @@ export function TosGate({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => mut.mutate()}
             disabled={mut.isPending}
-            className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
+            className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 cursor-pointer"
           >
-            {mut.isPending ? "Saving…" : "Finish & start swapping"}
+            {mut.isPending ? "Saving…" : isLegacyClaim ? "Restore account & start swapping" : "Finish & start swapping"}
           </button>
           <button
             onClick={() => setStep(1)}
-            className="mt-2 w-full rounded-full py-2 text-xs font-bold uppercase text-muted-foreground hover:text-primary"
+            className="mt-2 w-full rounded-full py-2 text-xs font-bold uppercase text-muted-foreground hover:text-primary cursor-pointer"
           >
             Back
           </button>
@@ -208,7 +222,10 @@ export function TosGate({ children }: { children: React.ReactNode }) {
         </ul>
 
         <div className="mt-5">
-          <label className="text-xs font-bold uppercase text-muted-foreground">Pick your username</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase text-muted-foreground">Pick your username</label>
+            <span className="text-[11px] text-muted-foreground">Returning user? Enter your existing username to restore it</span>
+          </div>
           <div className="mt-1 flex items-center gap-2 rounded-full border-2 border-primary/20 bg-white px-4 py-2 focus-within:border-primary">
             <span className="text-sm font-bold text-muted-foreground">@</span>
             <input
@@ -225,8 +242,14 @@ export function TosGate({ children }: { children: React.ReactNode }) {
           {unameValid && taken === true && (
             <p className="mt-1 text-xs font-semibold text-destructive">@{uname} is already taken.</p>
           )}
-          {unameValid && taken === false && (
+          {unameValid && taken === false && !isLegacyClaim && (
             <p className="mt-1 text-xs font-semibold text-primary">@{uname} is available.</p>
+          )}
+          {unameValid && taken === false && isLegacyClaim && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              Existing account found! We will restore your items, listings, and profile.
+            </p>
           )}
         </div>
 
@@ -282,13 +305,13 @@ export function TosGate({ children }: { children: React.ReactNode }) {
         <button
           onClick={() => setStep(2)}
           disabled={!canSubmit}
-          className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50"
+          className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-50 cursor-pointer"
         >
-          Accept &amp; continue
+          {isLegacyClaim ? "Restore account & continue" : "Accept & continue"}
         </button>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="mt-2 w-full rounded-full py-2 text-xs font-bold uppercase text-muted-foreground hover:text-primary"
+          className="mt-2 w-full rounded-full py-2 text-xs font-bold uppercase text-muted-foreground hover:text-primary cursor-pointer"
         >
           Sign out
         </button>

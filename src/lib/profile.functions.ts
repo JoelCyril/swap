@@ -34,7 +34,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     let profile =
-      !data || !data.username || data.username.startsWith("user")
+      !data || !data.username || data.username.startsWith("user") || !data.tos_accepted_at
         ? await ensureProfile(context.userId)
         : data;
 

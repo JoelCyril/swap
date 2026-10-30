@@ -7,17 +7,20 @@ import { ensureProfile } from "./profile.server";
 export const getTermsStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // 1. Ensure profile and run auto-merge for returning users
+    const profile = await ensureProfile(context.userId);
+    if (profile?.tos_accepted_at) {
+      return { accepted: true, age: profile.age_confirmed ?? null };
+    }
+
     const { data } = await context.supabase
       .from("profiles")
       .select("tos_accepted_at, age_confirmed")
       .eq("id", context.userId)
       .maybeSingle();
-    if (!data) {
-      await ensureProfile(context.userId);
-      return { accepted: false, age: null as number | null };
-    }
-    const row = data as { tos_accepted_at: string | null; age_confirmed: number | null };
-    return { accepted: Boolean(row.tos_accepted_at), age: row.age_confirmed ?? null };
+
+    const row = data as { tos_accepted_at: string | null; age_confirmed: number | null } | null;
+    return { accepted: Boolean(row?.tos_accepted_at), age: row?.age_confirmed ?? null };
   });
 
 export const acceptTerms = createServerFn({ method: "POST" })
@@ -47,11 +50,26 @@ export const acceptTerms = createServerFn({ method: "POST" })
 
     const { data: taken } = await context.supabase
       .from("profiles")
-      .select("id")
+      .select("id, username")
       .ilike("username", username)
       .maybeSingle();
+
     if (taken && taken.id !== context.userId) {
-      throw new Error("That username is already taken — pick another one.");
+      // Check if taken is an unclaimed legacy profile
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      let hasActiveAuth = false;
+      try {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(taken.id);
+        hasActiveAuth = !!authUser?.user;
+      } catch {}
+
+      if (!hasActiveAuth) {
+        // Unclaimed legacy profile! Merge it to restore listings, items, and history!
+        const { mergeOrphanedProfile } = await import("./profile.server");
+        await mergeOrphanedProfile(context.userId, taken.id);
+      } else {
+        throw new Error("That username is already taken — pick another one.");
+      }
     }
 
     const { error } = await context.supabase
@@ -67,6 +85,7 @@ export const acceptTerms = createServerFn({ method: "POST" })
         age_confirmed: data.age,
       } as never)
       .eq("id", context.userId);
+
     if (error) {
       throw new Error(
         error.message.includes("duplicate") ? "That username is already taken — pick another one." : error.message,
@@ -89,11 +108,28 @@ export const checkUsername = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { username: string }) => z.object({ username: z.string().trim().min(3).max(20) }).parse(d))
   .handler(async ({ data, context }) => {
+    const uname = data.username.toLowerCase();
     const { data: rows } = await context.supabase
       .from("profiles")
-      .select("id")
-      .ilike("username", data.username.toLowerCase())
+      .select("id, username")
+      .ilike("username", uname)
       .limit(1);
     const taken = (rows ?? [])[0];
-    return { available: !taken || taken.id === context.userId };
+    if (!taken || taken.id === context.userId) {
+      return { available: true, isLegacyClaim: false };
+    }
+
+    // Check if this taken username belongs to an unclaimed legacy/orphaned profile
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let hasActiveAuth = false;
+    try {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(taken.id);
+      hasActiveAuth = !!authUser?.user;
+    } catch {}
+
+    if (!hasActiveAuth) {
+      return { available: true, isLegacyClaim: true, legacyUsername: taken.username };
+    }
+
+    return { available: false, isLegacyClaim: false };
   });
